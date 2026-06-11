@@ -4,10 +4,14 @@ out
 .turbo
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 
 # desktop build
 apps/desktop/out/
 apps/desktop/dist/
+apps/desktop/tsconfig.web.tsbuildinfo
+apps/desktop/tsconfig.node.tsbuildinfo
 
 # autotest workspace data (per-project)
 .autotest/
