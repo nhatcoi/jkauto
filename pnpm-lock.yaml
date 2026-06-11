@@ -17,9 +17,9 @@ importers:
 
   apps/desktop:
     dependencies:
-      '@jkauto/engine':
-        specifier: workspace:*
-        version: link:../../packages/engine
+      '@playwright/test':
+        specifier: ^1.46.0
+        version: 1.60.0
       chokidar:
         specifier: ^3.6.0
         version: 3.6.0
@@ -36,6 +36,9 @@ importers:
       '@jkauto/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@jkauto/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
       '@radix-ui/react-context-menu':
         specifier: ^2.2.2
         version: 2.3.0(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
