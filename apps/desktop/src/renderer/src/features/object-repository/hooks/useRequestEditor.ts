@@ -1,8 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useProjectStore } from '@/store/project.store'
-import { loadRequest, saveRequest, sendRequest } from '../api'
+import { loadRequest, saveRequest, sendRequest, getRequestHistory, saveRequestHistory } from '../api'
 import { readEnv } from '@/features/env/api'
 import type { ApiRequest, HttpResponse, AssertionResult } from '../types'
+import type { RequestHistoryRecord } from '@jkauto/core'
 
 function evaluateAssertions(request: ApiRequest, resp: HttpResponse): AssertionResult[] {
   return request.assertions.map((a) => {
@@ -61,6 +62,7 @@ export function useRequestEditor(filePath: string) {
   const [response, setResponse] = useState<HttpResponse | null>(null)
   const [assertionResults, setAssertionResults] = useState<AssertionResult[]>([])
   const [sendError, setSendError] = useState('')
+  const [history, setHistory] = useState<RequestHistoryRecord[]>([])
 
   const requestRef = useRef<ApiRequest | null>(null)
   requestRef.current = request
@@ -71,9 +73,13 @@ export function useRequestEditor(filePath: string) {
     setResponse(null)
     setAssertionResults([])
     setSendError('')
+    setHistory([])
     loadRequest(filePath)
       .then(setRequest)
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load'))
+    getRequestHistory(filePath)
+      .then(setHistory)
+      .catch(() => {})
   }, [filePath])
 
   const mutate = useCallback(
@@ -121,6 +127,20 @@ export function useRequestEditor(filePath: string) {
       const resp = await sendRequest(req, profileVariables)
       setResponse(resp)
       setAssertionResults(evaluateAssertions(req, resp))
+      const record: RequestHistoryRecord = {
+        id: crypto.randomUUID(),
+        requestedAt: new Date().toISOString(),
+        method: req.method,
+        url: req.url,
+        status: resp.status,
+        statusText: resp.statusText,
+        durationMs: resp.durationMs,
+        size: resp.size,
+        headers: resp.headers,
+        body: resp.body,
+      }
+      setHistory((prev) => [record, ...prev].slice(0, 30))
+      saveRequestHistory(filePath, record).catch(() => {})
     } catch (e) {
       setSendError(e instanceof Error ? e.message : 'Request failed')
     } finally {
@@ -136,6 +156,7 @@ export function useRequestEditor(filePath: string) {
     response,
     assertionResults,
     sendError,
+    history,
     mutate,
     save,
     send,

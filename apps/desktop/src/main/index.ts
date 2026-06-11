@@ -9,6 +9,7 @@ import { registerEngineHandlers } from './handlers/engine.handler'
 import { registerRunHandlers } from './handlers/run.handler'
 import { registerHttpHandlers } from './handlers/http.handler'
 import { registerEnvHandlers } from './handlers/env.handler'
+import { registerHistoryHandlers } from './handlers/history.handler'
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -54,6 +55,7 @@ app.whenReady().then(() => {
   registerRunHandlers(ipcMain)
   registerHttpHandlers(ipcMain)
   registerEnvHandlers(ipcMain)
+  registerHistoryHandlers(ipcMain)
 
   createWindow()
 

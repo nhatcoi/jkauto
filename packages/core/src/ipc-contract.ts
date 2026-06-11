@@ -43,6 +43,8 @@ export const IpcChannels = {
 
   HTTP_SEND_REQUEST: 'http:send-request',
   HTTP_IMPORT_OPENAPI: 'http:import-openapi',
+  HTTP_HISTORY_GET: 'http:history:get',
+  HTTP_HISTORY_SAVE: 'http:history:save',
 
   ENV_LIST: 'env:list',
   ENV_READ: 'env:read',
@@ -178,4 +180,22 @@ export interface EnvWritePayload {
 export interface EnvCreatePayload {
   projectPath: string
   name: string
+}
+
+export interface RequestHistoryRecord {
+  id: string
+  requestedAt: string
+  method: string
+  url: string
+  status: number
+  statusText: string
+  durationMs: number
+  size: number
+  headers: Record<string, string>
+  body: string
+}
+
+export interface HttpHistorySavePayload {
+  filePath: string
+  record: RequestHistoryRecord
 }

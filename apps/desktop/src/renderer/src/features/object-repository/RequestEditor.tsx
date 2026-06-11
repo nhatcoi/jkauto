@@ -23,6 +23,7 @@ export function RequestEditor({ filePath }: { filePath: string }) {
     response,
     assertionResults,
     sendError,
+    history,
     mutate,
     save,
     send,
@@ -216,7 +217,7 @@ export function RequestEditor({ filePath }: { filePath: string }) {
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Response</span>
           </div>
           <div className="flex-1 overflow-hidden">
-            <ResponsePanel response={response} sendError={sendError} sending={sending} />
+            <ResponsePanel response={response} sendError={sendError} sending={sending} history={history} />
           </div>
         </div>
       </div>

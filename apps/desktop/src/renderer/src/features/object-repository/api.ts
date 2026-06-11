@@ -1,6 +1,6 @@
 import { IpcChannels } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
-import type { ApiRequest, HttpResponse, HttpImportOpenApiResult } from '@jkauto/core'
+import type { ApiRequest, HttpResponse, HttpImportOpenApiResult, RequestHistoryRecord } from '@jkauto/core'
 
 export async function sendRequest(
   request: ApiRequest,
@@ -23,4 +23,12 @@ export async function loadRequest(filePath: string): Promise<ApiRequest> {
 
 export async function saveRequest(filePath: string, request: ApiRequest): Promise<void> {
   await invoke(IpcChannels.FS_WRITE_FILE, filePath, JSON.stringify(request, null, 2))
+}
+
+export async function getRequestHistory(filePath: string): Promise<RequestHistoryRecord[]> {
+  return invoke<RequestHistoryRecord[]>(IpcChannels.HTTP_HISTORY_GET, filePath)
+}
+
+export async function saveRequestHistory(filePath: string, record: RequestHistoryRecord): Promise<void> {
+  await invoke(IpcChannels.HTTP_HISTORY_SAVE, { filePath, record })
 }
