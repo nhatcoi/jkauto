@@ -29,7 +29,10 @@ export async function runTestCase(
   const variables = profile.variables
 
   function interpolate(value: string): string {
-    return value.replace(/\$\{(\w+)\}/g, (_, key) => variables[key] ?? `\${${key}}`)
+    // support both {{key}} (app-wide convention) and ${key} (legacy)
+    return value
+      .replace(/\{\{(\w+)\}\}/g, (_, key) => variables[key] ?? `{{${key}}}`)
+      .replace(/\$\{(\w+)\}/g, (_, key) => variables[key] ?? `\${${key}}`)
   }
 
   async function resolveLocator(ref: string): Promise<string> {

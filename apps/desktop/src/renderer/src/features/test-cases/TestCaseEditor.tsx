@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import {
   Plus,
   ChevronUp,
@@ -24,6 +24,7 @@ import { useProjectStore } from '@/store/project.store'
 import { useRunStore } from '@/store/run.store'
 import type { StepStatus } from '@/store/run.store'
 import { getKeyword } from './keywords'
+import { readEnv } from '@/features/env/api'
 import { ImportStepsDialog } from './components/ImportStepsDialog'
 import { StepRow } from './components/StepRow'
 import { StepContextMenu } from './components/StepContextMenu'
@@ -45,7 +46,7 @@ function makeStep(keyword = 'click'): TestStep {
 }
 
 export function TestCaseEditor({ filePath }: { filePath: string }) {
-  const { markTabDirty } = useProjectStore()
+  const { markTabDirty, activeProject } = useProjectStore()
   const {
     startRun,
     handleStepEvent,
@@ -148,12 +149,21 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
       await invoke(IpcChannels.FS_WRITE_FILE, filePath, JSON.stringify(current, null, 2))
       markTabDirty(filePath, false)
     }
+    let profileVariables: Record<string, string> = {}
+    if (activeProject) {
+      try {
+        profileVariables = await readEnv(
+          `${activeProject.path}/profiles/${activeProject.activeProfile}.env.json`,
+        )
+      } catch { /* profile missing — ignore */ }
+    }
     const result = await invoke<{ runId: string }>(IpcChannels.ENGINE_RUN_CASE, {
       filePath,
       debugMode,
+      profileVariables,
     })
     startRun(result.runId, filePath, debugMode)
-  }, [filePath, runStatus, markTabDirty, startRun])
+  }, [filePath, runStatus, markTabDirty, startRun, activeProject])
 
   const handleStop = useCallback(async () => {
     if (!runId) return
