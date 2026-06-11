@@ -1,0 +1,16 @@
+{
+  "name": "generic-template",
+  "version": "1.0.0",
+  "description": "Generic Node.js CLI / automation script template",
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "generic-tool": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0"
+  }
+}
