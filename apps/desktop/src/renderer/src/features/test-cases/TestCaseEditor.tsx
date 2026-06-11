@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import {
   Plus,
-  Trash2,
   ChevronUp,
   ChevronDown,
   Save,
-  AlertCircle,
   Play,
   Bug,
   History,
@@ -14,40 +12,20 @@ import {
   Circle,
   Loader2,
   Square,
-  Minus,
   Upload,
+  AlertCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { invoke } from '@/lib/utils'
 import { IpcChannels } from '@jkauto/core'
-import type { StepEvent, RunCompleteEvent } from '@jkauto/core'
 import { useProjectStore } from '@/store/project.store'
 import { useRunStore } from '@/store/run.store'
 import type { StepStatus } from '@/store/run.store'
-import { BUILT_IN_KEYWORDS, getKeyword } from './keywords'
-import type { KeywordDef } from './keywords'
+import { getKeyword } from './keywords'
 import { ImportStepsDialog } from './components/ImportStepsDialog'
-
-// ── types ──────────────────────────────────────────────────────────────────────
-interface TestStep {
-  id: string
-  keyword: string
-  description: string
-  objectRef: string
-  input: string
-  expected: string
-  enabled: boolean
-  continueOnFailure: boolean
-  timeout: number | null
-}
-
-interface TestCase {
-  schemaVersion: number
-  id: string
-  name: string
-  description: string
-  steps: TestStep[]
-}
+import { StepRow } from './components/StepRow'
+import { StepContextMenu } from './components/StepContextMenu'
+import type { TestCase, TestStep } from './types'
 
 function makeStep(keyword = 'click'): TestStep {
   return {
@@ -63,242 +41,19 @@ function makeStep(keyword = 'click'): TestStep {
   }
 }
 
-// ── keyword picker ─────────────────────────────────────────────────────────────
-function KeywordBadge({
-  keyword,
-  onChange,
-}: {
-  keyword: string
-  onChange: (id: string) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const [search, setSearch] = useState('')
-  const ref = useRef<HTMLDivElement>(null)
-  const kw = getKeyword(keyword)
-
-  useEffect(() => {
-    if (!open) return
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [open])
-
-  const filtered = BUILT_IN_KEYWORDS.filter((k) =>
-    k.label.toLowerCase().includes(search.toLowerCase()),
-  )
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => { setOpen((v) => !v); setSearch('') }}
-        className={cn(
-          'text-[11px] font-semibold text-white px-2 py-0.5 rounded cursor-pointer whitespace-nowrap',
-          kw.color,
-          'hover:opacity-90 transition-opacity',
-        )}
-      >
-        {kw.label}
-      </button>
-
-      {open && (
-        <div className="absolute z-50 top-full left-0 mt-1 w-52 bg-popover border border-border rounded-md shadow-lg overflow-hidden">
-          <div className="p-1.5 border-b border-border">
-            <input
-              autoFocus
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search keyword…"
-              className="w-full text-xs bg-input text-foreground px-2 py-1 rounded outline-none border border-border focus:border-primary"
-            />
-          </div>
-          <div className="max-h-56 overflow-y-auto">
-            {filtered.map((k) => (
-              <button
-                key={k.id}
-                type="button"
-                onClick={() => { onChange(k.id); setOpen(false) }}
-                className={cn(
-                  'w-full text-left flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-secondary transition-colors',
-                  k.id === keyword && 'bg-secondary/60',
-                )}
-              >
-                <span className={cn('w-2 h-2 rounded-full shrink-0', k.color)} />
-                {k.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── cell input ─────────────────────────────────────────────────────────────────
-function CellInput({
-  value,
-  placeholder,
-  onChange,
-  disabled,
-  className,
-}: {
-  value: string
-  placeholder?: string
-  onChange: (v: string) => void
-  disabled?: boolean
-  className?: string
-}) {
-  return (
-    <input
-      value={value}
-      placeholder={placeholder}
-      onChange={(e) => onChange(e.target.value)}
-      disabled={disabled}
-      className={cn(
-        'w-full bg-transparent text-xs text-foreground/85 px-1.5 py-0.5 rounded outline-none',
-        'border border-transparent hover:border-border focus:border-primary transition-colors',
-        'placeholder:text-muted-foreground/40 disabled:opacity-40',
-        className,
-      )}
-    />
-  )
-}
-
-// ── step status icon ───────────────────────────────────────────────────────────
-function StepStatusIcon({ status }: { status?: StepStatus }) {
-  if (!status || status === 'idle') return <span className="w-3.5 h-3.5" />
-  if (status === 'running') return <Loader2 className="w-3.5 h-3.5 text-yellow-400 animate-spin" />
-  if (status === 'passed') return <CircleCheck className="w-3.5 h-3.5 text-green-500" />
-  if (status === 'failed') return <CircleX className="w-3.5 h-3.5 text-red-500" />
-  if (status === 'skipped') return <Minus className="w-3.5 h-3.5 text-muted-foreground/50" />
-  return null
-}
-
-// ── step row ───────────────────────────────────────────────────────────────────
-function StepRow({
-  step,
-  index,
-  selected,
-  onSelect,
-  onChange,
-  onDelete,
-  kw,
-  stepStatus,
-  stepMessage,
-}: {
-  step: TestStep
-  index: number
-  selected: boolean
-  onSelect: () => void
-  onChange: (patch: Partial<TestStep>) => void
-  onDelete: () => void
-  kw: KeywordDef
-  stepStatus?: StepStatus
-  stepMessage?: string
-}) {
-  return (
-    <tr
-      onClick={onSelect}
-      className={cn(
-        'border-b border-border/40 group',
-        selected ? 'bg-primary/8' : 'hover:bg-secondary/20',
-        !step.enabled && 'opacity-40',
-        stepStatus === 'failed' && 'bg-red-500/5',
-        stepStatus === 'passed' && 'bg-green-500/5',
-        stepStatus === 'running' && 'bg-yellow-500/5',
-      )}
-    >
-      {/* status icon */}
-      <td className="w-8 text-center px-1">
-        <div className="flex items-center justify-center" title={stepMessage}>
-          <StepStatusIcon status={stepStatus} />
-        </div>
-      </td>
-
-      {/* enabled */}
-      <td className="w-7 text-center px-1">
-        <input
-          type="checkbox"
-          checked={step.enabled}
-          onChange={(e) => onChange({ enabled: e.target.checked })}
-          onClick={(e) => e.stopPropagation()}
-          className="w-3 h-3 cursor-pointer accent-primary"
-        />
-      </td>
-
-      {/* keyword */}
-      <td className="w-40 px-1 py-1" onClick={(e) => e.stopPropagation()}>
-        <KeywordBadge keyword={step.keyword} onChange={(id) => onChange({ keyword: id })} />
-      </td>
-
-      {/* description */}
-      <td className="px-1 py-0.5" onClick={(e) => e.stopPropagation()}>
-        <CellInput
-          value={step.description}
-          placeholder="Description"
-          onChange={(v) => onChange({ description: v })}
-        />
-      </td>
-
-      {/* object/selector */}
-      <td className="w-36 px-1 py-0.5" onClick={(e) => e.stopPropagation()}>
-        {kw.hasObject ? (
-          <CellInput
-            value={step.objectRef}
-            placeholder={kw.objectPlaceholder ?? 'Selector'}
-            onChange={(v) => onChange({ objectRef: v })}
-          />
-        ) : (
-          <span className="text-muted-foreground/20 text-xs px-1.5">—</span>
-        )}
-      </td>
-
-      {/* input */}
-      <td className="w-36 px-1 py-0.5" onClick={(e) => e.stopPropagation()}>
-        {kw.hasInput ? (
-          <CellInput
-            value={step.input}
-            placeholder={kw.inputPlaceholder ?? 'Input'}
-            onChange={(v) => onChange({ input: v })}
-          />
-        ) : (
-          <span className="text-muted-foreground/20 text-xs px-1.5">—</span>
-        )}
-      </td>
-
-      {/* expected */}
-      <td className="w-36 px-1 py-0.5" onClick={(e) => e.stopPropagation()}>
-        {kw.hasExpected ? (
-          <CellInput
-            value={step.expected}
-            placeholder={kw.expectedPlaceholder ?? 'Expected'}
-            onChange={(v) => onChange({ expected: v })}
-          />
-        ) : (
-          <span className="text-muted-foreground/20 text-xs px-1.5">—</span>
-        )}
-      </td>
-
-      {/* delete */}
-      <td className="w-8 text-center px-1" onClick={(e) => e.stopPropagation()}>
-        <button
-          type="button"
-          onClick={onDelete}
-          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all p-0.5 rounded"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-      </td>
-    </tr>
-  )
-}
-
-// ── main editor ────────────────────────────────────────────────────────────────
 export function TestCaseEditor({ filePath }: { filePath: string }) {
   const { markTabDirty } = useProjectStore()
-  const { startRun, handleStepEvent, handleRunComplete, stopRun, status: runStatus, stepStatuses, stepMessages, runId } = useRunStore()
+  const {
+    startRun,
+    handleStepEvent,
+    handleRunComplete,
+    stopRun,
+    status: runStatus,
+    stepStatuses,
+    stepMessages,
+    runId,
+  } = useRunStore()
+  
   const [tc, setTc] = useState<TestCase | null>(null)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -306,12 +61,18 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
   const [showHistory, setShowHistory] = useState(false)
   const [showImport, setShowImport] = useState(false)
 
-  const handleImport = (importedSteps: any[]) => {
-    mutate((tc) => ({
-      ...tc,
-      steps: [...tc.steps, ...importedSteps],
-    }))
-  }
+  // Drag and Drop State
+  const [draggedIdx, setDraggedIdx] = useState<number | null>(null)
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
+
+  // Context Menu and Clipboard State
+  const [clipboard, setClipboard] = useState<Partial<TestStep> | null>(null)
+  const [contextMenu, setContextMenu] = useState<{
+    x: number
+    y: number
+    visible: boolean
+    stepIdx: number
+  } | null>(null)
 
   // keep ref for save callback (avoids stale closure in keydown)
   const tcRef = useRef<TestCase | null>(null)
@@ -329,7 +90,9 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
     }
   }, [filePath])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+  }, [load])
 
   // Subscribe to engine events
   useEffect(() => {
@@ -347,7 +110,6 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
 
   const handleRun = useCallback(async (debugMode = false) => {
     if (runStatus === 'running') return
-    // Auto-save before run
     const current = tcRef.current
     if (current) {
       await invoke(IpcChannels.FS_WRITE_FILE, filePath, JSON.stringify(current, null, 2))
@@ -413,7 +175,7 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
       ...tc,
       steps: [...tc.steps, makeStep()],
     }))
-    setSelectedIdx((tc?.steps.length ?? 0))
+    setSelectedIdx(tc?.steps.length ?? 0)
   }
 
   const deleteStep = (idx: number) => {
@@ -432,7 +194,158 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
     setSelectedIdx(target)
   }
 
-  // ── render ──────────────────────────────────────────────────────────────────
+  const handleImport = (importedSteps: any[]) => {
+    mutate((tc) => ({
+      ...tc,
+      steps: [...tc.steps, ...importedSteps],
+    }))
+  }
+
+  // Drag & Drop Handlers
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIdx(index)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', index.toString())
+  }
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault()
+  }
+
+  const handleDragEnter = (index: number) => {
+    setDragOverIdx(index)
+  }
+
+  const handleDragLeave = () => {
+    // handled on dragEnd / drop
+  }
+
+  const handleDragEnd = () => {
+    setDraggedIdx(null)
+    setDragOverIdx(null)
+  }
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault()
+    if (draggedIdx === null || draggedIdx === targetIndex) {
+      setDraggedIdx(null)
+      setDragOverIdx(null)
+      return
+    }
+
+    mutate((tc) => {
+      const steps = [...tc.steps]
+      const [draggedItem] = steps.splice(draggedIdx, 1)
+      steps.splice(targetIndex, 0, draggedItem)
+      return { ...tc, steps }
+    })
+    
+    setSelectedIdx(targetIndex)
+    setDraggedIdx(null)
+    setDragOverIdx(null)
+  }
+
+  // Context Menu Handlers
+  const handleContextMenu = (e: React.MouseEvent, index: number) => {
+    e.preventDefault()
+    setSelectedIdx(index)
+    
+    const menuWidth = 220
+    const menuHeight = 280
+    const screenWidth = window.innerWidth
+    const screenHeight = window.innerHeight
+    
+    let posX = e.clientX
+    let posY = e.clientY
+    
+    if (posX + menuWidth > screenWidth) posX = screenWidth - menuWidth - 8
+    if (posY + menuHeight > screenHeight) posY = screenHeight - menuHeight - 8
+
+    setContextMenu({
+      x: posX,
+      y: posY,
+      visible: true,
+      stepIdx: index
+    })
+  }
+
+  const closeContextMenu = () => {
+    setContextMenu(null)
+  }
+
+  // Action Methods
+  const insertStepBefore = (idx: number) => {
+    mutate((tc) => {
+      const steps = [...tc.steps]
+      steps.splice(idx, 0, makeStep())
+      return { ...tc, steps }
+    })
+    setSelectedIdx(idx)
+  }
+
+  const insertStepAfter = (idx: number) => {
+    mutate((tc) => {
+      const steps = [...tc.steps]
+      steps.splice(idx + 1, 0, makeStep())
+      return { ...tc, steps }
+    })
+    setSelectedIdx(idx + 1)
+  }
+
+  const copyStep = (idx: number) => {
+    if (!tc) return
+    const stepToCopy = tc.steps[idx]
+    setClipboard({ ...stepToCopy, id: undefined })
+  }
+
+  const cutStep = (idx: number) => {
+    if (!tc) return
+    const stepToCut = tc.steps[idx]
+    setClipboard({ ...stepToCut, id: undefined })
+    deleteStep(idx)
+  }
+
+  const pasteStepBefore = (idx: number) => {
+    if (!clipboard) return
+    mutate((tc) => {
+      const steps = [...tc.steps]
+      steps.splice(idx, 0, { ...makeStep(clipboard.keyword), ...clipboard, id: crypto.randomUUID() })
+      return { ...tc, steps }
+    })
+    setSelectedIdx(idx)
+  }
+
+  const pasteStepAfter = (idx: number) => {
+    if (!clipboard) return
+    mutate((tc) => {
+      const steps = [...tc.steps]
+      steps.splice(idx + 1, 0, { ...makeStep(clipboard.keyword), ...clipboard, id: crypto.randomUUID() })
+      return { ...tc, steps }
+    })
+    setSelectedIdx(idx + 1)
+  }
+
+  const toggleFailureHandling = (idx: number) => {
+    if (!tc) return
+    updateStep(idx, { continueOnFailure: !tc.steps[idx].continueOnFailure })
+  }
+
+  // Close context menu on window mousedown
+  useEffect(() => {
+    if (!contextMenu || !contextMenu.visible) return
+
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest('#step-context-menu')) {
+        closeContextMenu()
+      }
+    }
+    
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+    }
+  }, [contextMenu])
 
   if (error) {
     return (
@@ -593,7 +506,7 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
         <table className="w-full border-collapse min-w-[700px]">
           <thead>
             <tr className="border-b border-border bg-muted/30 sticky top-0 z-10">
-              <th className="w-8 px-1 py-1.5" />
+              <th className="w-12 px-1 py-1.5" />
               <th className="w-7 px-1" />
               <th className="w-40 text-[10px] font-medium text-muted-foreground text-left px-1 py-1.5">
                 Keyword
@@ -636,6 +549,14 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
                 kw={getKeyword(step.keyword)}
                 stepStatus={stepStatuses[idx]}
                 stepMessage={stepMessages[idx]}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragEnd={handleDragEnd}
+                onDrop={handleDrop}
+                isDragOver={dragOverIdx === idx}
+                onDragEnter={handleDragEnter}
+                onDragLeave={handleDragLeave}
+                onContextMenu={handleContextMenu}
               />
             ))}
           </tbody>
@@ -690,6 +611,23 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
         onOpenChange={setShowImport}
         onImport={handleImport}
       />
+
+      {contextMenu && contextMenu.visible && (
+        <StepContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          clipboard={clipboard}
+          stepIdx={contextMenu.stepIdx}
+          onInsertBefore={insertStepBefore}
+          onInsertAfter={insertStepAfter}
+          onCopy={copyStep}
+          onCut={cutStep}
+          onPasteBefore={pasteStepBefore}
+          onPasteAfter={pasteStepAfter}
+          onToggleFailure={toggleFailureHandling}
+          onDelete={deleteStep}
+        />
+      )}
     </div>
   )
 }
