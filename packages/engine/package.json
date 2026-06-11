@@ -1,0 +1,24 @@
+{
+  "name": "@jkauto/engine",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@jkauto/core": "workspace:*",
+    "@playwright/test": "^1.46.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}
