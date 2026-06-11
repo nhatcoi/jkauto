@@ -18,6 +18,7 @@ import {
 import { cn } from '@/lib/utils'
 import { invoke } from '@/lib/utils'
 import { IpcChannels } from '@jkauto/core'
+import type { RunRecord } from '@jkauto/core'
 import { useProjectStore } from '@/store/project.store'
 import { useRunStore } from '@/store/run.store'
 import type { StepStatus } from '@/store/run.store'
@@ -25,6 +26,7 @@ import { getKeyword } from './keywords'
 import { ImportStepsDialog } from './components/ImportStepsDialog'
 import { StepRow } from './components/StepRow'
 import { StepContextMenu } from './components/StepContextMenu'
+import { RunHistoryPanel } from './components/RunHistoryPanel'
 import type { TestCase, TestStep } from './types'
 
 function makeStep(keyword = 'click'): TestStep {
@@ -52,6 +54,9 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
     stepStatuses,
     stepMessages,
     runId,
+    runHistory,
+    setRunHistory,
+    appendRunRecord,
   } = useRunStore()
   
   const [tc, setTc] = useState<TestCase | null>(null)
@@ -90,6 +95,13 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
     }
   }, [filePath])
 
+  // Load run history whenever the file changes
+  useEffect(() => {
+    invoke<RunRecord[]>(IpcChannels.ENGINE_GET_RUNS, filePath)
+      .then((records) => setRunHistory(records ?? []))
+      .catch(() => setRunHistory([]))
+  }, [filePath, setRunHistory])
+
   useEffect(() => {
     load()
   }, [load])
@@ -101,12 +113,26 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
     })
     const offComplete = window.api.on(IpcChannels.ENGINE_RUN_COMPLETE, (event: any) => {
       handleRunComplete(event)
+      // Persist the run record and update in-memory history
+      const record: RunRecord = {
+        runId: event.runId,
+        filePath,
+        status: event.status,
+        totalSteps: event.totalSteps,
+        passedSteps: event.passedSteps,
+        failedSteps: event.failedSteps,
+        durationMs: event.durationMs,
+        startedAt: new Date(Date.now() - event.durationMs).toISOString(),
+        endedAt: new Date().toISOString(),
+      }
+      appendRunRecord(record)
+      invoke(IpcChannels.ENGINE_SAVE_RUN, filePath, record).catch(console.error)
     })
     return () => {
       offStep()
       offComplete()
     }
-  }, [handleStepEvent, handleRunComplete])
+  }, [filePath, handleStepEvent, handleRunComplete, appendRunRecord])
 
   const handleRun = useCallback(async (debugMode = false) => {
     if (runStatus === 'running') return
@@ -564,17 +590,7 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
       </div>
 
       {/* ── history panel ── */}
-      {showHistory && (
-        <div className="border-t border-border bg-muted/10 shrink-0">
-          <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/50">
-            <History className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-xs font-medium text-foreground/70">Run History</span>
-          </div>
-          <div className="px-3 py-6 text-center text-xs text-muted-foreground/50">
-            No run history yet. Run the test case to see results here.
-          </div>
-        </div>
-      )}
+      {showHistory && <RunHistoryPanel records={runHistory} />}
 
       {/* ── step detail (continue-on-failure, timeout) ── */}
       {sel && (

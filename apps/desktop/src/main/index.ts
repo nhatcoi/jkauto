@@ -6,6 +6,7 @@ import { registerFsHandlers } from './handlers/fs.handler'
 import { registerWorkspaceHandlers } from './handlers/workspace.handler'
 import { registerDialogHandlers } from './handlers/dialog.handler'
 import { registerEngineHandlers } from './handlers/engine.handler'
+import { registerRunHandlers } from './handlers/run.handler'
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -48,6 +49,7 @@ app.whenReady().then(() => {
   registerWorkspaceHandlers(ipcMain)
   registerDialogHandlers(ipcMain)
   registerEngineHandlers(ipcMain)
+  registerRunHandlers(ipcMain)
 
   createWindow()
 

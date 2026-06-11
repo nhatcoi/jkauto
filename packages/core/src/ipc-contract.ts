@@ -35,6 +35,8 @@ export const IpcChannels = {
   ENGINE_STOP: 'engine:stop',
   ENGINE_STEP_EVENT: 'engine:step-event',
   ENGINE_RUN_COMPLETE: 'engine:run-complete',
+  ENGINE_GET_RUNS: 'engine:get-runs',
+  ENGINE_SAVE_RUN: 'engine:save-run',
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -101,6 +103,18 @@ export interface RunCompleteEvent {
   passedSteps: number
   failedSteps: number
   durationMs: number
+}
+
+export interface RunRecord {
+  runId: string
+  filePath: string
+  status: 'passed' | 'failed' | 'stopped'
+  totalSteps: number
+  passedSteps: number
+  failedSteps: number
+  durationMs: number
+  startedAt: string
+  endedAt: string
 }
 
 export interface WorkspaceState {

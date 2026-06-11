@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { StepEvent, RunCompleteEvent } from '@jkauto/core'
+import type { StepEvent, RunCompleteEvent, RunRecord } from '@jkauto/core'
 
 export type StepStatus = 'idle' | 'running' | 'passed' | 'failed' | 'skipped'
 
@@ -26,6 +26,7 @@ interface RunStore {
   stepDurations: Record<number, number>
   logs: LogEntry[]
   events: EventEntry[]
+  runHistory: RunRecord[]
 
   // actions
   startRun: (runId: string, filePath: string) => void
@@ -34,6 +35,8 @@ interface RunStore {
   stopRun: () => void
   clearLogs: () => void
   reset: () => void
+  setRunHistory: (records: RunRecord[]) => void
+  appendRunRecord: (record: RunRecord) => void
 }
 
 function ts() {
@@ -53,6 +56,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
   stepDurations: {},
   logs: [],
   events: [],
+  runHistory: [],
 
   startRun: (runId, filePath) =>
     set({
@@ -169,4 +173,9 @@ export const useRunStore = create<RunStore>((set, get) => ({
       logs: [],
       events: [],
     }),
+
+  setRunHistory: (records) => set({ runHistory: records }),
+
+  appendRunRecord: (record) =>
+    set((state) => ({ runHistory: [record, ...state.runHistory].slice(0, 50) })),
 }))
