@@ -1,0 +1,27 @@
+import { useEffect } from 'react'
+import { useProjectStore } from './store/project.store'
+import { AppLayout } from './components/layout/AppLayout'
+import { WelcomeView } from './features/project/WelcomeView'
+import { IpcChannels } from '@jkauto/core'
+import type { Project } from '@jkauto/core'
+import { invoke } from './lib/utils'
+
+export default function App() {
+  const hasProjects = useProjectStore((s) => s.projects.length > 0)
+  const addProject = useProjectStore((s) => s.addProject)
+
+  // Restore workspace on startup
+  useEffect(() => {
+    invoke<Array<{ path: string; project: Project; activeProfile: string }>>(
+      IpcChannels.WORKSPACE_PROJECTS_GET,
+    )
+      .then((entries) => {
+        for (const e of entries) {
+          addProject(e.path, e.project, e.activeProfile)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  return hasProjects ? <AppLayout /> : <WelcomeView />
+}

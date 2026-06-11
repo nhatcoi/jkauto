@@ -1,0 +1,15 @@
+/// <reference types="vite/client" />
+
+import type { IpcChannel } from '@jkauto/core'
+
+interface ElectronApi {
+  invoke: (channel: IpcChannel, ...args: unknown[]) => Promise<unknown>
+  on: (channel: IpcChannel, callback: (...args: unknown[]) => void) => () => void
+  off: (channel: IpcChannel, callback: (...args: unknown[]) => void) => void
+}
+
+declare global {
+  interface Window {
+    api: ElectronApi
+  }
+}
