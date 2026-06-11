@@ -1,0 +1,21 @@
+node_modules
+dist
+out
+.turbo
+*.db
+*.db-journal
+
+# desktop build
+apps/desktop/out/
+apps/desktop/dist/
+
+# autotest workspace data (per-project)
+.autotest/
+
+# env
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
