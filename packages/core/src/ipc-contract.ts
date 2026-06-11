@@ -51,6 +51,10 @@ export const IpcChannels = {
   ENV_WRITE: 'env:write',
   ENV_CREATE: 'env:create',
   ENV_DELETE: 'env:delete',
+
+  AGENT_CHAT: 'agent:chat',
+  AGENT_GET_CONTEXT: 'agent:get-context',
+  AGENT_CANCEL: 'agent:cancel',
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -198,4 +202,69 @@ export interface RequestHistoryRecord {
 export interface HttpHistorySavePayload {
   filePath: string
   record: RequestHistoryRecord
+}
+
+export type AgentRole = 'system' | 'user' | 'assistant'
+
+export interface AgentMessage {
+  id: string
+  role: Exclude<AgentRole, 'system'>
+  content: string
+  createdAt: string
+}
+
+export interface AgentContextSnapshot {
+  activeProject?: {
+    path: string
+    name: string
+    type: string
+    description?: string
+    activeProfile?: string
+  }
+  activeTab?: {
+    path: string
+    title: string
+    isDirty: boolean
+  }
+  openTabs?: Array<{
+    path: string
+    title: string
+    isDirty: boolean
+  }>
+  run?: {
+    status: 'idle' | 'running' | 'passed' | 'failed' | 'stopped'
+    runId: string | null
+    isDebugMode: boolean
+    isDebugPaused: boolean
+    latestLogs: Array<{
+      time: string
+      level: 'info' | 'success' | 'error' | 'warn'
+      message: string
+      stepIndex?: number
+    }>
+    latestEvents: Array<{
+      time: string
+      message: string
+    }>
+    stepMessages: Record<number, string>
+  }
+}
+
+export interface AgentChatPayload {
+  messages: AgentMessage[]
+  context?: AgentContextSnapshot
+}
+
+export interface AgentChatResult {
+  message: AgentMessage
+  model?: string
+  usage?: {
+    prompt_tokens: number
+    completion_tokens: number
+    total_tokens: number
+  }
+}
+
+export interface AgentContextResult {
+  summary: string
 }

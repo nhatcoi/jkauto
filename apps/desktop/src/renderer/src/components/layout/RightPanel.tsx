@@ -1,42 +1,15 @@
 import { useState } from 'react'
-import type { ReactNode } from 'react'
 import * as TabsPrimitive from '@radix-ui/react-tabs'
 import { BrainCircuit, ListTodo } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTabDnd, moveItem } from '@/hooks/useTabDnd'
+import { AgentPanel } from '@/features/agent/AgentPanel'
 
 type TabId = 'jobs' | 'agent'
 
 const TAB_META: Record<TabId, { label: string; icon: typeof ListTodo }> = {
   jobs: { label: 'Jobs', icon: ListTodo },
   agent: { label: 'AI Agent', icon: BrainCircuit },
-}
-
-const TAB_CONTENT: Record<TabId, ReactNode> = {
-  jobs: (
-    <div className="text-xs text-muted-foreground text-center mt-8 opacity-50">No jobs running</div>
-  ),
-  agent: (
-    <>
-      {/* Chat messages */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        <div className="bg-secondary/40 rounded-lg p-3 text-xs text-foreground/80">
-          <span className="font-semibold text-primary block mb-1">JKAuto AI</span>
-          Hello! I can help you generate test cases, write keywords, and automate repetitive tasks.
-          Tell me what you'd like to test.
-        </div>
-      </div>
-      {/* Input */}
-      <div className="border-t border-border p-2 shrink-0">
-        <div className="flex items-center gap-2 bg-input rounded-md border border-border px-3 py-2">
-          <input
-            className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-            placeholder="Ask AI to generate tests..."
-          />
-        </div>
-      </div>
-    </>
-  ),
 }
 
 export function RightPanel() {
@@ -70,11 +43,11 @@ export function RightPanel() {
       </TabsPrimitive.List>
 
       <TabsPrimitive.Content value="jobs" className="flex-1 overflow-auto p-3">
-        {TAB_CONTENT.jobs}
+        <div className="text-xs text-muted-foreground text-center mt-8 opacity-50">No jobs running</div>
       </TabsPrimitive.Content>
 
       <TabsPrimitive.Content value="agent" className="flex flex-col flex-1 overflow-hidden">
-        {TAB_CONTENT.agent}
+        <AgentPanel />
       </TabsPrimitive.Content>
     </TabsPrimitive.Root>
   )
