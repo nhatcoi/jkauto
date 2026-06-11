@@ -36,6 +36,7 @@ interface ProjectStore {
   closeTab: (path: string) => void
   setActiveTab: (path: string) => void
   markTabDirty: (path: string, dirty: boolean) => void
+  reorderTab: (from: number, to: number) => void
 
   // compat (single-project patterns still used in some dialogs)
   setProject: (path: string, project: Project) => void
@@ -161,6 +162,17 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set((state) => ({
       openTabs: state.openTabs.map((t) => (t.path === path ? { ...t, isDirty: dirty } : t)),
     }))
+  },
+
+  reorderTab: (from, to) => {
+    set((state) => {
+      if (from === to || from < 0 || to < 0) return {}
+      if (from >= state.openTabs.length || to >= state.openTabs.length) return {}
+      const openTabs = state.openTabs.slice()
+      const [moved] = openTabs.splice(from, 1)
+      openTabs.splice(to, 0, moved)
+      return { openTabs }
+    })
   },
 
   // compat

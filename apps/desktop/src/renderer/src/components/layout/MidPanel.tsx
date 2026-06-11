@@ -5,6 +5,7 @@ import { IpcChannels } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { TestCaseEditor } from '@/features/test-cases/TestCaseEditor'
+import { useTabDnd } from '@/hooks/useTabDnd'
 
 function isTestCase(path: string) {
   return path.endsWith('.test.json') || path.endsWith('.test.yaml')
@@ -44,7 +45,8 @@ function FileContent({ path }: { path: string }) {
 }
 
 export function MidPanel() {
-  const { openTabs, activeTabPath, setActiveTab, closeTab } = useProjectStore()
+  const { openTabs, activeTabPath, setActiveTab, closeTab, reorderTab } = useProjectStore()
+  const { getTabProps, overIndex } = useTabDnd(reorderTab)
 
   if (openTabs.length === 0) {
     return (
@@ -60,16 +62,18 @@ export function MidPanel() {
     <div className="flex flex-col h-full overflow-hidden">
       {/* Tab bar */}
       <div className="flex items-center h-8 bg-panel border-b border-border overflow-x-auto shrink-0 scrollbar-none">
-        {openTabs.map((tab) => (
+        {openTabs.map((tab, index) => (
           <div
             key={tab.path}
             onClick={() => setActiveTab(tab.path)}
+            {...getTabProps(index)}
             className={cn(
               'flex items-center gap-1.5 h-full px-3 border-r border-border cursor-pointer shrink-0',
               'hover:bg-secondary/40 transition-colors group',
               activeTabPath === tab.path
                 ? 'bg-background border-t-2 border-t-primary text-foreground'
                 : 'text-muted-foreground',
+              overIndex === index && 'bg-primary/10 border-l-2 border-l-primary',
             )}
           >
             <FileText className="w-3 h-3 shrink-0" />

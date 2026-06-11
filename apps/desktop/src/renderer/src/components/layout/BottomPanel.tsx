@@ -2,11 +2,18 @@ import * as TabsPrimitive from '@radix-ui/react-tabs'
 import { AlertCircle, Terminal, Activity, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useRunStore } from '@/store/run.store'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useTabDnd, moveItem } from '@/hooks/useTabDnd'
+
+type BottomTabId = 'problems' | 'console' | 'eventlog'
 
 export function BottomPanel() {
   const { logs, events, clearLogs } = useRunStore()
   const consoleEndRef = useRef<HTMLDivElement>(null)
+  const [order, setOrder] = useState<BottomTabId[]>(['problems', 'console', 'eventlog'])
+  const { getTabProps, overIndex } = useTabDnd((from, to) =>
+    setOrder((prev) => moveItem(prev, from, to)),
+  )
 
   // Auto-scroll to bottom on new logs
   useEffect(() => {
@@ -15,22 +22,28 @@ export function BottomPanel() {
 
   const errors = logs.filter((l) => l.level === 'error')
 
+  const tabMeta: Record<BottomTabId, { label: string; icon: typeof AlertCircle; count?: number }> = {
+    problems: { label: 'Problems', icon: AlertCircle, count: errors.length },
+    console: { label: 'Console', icon: Terminal },
+    eventlog: { label: 'Event Log', icon: Activity },
+  }
+
   return (
     <TabsPrimitive.Root defaultValue="console" className="flex flex-col h-full bg-panel text-foreground">
       <TabsPrimitive.List className="flex h-8 border-b border-border shrink-0 items-center justify-between px-2 bg-muted/20">
         <div className="flex h-full items-center">
-          {[
-            { value: 'problems', label: 'Problems', icon: AlertCircle, count: errors.length },
-            { value: 'console', label: 'Console', icon: Terminal },
-            { value: 'eventlog', label: 'Event Log', icon: Activity },
-          ].map(({ value, label, icon: Icon, count }) => (
+          {order.map((value, index) => {
+            const { label, icon: Icon, count } = tabMeta[value]
+            return (
             <TabsPrimitive.Trigger
               key={value}
               value={value}
+              {...getTabProps(index)}
               className={cn(
                 'flex items-center gap-1.5 px-3 h-8 text-xs text-muted-foreground relative',
                 'hover:text-foreground transition-colors border-r border-border',
                 'data-[state=active]:text-foreground data-[state=active]:bg-background/40 data-[state=active]:border-b-2 data-[state=active]:border-b-primary',
+                overIndex === index && 'bg-primary/10',
               )}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -41,7 +54,8 @@ export function BottomPanel() {
                 </span>
               )}
             </TabsPrimitive.Trigger>
-          ))}
+            )
+          })}
         </div>
 
         {/* Action button */}
