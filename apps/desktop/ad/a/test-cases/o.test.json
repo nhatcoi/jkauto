@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "id": "af69f878-1cbd-41f4-b34a-2fd7bf564a9c",
+  "name": "o",
+  "description": "",
+  "steps": [
+    {
+      "id": "09118721-56ad-4df2-9325-34582d4f31ec",
+      "keyword": "navigate-to",
+      "description": "Open ECM login page",
+      "objectRef": "",
+      "input": "http://localhost:5173/login",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "9a93c5ef-3abc-408b-99ea-afe8a8b6350b",
+      "keyword": "type-text",
+      "description": "Enter username",
+      "objectRef": "#username",
+      "input": "admin",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "b44c3a39-78b9-4ec6-ae81-59cf26308bac",
+      "keyword": "type-text",
+      "description": "Enter password",
+      "objectRef": "#password",
+      "input": "Admin@123",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "3c7635b2-ba35-4ebd-be84-b7498611aedc",
+      "keyword": "click",
+      "description": "Click sign in",
+      "objectRef": "#login-btn",
+      "input": "",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "236ae670-07cb-4e53-a3c1-1d15ae4e9ba1",
+      "keyword": "assert-url",
+      "description": "Verify redirected to dashboard",
+      "objectRef": "",
+      "input": "",
+      "expected": "http://localhost:5173/",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    }
+  ]
+}
