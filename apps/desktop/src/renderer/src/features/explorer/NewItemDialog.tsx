@@ -10,14 +10,17 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
-type NewItemType = 'folder' | 'test-case' | 'suite' | 'keyword'
+type NewItemType = 'folder' | 'test-case' | 'suite' | 'keyword' | 'api-request'
 
 const LABELS: Record<NewItemType, { title: string; placeholder: string }> = {
   folder: { title: 'New Folder', placeholder: 'folder-name' },
   'test-case': { title: 'New Test Case', placeholder: 'login-success' },
   suite: { title: 'New Test Suite', placeholder: 'smoke-suite' },
   keyword: { title: 'New Keyword', placeholder: 'my-keyword' },
+  'api-request': { title: 'New Web Service Request', placeholder: 'get-user' },
 }
+
+export type { NewItemType }
 
 interface Props {
   open: boolean

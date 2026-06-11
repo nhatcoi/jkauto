@@ -12,12 +12,16 @@ import {
   Layers,
   Database,
   Code2,
+  Globe,
 } from 'lucide-react'
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
 import { IpcChannels } from '@jkauto/core'
@@ -27,16 +31,17 @@ import { useProjectStore } from '@/store/project.store'
 import { cn } from '@/lib/utils'
 import { useExplorerTree } from './useExplorerTree'
 import { NewItemDialog } from './NewItemDialog'
+import { ImportOpenApiDialog } from '../object-repository/ImportOpenApiDialog'
 import { randomUUID } from './utils'
 
-type NewItemType = 'folder' | 'test-case' | 'suite' | 'keyword'
+type NewItemType = 'folder' | 'test-case' | 'suite' | 'keyword' | 'api-request'
 
 interface NewItemState {
   dir: string
   type: NewItemType
 }
 
-// ── path helpers (renderer has no node:path) ──────────────────────────────────
+// ── path helpers ──────────────────────────────────────────────────────────────
 const sep = '/'
 function pathJoin(...parts: string[]): string {
   return parts.join(sep).replace(/\/+/g, '/')
@@ -48,7 +53,6 @@ function pathDirname(p: string): string {
 function pathBasename(p: string): string {
   return p.split('/').pop() ?? p
 }
-// ─────────────────────────────────────────────────────────────────────────────
 
 function getFileIcon(node: FsTreeNode): React.ElementType {
   const name = node.name.toLowerCase()
@@ -56,6 +60,7 @@ function getFileIcon(node: FsTreeNode): React.ElementType {
   if (name.endsWith('.suite.json') || name.endsWith('.suite.yaml')) return Layers
   if (name.endsWith('.objects.json') || name.endsWith('.objects.yaml')) return Database
   if (name.endsWith('.keywords.json') || name.endsWith('.keywords.yaml')) return Code2
+  if (name.endsWith('.request.json')) return Globe
   if (node.ext === '.json') return FileJson
   return FileText
 }
@@ -70,8 +75,6 @@ function findNodeById(nodes: FsTreeNode[], id: string): FsTreeNode | undefined {
   }
 }
 
-// id is relative path from project root, e.g. "test-cases/foo.test.json"
-// Top-level feature folders have no "/" in their id
 function isTopLevel(id: string): boolean {
   return !id.includes('/')
 }
@@ -89,21 +92,232 @@ function canDrop(args: {
   dragNodes: NodeApi<FsTreeNode>[]
 }): boolean {
   const { parentNode, dragNodes } = args
-  if (!parentNode) return false                                  // no dropping to root
+  if (!parentNode) return false
   for (const n of dragNodes) {
-    if (isTopLevel(n.id)) return false                          // can't drag feature folders
-    if (!isSameFeature(n.id, parentNode.id)) return false       // cross-feature blocked
+    if (isTopLevel(n.id)) return false
+    if (!isSameFeature(n.id, parentNode.id)) return false
   }
   return true
 }
+
+// ── per-feature context menu ──────────────────────────────────────────────────
+
+interface MenuCallbacks {
+  onNewItem: (state: NewItemState) => void
+  onDelete: () => void
+  onCopy: () => void
+  onOpenFolder: () => void
+  onEdit: () => void
+  onImportOpenApi: (dir: string) => void
+}
+
+function ObjectRepoMenu({
+  node,
+  cb,
+}: {
+  node: NodeApi<FsTreeNode>
+  cb: MenuCallbacks
+}) {
+  const isFolder = node.isInternal
+  const isRoot = isTopLevel(node.id)
+
+  return (
+    <>
+      {isFolder && (
+        <>
+          <ContextMenuSub>
+            <ContextMenuSubTrigger className="text-xs">New</ContextMenuSubTrigger>
+            <ContextMenuSubContent>
+              <ContextMenuItem className="text-xs" onSelect={() => cb.onNewItem({ dir: node.data.path, type: 'folder' })}>
+                Folder
+              </ContextMenuItem>
+              <ContextMenuItem className="text-xs" onSelect={() => cb.onNewItem({ dir: node.data.path, type: 'api-request' })}>
+                Web Service Request
+              </ContextMenuItem>
+            </ContextMenuSubContent>
+          </ContextMenuSub>
+
+          {isRoot && (
+            <ContextMenuSub>
+              <ContextMenuSubTrigger className="text-xs">Import</ContextMenuSubTrigger>
+              <ContextMenuSubContent>
+                <ContextMenuItem className="text-xs" onSelect={() => cb.onImportOpenApi(node.data.path)}>
+                  From OpenAPI
+                </ContextMenuItem>
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+          )}
+          <ContextMenuSeparator />
+        </>
+      )}
+
+      {!isRoot && (
+        <>
+          <ContextMenuItem className="text-xs" onSelect={cb.onEdit}>Rename</ContextMenuItem>
+          {!isFolder && (
+            <ContextMenuItem className="text-xs" onSelect={cb.onCopy}>Copy</ContextMenuItem>
+          )}
+          <ContextMenuItem
+            className="text-xs text-destructive focus:text-destructive"
+            onSelect={cb.onDelete}
+          >
+            Delete
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+        </>
+      )}
+
+      <ContextMenuItem className="text-xs" onSelect={cb.onOpenFolder}>Open Containing Folder</ContextMenuItem>
+    </>
+  )
+}
+
+function TestCasesMenu({
+  node,
+  cb,
+}: {
+  node: NodeApi<FsTreeNode>
+  cb: MenuCallbacks
+}) {
+  const isFolder = node.isInternal
+  const isRoot = isTopLevel(node.id)
+
+  return (
+    <>
+      {isFolder && (
+        <>
+          <ContextMenuItem className="text-xs" onSelect={() => cb.onNewItem({ dir: node.data.path, type: 'test-case' })}>
+            New Test Case
+          </ContextMenuItem>
+          <ContextMenuItem className="text-xs" onSelect={() => cb.onNewItem({ dir: node.data.path, type: 'folder' })}>
+            New Folder
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+        </>
+      )}
+      {!isRoot && (
+        <>
+          <ContextMenuItem className="text-xs" onSelect={cb.onEdit}>Rename</ContextMenuItem>
+          {!isFolder && (
+            <ContextMenuItem className="text-xs" onSelect={cb.onCopy}>Copy</ContextMenuItem>
+          )}
+          <ContextMenuItem
+            className="text-xs text-destructive focus:text-destructive"
+            onSelect={cb.onDelete}
+          >
+            Delete
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+        </>
+      )}
+      <ContextMenuItem className="text-xs" onSelect={cb.onOpenFolder}>Open Containing Folder</ContextMenuItem>
+    </>
+  )
+}
+
+function TestSuitesMenu({
+  node,
+  cb,
+}: {
+  node: NodeApi<FsTreeNode>
+  cb: MenuCallbacks
+}) {
+  const isFolder = node.isInternal
+  const isRoot = isTopLevel(node.id)
+
+  return (
+    <>
+      {isFolder && (
+        <>
+          <ContextMenuItem className="text-xs" onSelect={() => cb.onNewItem({ dir: node.data.path, type: 'suite' })}>
+            New Test Suite
+          </ContextMenuItem>
+          <ContextMenuItem className="text-xs" onSelect={() => cb.onNewItem({ dir: node.data.path, type: 'folder' })}>
+            New Folder
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+        </>
+      )}
+      {!isRoot && (
+        <>
+          <ContextMenuItem className="text-xs" onSelect={cb.onEdit}>Rename</ContextMenuItem>
+          {!isFolder && (
+            <ContextMenuItem className="text-xs" onSelect={cb.onCopy}>Copy</ContextMenuItem>
+          )}
+          <ContextMenuItem
+            className="text-xs text-destructive focus:text-destructive"
+            onSelect={cb.onDelete}
+          >
+            Delete
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+        </>
+      )}
+      <ContextMenuItem className="text-xs" onSelect={cb.onOpenFolder}>Open Containing Folder</ContextMenuItem>
+    </>
+  )
+}
+
+function GenericMenu({
+  node,
+  cb,
+}: {
+  node: NodeApi<FsTreeNode>
+  cb: MenuCallbacks
+}) {
+  const isFolder = node.isInternal
+  const isRoot = isTopLevel(node.id)
+
+  return (
+    <>
+      {!isRoot && (
+        <>
+          <ContextMenuItem className="text-xs" onSelect={cb.onEdit}>Rename</ContextMenuItem>
+          {!isFolder && (
+            <ContextMenuItem className="text-xs" onSelect={cb.onCopy}>Copy</ContextMenuItem>
+          )}
+          <ContextMenuItem
+            className="text-xs text-destructive focus:text-destructive"
+            onSelect={cb.onDelete}
+          >
+            Delete
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+        </>
+      )}
+      <ContextMenuItem className="text-xs" onSelect={cb.onOpenFolder}>Open Containing Folder</ContextMenuItem>
+    </>
+  )
+}
+
+function FeatureContextMenu({
+  node,
+  cb,
+}: {
+  node: NodeApi<FsTreeNode>
+  cb: MenuCallbacks
+}) {
+  const feature = featureOf(node.id)
+  if (feature === 'object-repository') return <ObjectRepoMenu node={node} cb={cb} />
+  if (feature === 'test-cases') return <TestCasesMenu node={node} cb={cb} />
+  if (feature === 'test-suites') return <TestSuitesMenu node={node} cb={cb} />
+  return <GenericMenu node={node} cb={cb} />
+}
+
+// ── NodeRow ───────────────────────────────────────────────────────────────────
 
 function NodeRow({
   node,
   style,
   dragHandle,
   onNewItem,
+  onImportOpenApi,
   projectPath,
-}: NodeRendererProps<FsTreeNode> & { onNewItem: (state: NewItemState) => void; projectPath: string }) {
+}: NodeRendererProps<FsTreeNode> & {
+  onNewItem: (state: NewItemState) => void
+  onImportOpenApi: (dir: string) => void
+  projectPath: string
+}) {
   const { openTab } = useProjectStore()
 
   const handleActivate = () => {
@@ -114,22 +328,20 @@ function NodeRow({
     }
   }
 
-  const handleDelete = async () => {
-    await invoke(IpcChannels.FS_DELETE, node.data.path)
-  }
-
-  const handleCopy = async () => {
-    const parent = pathDirname(node.data.path)
-    const base = pathBasename(node.data.name)
-    const dotIdx = base.lastIndexOf('.')
-    const name = dotIdx > 0 ? base.slice(0, dotIdx) : base
-    const ext = dotIdx > 0 ? base.slice(dotIdx) : ''
-    const dest = pathJoin(parent, `${name}-copy${ext}`)
-    await invoke(IpcChannels.FS_COPY, node.data.path, dest)
-  }
-
-  const handleOpenFolder = async () => {
-    await invoke(IpcChannels.FS_OPEN_CONTAINING_FOLDER, node.data.path)
+  const cb: MenuCallbacks = {
+    onNewItem,
+    onImportOpenApi,
+    onDelete: async () => { await invoke(IpcChannels.FS_DELETE, node.data.path) },
+    onCopy: async () => {
+      const parent = pathDirname(node.data.path)
+      const base = pathBasename(node.data.name)
+      const dotIdx = base.lastIndexOf('.')
+      const name = dotIdx > 0 ? base.slice(0, dotIdx) : base
+      const ext = dotIdx > 0 ? base.slice(dotIdx) : ''
+      await invoke(IpcChannels.FS_COPY, node.data.path, pathJoin(parent, `${name}-copy${ext}`))
+    },
+    onOpenFolder: async () => { await invoke(IpcChannels.FS_OPEN_CONTAINING_FOLDER, node.data.path) },
+    onEdit: () => { node.edit() },
   }
 
   const isFolder = node.isInternal
@@ -183,40 +395,13 @@ function NodeRow({
       </ContextMenuTrigger>
 
       <ContextMenuContent>
-        {isFolder && (
-          <>
-            <ContextMenuItem onSelect={() => onNewItem({ dir: node.data.path, type: 'test-case' })}>
-              New Test Case
-            </ContextMenuItem>
-            <ContextMenuItem onSelect={() => onNewItem({ dir: node.data.path, type: 'suite' })}>
-              New Test Suite
-            </ContextMenuItem>
-            <ContextMenuItem onSelect={() => onNewItem({ dir: node.data.path, type: 'folder' })}>
-              New Folder
-            </ContextMenuItem>
-            <ContextMenuSeparator />
-          </>
-        )}
-        {!isTopLevel(node.id) && (
-          <>
-            <ContextMenuItem onSelect={() => node.edit()}>Rename</ContextMenuItem>
-            {!isFolder && (
-              <ContextMenuItem onSelect={handleCopy}>Copy</ContextMenuItem>
-            )}
-            <ContextMenuItem
-              onSelect={handleDelete}
-              className="text-destructive focus:text-destructive"
-            >
-              Delete
-            </ContextMenuItem>
-            <ContextMenuSeparator />
-          </>
-        )}
-        <ContextMenuItem onSelect={handleOpenFolder}>Open Containing Folder</ContextMenuItem>
+        <FeatureContextMenu node={node} cb={cb} />
       </ContextMenuContent>
     </ContextMenu>
   )
 }
+
+// ── ExplorerTree ──────────────────────────────────────────────────────────────
 
 interface ExplorerTreeProps {
   projectPath: string
@@ -241,8 +426,8 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
   const [width, setWidth] = useState(0)
   const [openIds, setOpenIds] = useState<Set<string>>(new Set())
   const [newItemState, setNewItemState] = useState<NewItemState | null>(null)
+  const [importOpenApiDir, setImportOpenApiDir] = useState<string | null>(null)
 
-  // width-only ResizeObserver — height computed from visible rows
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
@@ -251,7 +436,6 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
     return () => ro.disconnect()
   }, [])
 
-  // reset open state when tree reloads (new project or watch event)
   useEffect(() => { setOpenIds(new Set()) }, [projectPath])
 
   const treeHeight = Math.max(countVisible(tree, openIds) * ROW_H, ROW_H)
@@ -310,6 +494,26 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
         2,
       )
       await invoke(IpcChannels.FS_CREATE_FILE, pathJoin(dir, fileName), content)
+    } else if (type === 'api-request') {
+      const fileName = name.endsWith('.request.json') ? name : `${name}.request.json`
+      const content = JSON.stringify(
+        {
+          schemaVersion: 1,
+          id: randomUUID(),
+          name,
+          description: '',
+          method: 'GET',
+          url: '',
+          params: [],
+          headers: [],
+          auth: { type: 'none' },
+          body: { type: 'none' },
+          assertions: [],
+        },
+        null,
+        2,
+      )
+      await invoke(IpcChannels.FS_CREATE_FILE, pathJoin(dir, fileName), content)
     }
 
     setNewItemState(null)
@@ -343,7 +547,14 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
           indent={12}
           overscanCount={8}
         >
-          {(props) => <NodeRow {...props} onNewItem={setNewItemState} projectPath={projectPath} />}
+          {(props) => (
+            <NodeRow
+              {...props}
+              onNewItem={setNewItemState}
+              onImportOpenApi={setImportOpenApiDir}
+              projectPath={projectPath}
+            />
+          )}
         </Tree>
       )}
 
@@ -352,6 +563,13 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
         type={newItemState?.type ?? 'folder'}
         onConfirm={handleCreateItem}
         onCancel={() => setNewItemState(null)}
+      />
+
+      <ImportOpenApiDialog
+        open={importOpenApiDir !== null}
+        targetDir={importOpenApiDir ?? ''}
+        onClose={() => setImportOpenApiDir(null)}
+        onImported={reload}
       />
     </div>
   )

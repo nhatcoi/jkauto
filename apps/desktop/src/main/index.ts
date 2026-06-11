@@ -7,6 +7,8 @@ import { registerWorkspaceHandlers } from './handlers/workspace.handler'
 import { registerDialogHandlers } from './handlers/dialog.handler'
 import { registerEngineHandlers } from './handlers/engine.handler'
 import { registerRunHandlers } from './handlers/run.handler'
+import { registerHttpHandlers } from './handlers/http.handler'
+import { registerEnvHandlers } from './handlers/env.handler'
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -50,6 +52,8 @@ app.whenReady().then(() => {
   registerDialogHandlers(ipcMain)
   registerEngineHandlers(ipcMain)
   registerRunHandlers(ipcMain)
+  registerHttpHandlers(ipcMain)
+  registerEnvHandlers(ipcMain)
 
   createWindow()
 

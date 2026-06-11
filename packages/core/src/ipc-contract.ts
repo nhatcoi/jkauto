@@ -1,3 +1,5 @@
+import type { ApiRequest } from './schemas/object-repository'
+
 export const IpcChannels = {
   PROJECT_CREATE: 'project:create',
   PROJECT_OPEN: 'project:open',
@@ -41,6 +43,12 @@ export const IpcChannels = {
 
   HTTP_SEND_REQUEST: 'http:send-request',
   HTTP_IMPORT_OPENAPI: 'http:import-openapi',
+
+  ENV_LIST: 'env:list',
+  ENV_READ: 'env:read',
+  ENV_WRITE: 'env:write',
+  ENV_CREATE: 'env:create',
+  ENV_DELETE: 'env:delete',
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -135,7 +143,7 @@ export interface WorkspaceProjectEntry {
 }
 
 export interface HttpSendRequestPayload {
-  request: import('./schemas/object-repository').ApiRequest
+  request: ApiRequest
   profileVariables?: Record<string, string>
 }
 
@@ -155,4 +163,19 @@ export interface HttpImportOpenApiPayload {
 
 export interface HttpImportOpenApiResult {
   created: string[]
+}
+
+export interface EnvEntry {
+  name: string
+  path: string
+}
+
+export interface EnvWritePayload {
+  filePath: string
+  variables: Record<string, string>
+}
+
+export interface EnvCreatePayload {
+  projectPath: string
+  name: string
 }
