@@ -64,17 +64,23 @@ export function registerProjectHandlers(ipcMain: IpcMain): void {
 
   ipcMain.handle(IpcChannels.PROJECT_OPEN_DIALOG, async () => {
     const result = await dialog.showOpenDialog({
-      properties: ['openFile'],
-      filters: [{ name: 'Project File', extensions: ['json'] }],
+      properties: ['openDirectory'],
       title: 'Open Project',
     })
     if (result.canceled || !result.filePaths[0]) return null
-    const projectPath = path.dirname(result.filePaths[0])
-    const raw = await fs.readFile(result.filePaths[0], 'utf-8')
-    const project = JSON.parse(raw)
-    const now = new Date().toISOString()
-    addRecent({ name: project.name, path: projectPath, type: project.type, openedAt: now })
-    return { projectPath, project }
+    const projectPath = result.filePaths[0]
+    const projectFile = path.join(projectPath, 'project.json')
+    try {
+      const raw = await fs.readFile(projectFile, 'utf-8')
+      const project = JSON.parse(raw)
+      const now = new Date().toISOString()
+      addRecent({ name: project.name, path: projectPath, type: project.type, openedAt: now })
+      return { projectPath, project }
+    } catch (err) {
+      throw new Error(
+        'Invalid project directory. Please select a directory containing a valid project.json file.'
+      )
+    }
   })
 
   ipcMain.handle(IpcChannels.PROJECT_OPEN, async (_, projectPath: string) => {
