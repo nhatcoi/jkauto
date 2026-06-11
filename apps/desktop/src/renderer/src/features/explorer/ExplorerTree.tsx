@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Tree } from 'react-arborist'
-import type { NodeRendererProps, NodeApi } from 'react-arborist'
+import type { NodeRendererProps, NodeApi, TreeApi } from 'react-arborist'
 import {
   ChevronRight,
   ChevronDown,
@@ -341,7 +341,9 @@ function NodeRow({
       await invoke(IpcChannels.FS_COPY, node.data.path, pathJoin(parent, `${name}-copy${ext}`))
     },
     onOpenFolder: async () => { await invoke(IpcChannels.FS_OPEN_CONTAINING_FOLDER, node.data.path) },
-    onEdit: () => { node.edit() },
+    // Defer until the context menu unmounts, otherwise Radix's focus
+    // restore steals focus from the rename input and blur-submits it.
+    onEdit: () => { setTimeout(() => node.edit(), 0) },
   }
 
   const isFolder = node.isInternal
@@ -394,7 +396,7 @@ function NodeRow({
         </div>
       </ContextMenuTrigger>
 
-      <ContextMenuContent>
+      <ContextMenuContent onCloseAutoFocus={(e) => e.preventDefault()}>
         <FeatureContextMenu node={node} cb={cb} />
       </ContextMenuContent>
     </ContextMenu>
@@ -409,22 +411,12 @@ interface ExplorerTreeProps {
 
 const ROW_H = 24
 
-function countVisible(nodes: FsTreeNode[], openIds: Set<string>): number {
-  let n = 0
-  for (const node of nodes) {
-    n++
-    if (node.type === 'directory' && openIds.has(node.id) && node.children) {
-      n += countVisible(node.children, openIds)
-    }
-  }
-  return n
-}
-
 export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
   const { tree, reload } = useExplorerTree(projectPath)
   const containerRef = useRef<HTMLDivElement>(null)
+  const treeRef = useRef<TreeApi<FsTreeNode> | null>(null)
   const [width, setWidth] = useState(0)
-  const [openIds, setOpenIds] = useState<Set<string>>(new Set())
+  const [treeHeight, setTreeHeight] = useState(ROW_H)
   const [newItemState, setNewItemState] = useState<NewItemState | null>(null)
   const [importOpenApiDir, setImportOpenApiDir] = useState<string | null>(null)
 
@@ -436,14 +428,21 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
     return () => ro.disconnect()
   }, [])
 
-  useEffect(() => { setOpenIds(new Set()) }, [projectPath])
+  // Height must track the tree's own open state — a local mirror via onToggle
+  // desyncs on programmatic toggles and data reloads, clipping the tree.
+  const syncHeight = useCallback(() => {
+    requestAnimationFrame(() => {
+      const count = treeRef.current?.visibleNodes.length ?? 0
+      setTreeHeight(Math.max(count * ROW_H, ROW_H))
+    })
+  }, [])
 
-  const treeHeight = Math.max(countVisible(tree, openIds) * ROW_H, ROW_H)
+  useEffect(() => { syncHeight() }, [tree, syncHeight])
 
   const handleRename = useCallback(
     async ({ id, name }: { id: string; name: string }) => {
       const node = findNodeById(tree, id)
-      if (!node) return
+      if (!node || name === node.name) return
       const dir = pathDirname(node.path)
       const newPath = pathJoin(dir, name)
       await invoke(IpcChannels.FS_RENAME, node.path, newPath)
@@ -524,19 +523,13 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
     <div ref={containerRef} className="w-full">
       {width > 0 && (
         <Tree<FsTreeNode>
+          ref={treeRef}
           data={tree}
           idAccessor={(n) => n.id}
           childrenAccessor={(n) => (n.type === 'directory' ? (n.children ?? []) : null)}
           onRename={handleRename}
           onMove={handleMove}
-          onToggle={(id) =>
-            setOpenIds((prev) => {
-              const next = new Set(prev)
-              if (next.has(id)) next.delete(id)
-              else next.add(id)
-              return next
-            })
-          }
+          onToggle={syncHeight}
           disableDrag={(node) => isTopLevel(node.id)}
           disableDrop={(args) => !canDrop(args)}
           disableEdit={(node) => isTopLevel(node.id)}
