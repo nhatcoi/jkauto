@@ -4,10 +4,12 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin({ exclude: ['@jkauto/engine', '@jkauto/core'] })],
     resolve: {
       alias: {
         '@main': resolve('src/main'),
+        '@jkauto/engine': resolve('../../packages/engine/src/index.ts'),
+        '@jkauto/core': resolve('../../packages/core/src/index.ts'),
       },
     },
   },

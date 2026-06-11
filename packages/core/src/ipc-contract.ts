@@ -37,6 +37,10 @@ export const IpcChannels = {
   ENGINE_RUN_COMPLETE: 'engine:run-complete',
   ENGINE_GET_RUNS: 'engine:get-runs',
   ENGINE_SAVE_RUN: 'engine:save-run',
+  ENGINE_DEBUG_NEXT: 'engine:debug-next',
+
+  HTTP_SEND_REQUEST: 'http:send-request',
+  HTTP_IMPORT_OPENAPI: 'http:import-openapi',
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -128,4 +132,27 @@ export interface WorkspaceState {
 export interface WorkspaceProjectEntry {
   path: string
   activeProfile: string
+}
+
+export interface HttpSendRequestPayload {
+  request: import('./schemas/object-repository').ApiRequest
+  profileVariables?: Record<string, string>
+}
+
+export interface HttpResponse {
+  status: number
+  statusText: string
+  headers: Record<string, string>
+  body: string
+  durationMs: number
+  size: number
+}
+
+export interface HttpImportOpenApiPayload {
+  source: string
+  targetDir: string
+}
+
+export interface HttpImportOpenApiResult {
+  created: string[]
 }

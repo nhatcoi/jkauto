@@ -11,6 +11,8 @@ interface ActiveRun {
 }
 
 const activeRuns = new Map<string, ActiveRun>()
+// debug-mode: per-run pending "next step" resolver
+const debugNextResolvers = new Map<string, () => void>()
 
 interface RunPayload {
   filePath: string
@@ -65,7 +67,19 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
         activeRuns.delete(runId)
       },
       abort.signal,
-      { headless: false, stepDelay: debugMode ? 1000 : 0 },
+      debugMode
+        ? {
+            headless: false,
+            waitForNext: (stepIndex: number) =>
+              new Promise<void>((resolve) => {
+                debugNextResolvers.set(runId, resolve)
+                // notify renderer that engine is paused at this step
+                if (!webContents.isDestroyed()) {
+                  webContents.send(IpcChannels.ENGINE_DEBUG_NEXT, { runId, stepIndex, paused: true })
+                }
+              }),
+          }
+        : { headless: false },
     ).catch((err) => {
       activeRuns.delete(runId)
       if (!webContents.isDestroyed()) {
@@ -89,6 +103,20 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
     if (run) {
       run.abort.abort()
       activeRuns.delete(runId)
+    }
+    // unblock any pending debug pause so the runner can exit cleanly
+    const resolve = debugNextResolvers.get(runId)
+    if (resolve) {
+      debugNextResolvers.delete(runId)
+      resolve()
+    }
+  })
+
+  ipcMain.handle(IpcChannels.ENGINE_DEBUG_NEXT, (_, runId: string) => {
+    const resolve = debugNextResolvers.get(runId)
+    if (resolve) {
+      debugNextResolvers.delete(runId)
+      resolve()
     }
   })
 }

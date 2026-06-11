@@ -27,11 +27,14 @@ interface RunStore {
   logs: LogEntry[]
   events: EventEntry[]
   runHistory: RunRecord[]
+  isDebugMode: boolean
+  isDebugPaused: boolean
 
   // actions
-  startRun: (runId: string, filePath: string) => void
+  startRun: (runId: string, filePath: string, debugMode?: boolean) => void
   handleStepEvent: (event: StepEvent) => void
   handleRunComplete: (event: RunCompleteEvent) => void
+  setDebugPaused: (paused: boolean) => void
   stopRun: () => void
   clearLogs: () => void
   reset: () => void
@@ -57,12 +60,16 @@ export const useRunStore = create<RunStore>((set, get) => ({
   logs: [],
   events: [],
   runHistory: [],
+  isDebugMode: false,
+  isDebugPaused: false,
 
-  startRun: (runId, filePath) =>
+  startRun: (runId, filePath, debugMode = false) =>
     set({
       runId,
       filePath,
       status: 'running',
+      isDebugMode: debugMode,
+      isDebugPaused: false,
       stepStatuses: {},
       stepMessages: {},
       stepDurations: {},
@@ -71,14 +78,14 @@ export const useRunStore = create<RunStore>((set, get) => ({
           id: uid(),
           time: ts(),
           level: 'info',
-          message: `▶ Run started — ${filePath.split('/').pop()}`,
+          message: `▶ Run started — ${filePath.split('/').pop()}${debugMode ? ' (debug)' : ''}`,
         },
       ],
       events: [
         {
           id: uid(),
           time: ts(),
-          message: `Run started (id: ${runId.slice(0, 8)}…)`,
+          message: `Run started (id: ${runId.slice(0, 8)}…)${debugMode ? ' — debug mode' : ''}`,
         },
       ],
     }),
@@ -108,10 +115,13 @@ export const useRunStore = create<RunStore>((set, get) => ({
               ? `  Step ${stepIndex + 1}: skipped`
               : `  Step ${stepIndex + 1}: passed${durationStr}`
 
+      const isDebugPaused = state.isDebugMode && (status === 'passed' || status === 'failed')
+
       return {
         stepStatuses: newStatuses,
         stepMessages: newMessages,
         stepDurations: newDurations,
+        isDebugPaused,
         logs: [
           ...state.logs,
           { id: uid(), time: ts(), level: logLevel as LogEntry['level'], message: logMsg, stepIndex },
@@ -120,6 +130,8 @@ export const useRunStore = create<RunStore>((set, get) => ({
     })
   },
 
+  setDebugPaused: (paused) => set({ isDebugPaused: paused }),
+
   handleRunComplete: (event: RunCompleteEvent) => {
     const { status, passedSteps, failedSteps, totalSteps, durationMs } = event
     const icon = status === 'passed' ? '✓' : status === 'stopped' ? '⏹' : '✗'
@@ -127,6 +139,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
 
     set((state) => ({
       status: status as RunStore['status'],
+      isDebugPaused: false,
       logs: [
         ...state.logs,
         {

@@ -8,7 +8,8 @@ export type RunCompleteCallback = (event: RunCompleteEvent) => void
 
 export interface RunOptions {
   headless?: boolean
-  stepDelay?: number // ms pause between steps (debug mode)
+  stepDelay?: number
+  waitForNext?: (stepIndex: number) => Promise<void>
 }
 
 export async function runTestCase(
@@ -20,7 +21,7 @@ export async function runTestCase(
   signal?: AbortSignal,
   options: RunOptions = {},
 ): Promise<void> {
-  const { headless = false, stepDelay = 0 } = options
+  const { headless = false, stepDelay = 0, waitForNext } = options
   const startTime = Date.now()
   let passedSteps = 0
   let failedSteps = 0
@@ -97,7 +98,9 @@ export async function runTestCase(
         if (!step.continueOnFailure) break
       }
 
-      if (stepDelay > 0 && !signal?.aborted) {
+      if (waitForNext && !signal?.aborted) {
+        await waitForNext(i)
+      } else if (stepDelay > 0 && !signal?.aborted) {
         await new Promise((r) => setTimeout(r, stepDelay))
       }
     }

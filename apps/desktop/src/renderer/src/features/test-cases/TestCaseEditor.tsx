@@ -14,6 +14,7 @@ import {
   Square,
   Upload,
   AlertCircle,
+  StepForward,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { invoke } from '@/lib/utils'
@@ -57,6 +58,8 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
     runHistory,
     setRunHistory,
     appendRunRecord,
+    isDebugMode,
+    isDebugPaused,
   } = useRunStore()
   
   const [tc, setTc] = useState<TestCase | null>(null)
@@ -111,6 +114,9 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
     const offStep = window.api.on(IpcChannels.ENGINE_STEP_EVENT, (event: any) => {
       handleStepEvent(event)
     })
+    // ENGINE_DEBUG_NEXT from main signals engine is paused — store already tracks via handleStepEvent
+    // We just need to unsub on cleanup; the actual pause state is managed in run.store
+    const offDebugNext = window.api.on(IpcChannels.ENGINE_DEBUG_NEXT, () => {})
     const offComplete = window.api.on(IpcChannels.ENGINE_RUN_COMPLETE, (event: any) => {
       handleRunComplete(event)
       // Persist the run record and update in-memory history
@@ -130,6 +136,7 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
     })
     return () => {
       offStep()
+      offDebugNext()
       offComplete()
     }
   }, [filePath, handleStepEvent, handleRunComplete, appendRunRecord])
@@ -145,7 +152,7 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
       filePath,
       debugMode,
     })
-    startRun(result.runId, filePath)
+    startRun(result.runId, filePath, debugMode)
   }, [filePath, runStatus, markTabDirty, startRun])
 
   const handleStop = useCallback(async () => {
@@ -153,6 +160,11 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
     await invoke(IpcChannels.ENGINE_STOP, runId)
     stopRun()
   }, [runId, stopRun])
+
+  const handleDebugNext = useCallback(async () => {
+    if (!runId) return
+    await invoke(IpcChannels.ENGINE_DEBUG_NEXT, runId)
+  }, [runId])
 
   const save = useCallback(async () => {
     const current = tcRef.current
@@ -461,15 +473,28 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
         <div className="w-px h-4 bg-border mx-0.5" />
 
         {runStatus === 'running' ? (
-          <button
-            type="button"
-            onClick={handleStop}
-            className="flex items-center gap-1 text-xs px-2.5 py-1 rounded font-medium transition-colors bg-red-600 hover:bg-red-500 text-white"
-            title="Stop run"
-          >
-            <Square className="w-3 h-3 fill-white" />
-            Stop
-          </button>
+          <>
+            {isDebugMode && isDebugPaused && (
+              <button
+                type="button"
+                onClick={handleDebugNext}
+                className="flex items-center gap-1 text-xs px-2.5 py-1 rounded font-medium transition-colors bg-blue-600 hover:bg-blue-500 text-white"
+                title="Execute next step"
+              >
+                <StepForward className="w-3.5 h-3.5" />
+                Next Step
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleStop}
+              className="flex items-center gap-1 text-xs px-2.5 py-1 rounded font-medium transition-colors bg-red-600 hover:bg-red-500 text-white"
+              title="Stop run"
+            >
+              <Square className="w-3 h-3 fill-white" />
+              Stop
+            </button>
+          </>
         ) : (
           <button
             type="button"
