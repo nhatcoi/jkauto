@@ -34,6 +34,9 @@ interface ProjectStore {
   // tab ops
   openTab: (path: string, title: string, projectPath: string) => void
   closeTab: (path: string) => void
+  closeTabsUnderPath: (dirPath: string) => void
+  renameTab: (oldPath: string, newPath: string) => void
+  renameTabsUnderPath: (oldDirPath: string, newDirPath: string) => void
   setActiveTab: (path: string) => void
   markTabDirty: (path: string, dirty: boolean) => void
   reorderTab: (from: number, to: number) => void
@@ -147,6 +150,44 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const activeProjectPath = deriveActiveProjectPath(tabs, activeTabPath, state.projects)
       const activeProject = state.projects.find((p) => p.path === activeProjectPath) ?? null
       return { openTabs: tabs, activeTabPath, activeProjectPath, activeProject }
+    })
+  },
+
+  closeTabsUnderPath: (dirPath) => {
+    set((state) => {
+      const prefix = dirPath + '/'
+      const tabs = state.openTabs.filter((t) => t.path !== dirPath && !t.path.startsWith(prefix))
+      const activeTabPath = tabs.find((t) => t.path === state.activeTabPath)?.path
+        ?? (tabs[tabs.length - 1]?.path ?? null)
+      const activeProjectPath = deriveActiveProjectPath(tabs, activeTabPath, state.projects)
+      const activeProject = state.projects.find((p) => p.path === activeProjectPath) ?? null
+      return { openTabs: tabs, activeTabPath, activeProjectPath, activeProject }
+    })
+  },
+
+  renameTab: (oldPath, newPath) => {
+    set((state) => {
+      const newTitle = newPath.split('/').pop() ?? newPath
+      const openTabs = state.openTabs.map((t) =>
+        t.path === oldPath ? { ...t, path: newPath, title: newTitle } : t,
+      )
+      const activeTabPath = state.activeTabPath === oldPath ? newPath : state.activeTabPath
+      return { openTabs, activeTabPath }
+    })
+  },
+
+  renameTabsUnderPath: (oldDirPath, newDirPath) => {
+    set((state) => {
+      const prefix = oldDirPath + '/'
+      const openTabs = state.openTabs.map((t) => {
+        if (!t.path.startsWith(prefix)) return t
+        const newPath = newDirPath + '/' + t.path.slice(prefix.length)
+        return { ...t, path: newPath, title: newPath.split('/').pop() ?? t.title }
+      })
+      const activeTabPath = state.activeTabPath?.startsWith(prefix)
+        ? newDirPath + '/' + state.activeTabPath.slice(prefix.length)
+        : state.activeTabPath
+      return { openTabs, activeTabPath }
     })
   },
 

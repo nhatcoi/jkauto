@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
-import { AlertCircle } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { AlertCircle, Terminal, Clipboard, Check } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { useProjectStore } from '@/store/project.store'
 import { useRequestEditor } from './hooks/useRequestEditor'
@@ -9,9 +9,12 @@ import { BodyEditor } from './components/BodyEditor'
 import { AuthPanel } from './components/AuthPanel'
 import { ResponsePanel } from './components/ResponsePanel'
 import { AssertionsPanel } from './components/AssertionsPanel'
+import { CurlImportDialog } from './components/CurlImportDialog'
+import { toCurl } from './utils/curl'
+import type { ApiRequest } from './types'
 
 export function RequestEditor({ filePath }: { filePath: string }) {
-  const { markTabDirty } = useProjectStore()
+  const { markTabDirty, activeProject } = useProjectStore()
   const {
     request,
     error,
@@ -24,6 +27,28 @@ export function RequestEditor({ filePath }: { filePath: string }) {
     save,
     send,
   } = useRequestEditor(filePath)
+
+  const [curlImportOpen, setCurlImportOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const handleImportCurl = (partial: Partial<ApiRequest>) => {
+    mutate((r) => ({ ...r, ...partial }))
+  }
+
+  const handleCopyCurl = async () => {
+    if (!request) return
+    let vars: Record<string, string> = {}
+    if (activeProject) {
+      try {
+        const { readEnv: re } = await import('@/features/env/api')
+        vars = await re(`${activeProject.path}/profiles/${activeProject.activeProfile}.env.json`)
+      } catch { /* ignore */ }
+    }
+    const curl = toCurl(request, vars)
+    await navigator.clipboard.writeText(curl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   // Ctrl+S
   useEffect(() => {
@@ -59,6 +84,12 @@ export function RequestEditor({ filePath }: { filePath: string }) {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
+      <CurlImportDialog
+        open={curlImportOpen}
+        onClose={() => setCurlImportOpen(false)}
+        onImport={handleImportCurl}
+      />
+
       <MethodUrlBar
         method={request.method}
         url={request.url}
@@ -69,6 +100,29 @@ export function RequestEditor({ filePath }: { filePath: string }) {
         onSend={send}
         onSave={save}
       />
+
+      {/* cURL toolbar */}
+      <div className="flex items-center gap-1 px-3 py-1 border-b border-border bg-panel/50 shrink-0">
+        <button
+          type="button"
+          onClick={() => setCurlImportOpen(true)}
+          title="Import from cURL"
+          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary px-2 py-0.5 rounded transition-colors"
+        >
+          <Terminal className="w-3 h-3" />
+          Import cURL
+        </button>
+        <button
+          type="button"
+          onClick={handleCopyCurl}
+          disabled={!request}
+          title="Copy as cURL"
+          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary px-2 py-0.5 rounded transition-colors disabled:opacity-40"
+        >
+          {copied ? <Check className="w-3 h-3 text-green-400" /> : <Clipboard className="w-3 h-3" />}
+          {copied ? 'Copied!' : 'Copy cURL'}
+        </button>
+      </div>
 
       {/* request / response split */}
       <div className="flex-1 flex flex-col overflow-hidden">

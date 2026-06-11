@@ -318,7 +318,7 @@ function NodeRow({
   onImportOpenApi: (dir: string) => void
   projectPath: string
 }) {
-  const { openTab } = useProjectStore()
+  const { openTab, closeTab, closeTabsUnderPath } = useProjectStore()
 
   const handleActivate = () => {
     if (node.isInternal) {
@@ -331,7 +331,16 @@ function NodeRow({
   const cb: MenuCallbacks = {
     onNewItem,
     onImportOpenApi,
-    onDelete: async () => { await invoke(IpcChannels.FS_DELETE, node.data.path) },
+    onDelete: async () => {
+      const label = isFolder ? 'folder and all its contents' : `"${node.data.name}"`
+      if (!confirm(`Delete ${label}? This cannot be undone.`)) return
+      if (isFolder) {
+        closeTabsUnderPath(node.data.path)
+      } else {
+        closeTab(node.data.path)
+      }
+      await invoke(IpcChannels.FS_DELETE, node.data.path)
+    },
     onCopy: async () => {
       const parent = pathDirname(node.data.path)
       const base = pathBasename(node.data.name)
@@ -413,6 +422,7 @@ const ROW_H = 24
 
 export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
   const { tree, reload } = useExplorerTree(projectPath)
+  const { renameTab, renameTabsUnderPath } = useProjectStore()
   const containerRef = useRef<HTMLDivElement>(null)
   const treeRef = useRef<TreeApi<FsTreeNode> | null>(null)
   const [width, setWidth] = useState(0)
@@ -446,8 +456,13 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
       const dir = pathDirname(node.path)
       const newPath = pathJoin(dir, name)
       await invoke(IpcChannels.FS_RENAME, node.path, newPath)
+      if (node.type === 'directory') {
+        renameTabsUnderPath(node.path, newPath)
+      } else {
+        renameTab(node.path, newPath)
+      }
     },
-    [tree],
+    [tree, renameTab, renameTabsUnderPath],
   )
 
   const handleMove = useCallback(
