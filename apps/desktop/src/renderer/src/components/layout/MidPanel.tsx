@@ -4,6 +4,11 @@ import { useProjectStore } from '@/store/project.store'
 import { IpcChannels } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import { TestCaseEditor } from '@/features/test-cases/TestCaseEditor'
+
+function isTestCase(path: string) {
+  return path.endsWith('.test.json') || path.endsWith('.test.yaml')
+}
 
 function FileContent({ path }: { path: string }) {
   const [content, setContent] = useState<string | null>(null)
@@ -87,7 +92,11 @@ export function MidPanel() {
 
       {/* Content */}
       <div className="flex-1 overflow-hidden">
-        {activeTabPath && <FileContent path={activeTabPath} />}
+        {activeTabPath && (
+          isTestCase(activeTabPath)
+            ? <TestCaseEditor key={activeTabPath} filePath={activeTabPath} />
+            : <FileContent path={activeTabPath} />
+        )}
       </div>
     </div>
   )

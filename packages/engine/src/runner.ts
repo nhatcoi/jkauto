@@ -6,6 +6,11 @@ import { getKeyword } from './keywords/registry'
 export type StepEventCallback = (event: StepEvent) => void
 export type RunCompleteCallback = (event: RunCompleteEvent) => void
 
+export interface RunOptions {
+  headless?: boolean
+  stepDelay?: number // ms pause between steps (debug mode)
+}
+
 export async function runTestCase(
   testCase: TestCase,
   profile: Profile,
@@ -13,7 +18,9 @@ export async function runTestCase(
   onStep: StepEventCallback,
   onComplete: RunCompleteCallback,
   signal?: AbortSignal,
+  options: RunOptions = {},
 ): Promise<void> {
+  const { headless = false, stepDelay = 0 } = options
   const startTime = Date.now()
   let passedSteps = 0
   let failedSteps = 0
@@ -29,8 +36,9 @@ export async function runTestCase(
     return ref
   }
 
-  const browser = await chromium.launch({ headless: false })
-  const page = await browser.newPage()
+  const browser = await chromium.launch({ headless })
+  const context = await browser.newContext()
+  const page = await context.newPage()
 
   try {
     for (let i = 0; i < testCase.steps.length; i++) {
@@ -58,28 +66,50 @@ export async function runTestCase(
         continue
       }
 
+      const stepStart = Date.now()
       const timeout = step.timeout ?? 30000
       try {
         await Promise.race([
           keyword.execute({ page, objectRef: step.objectRef, input: step.input, expected: step.expected, resolveLocator, interpolate }),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeout)),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`Step timeout after ${timeout}ms`)), timeout),
+          ),
         ])
-        onStep({ runId, testCaseId: testCase.id, stepIndex: i, status: 'passed' })
+        onStep({
+          runId,
+          testCaseId: testCase.id,
+          stepIndex: i,
+          status: 'passed',
+          durationMs: Date.now() - stepStart,
+        })
         passedSteps++
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
-        onStep({ runId, testCaseId: testCase.id, stepIndex: i, status: 'failed', message })
+        onStep({
+          runId,
+          testCaseId: testCase.id,
+          stepIndex: i,
+          status: 'failed',
+          message,
+          durationMs: Date.now() - stepStart,
+        })
         failedSteps++
         if (!step.continueOnFailure) break
+      }
+
+      if (stepDelay > 0 && !signal?.aborted) {
+        await new Promise((r) => setTimeout(r, stepDelay))
       }
     }
   } finally {
     await browser.close()
   }
 
+  const finalStatus = signal?.aborted ? 'stopped' : failedSteps > 0 ? 'failed' : 'passed'
+
   onComplete({
     runId,
-    status: failedSteps > 0 ? 'failed' : signal?.aborted ? 'stopped' : 'passed',
+    status: finalStatus,
     totalSteps: testCase.steps.length,
     passedSteps,
     failedSteps,
