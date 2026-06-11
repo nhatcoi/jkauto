@@ -15,6 +15,7 @@ import {
   Loader2,
   Square,
   Minus,
+  Upload,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { invoke } from '@/lib/utils'
@@ -25,6 +26,7 @@ import { useRunStore } from '@/store/run.store'
 import type { StepStatus } from '@/store/run.store'
 import { BUILT_IN_KEYWORDS, getKeyword } from './keywords'
 import type { KeywordDef } from './keywords'
+import { ImportStepsDialog } from './components/ImportStepsDialog'
 
 // ── types ──────────────────────────────────────────────────────────────────────
 interface TestStep {
@@ -302,6 +304,14 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
   const [saving, setSaving] = useState(false)
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
   const [showHistory, setShowHistory] = useState(false)
+  const [showImport, setShowImport] = useState(false)
+
+  const handleImport = (importedSteps: any[]) => {
+    mutate((tc) => ({
+      ...tc,
+      steps: [...tc.steps, ...importedSteps],
+    }))
+  }
 
   // keep ref for save callback (avoids stale closure in keydown)
   const tcRef = useRef<TestCase | null>(null)
@@ -472,6 +482,15 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
         >
           <Plus className="w-3.5 h-3.5" />
           Add Step
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowImport(true)}
+          className="flex items-center gap-1 text-xs px-2 py-1 rounded hover:bg-secondary transition-colors text-foreground/80"
+        >
+          <Upload className="w-3.5 h-3.5" />
+          Import Steps
         </button>
 
         <div className="w-px h-4 bg-border mx-0.5" />
@@ -665,6 +684,12 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
           </label>
         </div>
       )}
+
+      <ImportStepsDialog
+        open={showImport}
+        onOpenChange={setShowImport}
+        onImport={handleImport}
+      />
     </div>
   )
 }
