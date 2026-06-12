@@ -65,7 +65,7 @@ export function SettingsDialog({ open, onOpenChange }: Props) {
           <X className="w-4 h-4" />
         </button>
 
-        <div className="flex h-full">
+        <div className="flex h-full min-h-0">
           {/* Sidebar */}
           <aside className="w-44 shrink-0 border-r border-border bg-sidebar flex flex-col py-3 px-2 gap-0.5">
             <div className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider px-2 mb-1">
@@ -90,7 +90,7 @@ export function SettingsDialog({ open, onOpenChange }: Props) {
           </aside>
 
           {/* Content */}
-          <main className="flex-1 overflow-y-auto p-5">
+          <main className="flex-1 min-h-0 overflow-y-auto p-5">
             {activeSection === 'agent' && (
               <AgentSection settings={settings} onChange={handleAgentChange} />
             )}
