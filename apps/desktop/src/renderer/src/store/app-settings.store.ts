@@ -27,6 +27,7 @@ export const useAppSettingsStore = create<AppSettingsStore>((set, get) => ({
       agent: { ...current.agent, ...patch.agent },
       execution: { ...current.execution, ...patch.execution },
       appearance: { ...current.appearance, ...patch.appearance },
+      explorer: { ...current.explorer, ...patch.explorer },
     }
     const saved = await invoke<AppSettings>(IpcChannels.APP_SETTINGS_SET, merged)
     set({ settings: saved })

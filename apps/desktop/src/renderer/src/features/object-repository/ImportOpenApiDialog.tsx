@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label'
 import { IpcChannels } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
 import { importOpenApi } from './api'
+import { useAppSettingsStore } from '@/store/app-settings.store'
 
 interface Props {
   open: boolean
@@ -24,6 +25,7 @@ interface Props {
 type SourceMode = 'file' | 'url'
 
 export function ImportOpenApiDialog({ open, targetDir, onClose, onImported }: Props) {
+  const nameSource = useAppSettingsStore((state) => state.settings?.explorer.openApiImportNameSource ?? 'summary')
   const [mode, setMode] = useState<SourceMode>('file')
   const [filePath, setFilePath] = useState('')
   const [url, setUrl] = useState('')
@@ -56,7 +58,7 @@ export function ImportOpenApiDialog({ open, targetDir, onClose, onImported }: Pr
     setError('')
     setLoading(true)
     try {
-      const res = await importOpenApi(source.trim(), targetDir)
+      const res = await importOpenApi(source.trim(), targetDir, nameSource)
       setResult(res.created)
       onImported()
     } catch (e) {
@@ -156,7 +158,8 @@ export function ImportOpenApiDialog({ open, targetDir, onClose, onImported }: Pr
 
             <p className="text-[10px] text-muted-foreground">
               Imports all endpoints as <code>.request.json</code> files into{' '}
-              <code className="text-foreground/70">{targetDir.split('/').pop()}/</code>
+              <code className="text-foreground/70">{targetDir.split('/').pop()}/</code>. Request names use{' '}
+              <code className="text-foreground/70">{nameSource}</code> from app settings.
             </p>
 
             {error && <p className="text-xs text-destructive">{error}</p>}

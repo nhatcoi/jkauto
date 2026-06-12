@@ -1,20 +1,22 @@
 import { useState, useCallback } from 'react'
-import { Bot, Play, Palette, Keyboard, X } from 'lucide-react'
+import { Bot, FolderTree, Play, Palette, Keyboard, X } from 'lucide-react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { useAppSettingsStore } from '@/store/app-settings.store'
 import { AgentSection } from './sections/AgentSection'
 import { ExecutionSection } from './sections/ExecutionSection'
 import { AppearanceSection } from './sections/AppearanceSection'
+import { ExplorerSection } from './sections/ExplorerSection'
 import { KeyboardSection } from './sections/KeyboardSection'
 import type { AppSettings } from '@jkauto/core'
 
-type SectionId = 'agent' | 'execution' | 'appearance' | 'keyboard'
+type SectionId = 'agent' | 'execution' | 'appearance' | 'explorer' | 'keyboard'
 
 const NAV: { id: SectionId; label: string; icon: React.ElementType }[] = [
   { id: 'agent',      label: 'AI Agent',    icon: Bot },
   { id: 'execution',  label: 'Execution',   icon: Play },
   { id: 'appearance', label: 'Appearance',  icon: Palette },
+  { id: 'explorer',   label: 'Explorer',    icon: FolderTree },
   { id: 'keyboard',   label: 'Shortcuts',   icon: Keyboard },
 ]
 
@@ -44,6 +46,13 @@ export function SettingsDialog({ open, onOpenChange }: Props) {
   const handleAppearanceChange = useCallback(
     (patch: Partial<AppSettings['appearance']>) => {
       update({ appearance: { ...settings!.appearance, ...patch } })
+    },
+    [settings, update],
+  )
+
+  const handleExplorerChange = useCallback(
+    (patch: Partial<AppSettings['explorer']>) => {
+      update({ explorer: { ...settings!.explorer, ...patch } })
     },
     [settings, update],
   )
@@ -99,6 +108,9 @@ export function SettingsDialog({ open, onOpenChange }: Props) {
             )}
             {activeSection === 'appearance' && (
               <AppearanceSection settings={settings} onChange={handleAppearanceChange} />
+            )}
+            {activeSection === 'explorer' && (
+              <ExplorerSection settings={settings} onChange={handleExplorerChange} />
             )}
             {activeSection === 'keyboard' && <KeyboardSection />}
           </main>

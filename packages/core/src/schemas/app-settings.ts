@@ -22,6 +22,24 @@ export const AppSettingsSchema = z.object({
       tableDensity: z.enum(['compact', 'normal', 'relaxed']).default('normal'),
     })
     .default({}),
+  explorer: z
+    .object({
+      featureOrder: z.array(z.string()).default([
+        'test-cases',
+        'test-suites',
+        'object-repository',
+        'profiles',
+      ]),
+      featureAliases: z.record(z.string()).default({
+        'test-cases': 'Test Cases',
+        'test-suites': 'Test Suites',
+        'object-repository': 'API Requests',
+        profiles: 'Profiles',
+      }),
+      fileDisplayName: z.enum(['metadataName', 'fileName']).default('metadataName'),
+      openApiImportNameSource: z.enum(['summary', 'operationId', 'methodPath']).default('summary'),
+    })
+    .default({}),
 })
 
 export type AppSettings = z.infer<typeof AppSettingsSchema>

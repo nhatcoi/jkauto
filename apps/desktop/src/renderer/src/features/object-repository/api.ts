@@ -12,8 +12,9 @@ export async function sendRequest(
 export async function importOpenApi(
   source: string,
   targetDir: string,
+  nameSource?: 'summary' | 'operationId' | 'methodPath',
 ): Promise<HttpImportOpenApiResult> {
-  return invoke<HttpImportOpenApiResult>(IpcChannels.HTTP_IMPORT_OPENAPI, { source, targetDir })
+  return invoke<HttpImportOpenApiResult>(IpcChannels.HTTP_IMPORT_OPENAPI, { source, targetDir, nameSource })
 }
 
 export async function loadRequest(filePath: string): Promise<ApiRequest> {

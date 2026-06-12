@@ -96,6 +96,7 @@ export interface FsEntry {
 export interface FsTreeNode {
   id: string
   name: string
+  displayName?: string
   path: string
   type: 'file' | 'directory'
   ext?: string
@@ -168,6 +169,7 @@ export interface HttpResponse {
 export interface HttpImportOpenApiPayload {
   source: string
   targetDir: string
+  nameSource?: 'summary' | 'operationId' | 'methodPath'
 }
 
 export interface HttpImportOpenApiResult {

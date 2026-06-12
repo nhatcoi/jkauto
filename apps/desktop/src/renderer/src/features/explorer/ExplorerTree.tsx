@@ -30,6 +30,7 @@ import { IpcChannels } from '@jkauto/core'
 import type { FsTreeNode } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
 import { useProjectStore } from '@/store/project.store'
+import { useAppSettingsStore } from '@/store/app-settings.store'
 import { cn } from '@/lib/utils'
 import { useExplorerTree } from './useExplorerTree'
 import { NewItemDialog } from './NewItemDialog'
@@ -54,6 +55,24 @@ function pathDirname(p: string): string {
 }
 function pathBasename(p: string): string {
   return p.split('/').pop() ?? p
+}
+
+function toExplorerKey(value: string, fallback = 'item'): string {
+  const key = value
+    .toLowerCase()
+    .replace(/[{}]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60)
+
+  return key || fallback
+}
+
+function stripKnownExtension(name: string, type: NewItemType): string {
+  if (type === 'test-case') return name.replace(/\.test\.(json|ya?ml)$/i, '')
+  if (type === 'suite') return name.replace(/\.suite\.(json|ya?ml)$/i, '')
+  if (type === 'api-request') return name.replace(/\.request\.(json|ya?ml)$/i, '')
+  return name
 }
 
 function getFileIcon(node: FsTreeNode): React.ElementType {
@@ -334,7 +353,7 @@ function NodeRow({
     if (node.isInternal) {
       node.toggle()
     } else {
-      openTab(node.data.path, node.data.name, projectPath)
+      openTab(node.data.path, node.data.displayName ?? node.data.name, projectPath)
     }
   }
 
@@ -410,7 +429,9 @@ function NodeRow({
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
-            <span className="text-xs truncate text-foreground/85 flex-1 min-w-0">{node.data.name}</span>
+            <span className="text-xs truncate text-foreground/85 flex-1 min-w-0">
+              {node.data.displayName ?? node.data.name}
+            </span>
           )}
         </div>
       </ContextMenuTrigger>
@@ -432,6 +453,7 @@ const ROW_H = 24
 
 export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
   const { tree, reload } = useExplorerTree(projectPath)
+  const explorerSettings = useAppSettingsStore((state) => state.settings?.explorer)
   const { renameTab, renameTabsUnderPath, closeTab, closeTabsUnderPath } = useProjectStore()
   const containerRef = useRef<HTMLDivElement>(null)
   const treeRef = useRef<TreeApi<FsTreeNode> | null>(null)
@@ -458,6 +480,10 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
   }, [])
 
   useEffect(() => { syncHeight() }, [tree, syncHeight])
+
+  useEffect(() => {
+    if (explorerSettings) reload()
+  }, [explorerSettings, reload])
 
   const handleRename = useCallback(
     async ({ id, name }: { id: string; name: string }) => {
@@ -499,32 +525,34 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
   const handleCreateItem = async (name: string) => {
     if (!newItemState) return
     const { dir, type } = newItemState
+    const displayName = stripKnownExtension(name, type)
+    const key = toExplorerKey(displayName)
 
     if (type === 'folder') {
-      await invoke(IpcChannels.FS_CREATE_DIR, pathJoin(dir, name))
+      await invoke(IpcChannels.FS_CREATE_DIR, pathJoin(dir, key), displayName)
     } else if (type === 'test-case') {
-      const fileName = name.endsWith('.test.json') ? name : `${name}.test.json`
+      const fileName = `${key}.test.json`
       const content = JSON.stringify(
-        { schemaVersion: 1, id: randomUUID(), name, description: '', steps: [] },
+        { schemaVersion: 1, id: randomUUID(), name: displayName, description: '', steps: [] },
         null,
         2,
       )
       await invoke(IpcChannels.FS_CREATE_FILE, pathJoin(dir, fileName), content)
     } else if (type === 'suite') {
-      const fileName = name.endsWith('.suite.json') ? name : `${name}.suite.json`
+      const fileName = `${key}.suite.json`
       const content = JSON.stringify(
-        { schemaVersion: 1, id: randomUUID(), name, description: '', testCaseIds: [] },
+        { schemaVersion: 1, id: randomUUID(), name: displayName, description: '', testCaseIds: [] },
         null,
         2,
       )
       await invoke(IpcChannels.FS_CREATE_FILE, pathJoin(dir, fileName), content)
     } else if (type === 'api-request') {
-      const fileName = name.endsWith('.request.json') ? name : `${name}.request.json`
+      const fileName = `${key}.request.json`
       const content = JSON.stringify(
         {
           schemaVersion: 1,
           id: randomUUID(),
-          name,
+          name: displayName,
           description: '',
           method: 'GET',
           url: '',

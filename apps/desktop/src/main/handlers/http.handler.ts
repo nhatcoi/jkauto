@@ -6,18 +6,11 @@ import SwaggerParser from '@apidevtools/swagger-parser'
 import type { OpenAPIV3 } from 'openapi-types'
 import { IpcChannels } from '@jkauto/core'
 import type { ApiRequest, HttpSendRequestPayload, HttpImportOpenApiPayload, AuthConfig } from '@jkauto/core'
+import { getSettings } from '../services/settings.service'
+import { toExplorerKey, writeExplorerMetadata } from '../services/explorer-metadata'
 
 function resolveVars(s: string, vars: Record<string, string>): string {
   return s.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? `{{${k}}}`)
-}
-
-function toSlug(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/[{}]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 60)
 }
 
 function getDefaultForType(type?: string): unknown {
@@ -62,6 +55,18 @@ function detectAuth(spec: OpenAPIV3.Document, op: OpenAPIV3.OperationObject): Au
     return { type: 'api-key', key: scheme.name ?? '', value: '', in: scheme.in === 'query' ? 'query' : 'header' }
   }
   return { type: 'none' }
+}
+
+function getOperationName(
+  op: OpenAPIV3.OperationObject,
+  method: string,
+  apiPath: string,
+  nameSource: NonNullable<HttpImportOpenApiPayload['nameSource']>,
+): string {
+  const methodPath = `${method.toUpperCase()} ${apiPath}`
+  if (nameSource === 'operationId') return op.operationId ?? op.summary ?? methodPath
+  if (nameSource === 'methodPath') return methodPath
+  return op.summary ?? op.operationId ?? methodPath
 }
 
 export function registerHttpHandlers(ipcMain: IpcMain): void {
@@ -132,26 +137,44 @@ export function registerHttpHandlers(ipcMain: IpcMain): void {
 
   ipcMain.handle(IpcChannels.HTTP_IMPORT_OPENAPI, async (_, payload: HttpImportOpenApiPayload) => {
     const { source, targetDir } = payload
+    const settings = await getSettings()
+    const nameSource = payload.nameSource ?? settings.explorer.openApiImportNameSource
 
-    const api = await SwaggerParser.dereference(source) as OpenAPIV3.Document
+    // For URLs, fetch manually and rewrite absolute self-refs (e.g. NestJS Swagger)
+    // so SwaggerParser can resolve "$ref": "http://host/path#/..." as "#/..."
+    let specInput: string | object = source
+    if (source.startsWith('http://') || source.startsWith('https://')) {
+      const res = await fetch(source)
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+      const text = await res.text()
+      const escaped = source.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const normalized = text
+        .replace(new RegExp(`"${escaped}#`, 'g'), '"#')
+        .replace(new RegExp(`"${escaped}"`, 'g'), '"#"')
+      specInput = JSON.parse(normalized)
+    }
+
+    const api = await SwaggerParser.dereference(specInput as Parameters<typeof SwaggerParser.dereference>[0]) as OpenAPIV3.Document
 
     const rawBaseUrl = api.servers?.[0]?.url
     const baseUrl = rawBaseUrl && rawBaseUrl !== '/' ? rawBaseUrl : '{{baseUrl}}'
 
-    // Wrap in title-named collection folder, auto-increment if exists
+    // Wrap in a key-named collection folder, keeping the readable title as metadata.
     const rawTitle = (api.info?.title ?? '').trim() || 'New API Tests'
-    let collectionDir = path.join(targetDir, rawTitle)
+    const collectionKey = toExplorerKey(rawTitle, 'api')
+    let collectionDir = path.join(targetDir, collectionKey)
     let suffix = 2
     while (true) {
       try {
         await fs.access(collectionDir)
-        collectionDir = path.join(targetDir, `${rawTitle} ${suffix}`)
+        collectionDir = path.join(targetDir, `${collectionKey}-${suffix}`)
         suffix++
       } catch {
         break
       }
     }
     await fs.mkdir(collectionDir, { recursive: true })
+    await writeExplorerMetadata(collectionDir, rawTitle)
 
     const created: string[] = []
 
@@ -166,11 +189,12 @@ export function registerHttpHandlers(ipcMain: IpcMain): void {
 
         // Tag → subfolder inside collection
         const tag = op.tags?.[0] ?? 'default'
-        const tagDir = path.join(collectionDir, toSlug(tag))
+        const tagDir = path.join(collectionDir, toExplorerKey(tag, 'default'))
         await fs.mkdir(tagDir, { recursive: true })
+        await writeExplorerMetadata(tagDir, tag)
 
-        const name = op.summary ?? op.operationId ?? `${method.toUpperCase()} ${apiPath}`
-        const filePath = path.join(tagDir, `${method}-${toSlug(apiPath)}.request.json`)
+        const name = getOperationName(op, method, apiPath, nameSource)
+        const filePath = path.join(tagDir, `${method}-${toExplorerKey(apiPath, 'request')}.request.json`)
 
         // Merge path-level + operation-level parameters
         const allParams = [

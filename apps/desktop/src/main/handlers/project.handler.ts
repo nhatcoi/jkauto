@@ -5,21 +5,22 @@ import path from 'node:path'
 import { IpcChannels } from '@jkauto/core'
 import type { CreateProjectPayload, UpdateProjectPayload, RecentProject } from '@jkauto/core'
 import { randomUUID } from 'node:crypto'
+import { writeExplorerMetadata } from '../services/explorer-metadata'
 
 const RECENT_KEY = 'recent_projects'
 let recentProjects: RecentProject[] = []
 
-const PROJECT_STRUCTURE = [
-  'profiles',
-  'test-cases',
-  'object-repository',
-  'test-suites',
-  'keywords',
-  'reports',
-  'data-files',
-  'checkpoints',
-  'plugins',
-  '.autotest',
+const PROJECT_STRUCTURE: Array<{ key: string; name?: string }> = [
+  { key: 'profiles', name: 'Profiles' },
+  { key: 'test-cases', name: 'Test Cases' },
+  { key: 'object-repository', name: 'API Requests' },
+  { key: 'test-suites', name: 'Test Suites' },
+  { key: 'keywords', name: 'Keywords' },
+  { key: 'reports', name: 'Reports' },
+  { key: 'data-files', name: 'Data Files' },
+  { key: 'checkpoints', name: 'Checkpoints' },
+  { key: 'plugins', name: 'Plugins' },
+  { key: '.autotest' },
 ]
 
 export function registerProjectHandlers(ipcMain: IpcMain): void {
@@ -28,7 +29,9 @@ export function registerProjectHandlers(ipcMain: IpcMain): void {
     await fs.mkdir(projectDir, { recursive: true })
 
     for (const dir of PROJECT_STRUCTURE) {
-      await fs.mkdir(path.join(projectDir, dir), { recursive: true })
+      const dirPath = path.join(projectDir, dir.key)
+      await fs.mkdir(dirPath, { recursive: true })
+      if (dir.name) await writeExplorerMetadata(dirPath, dir.name)
     }
 
     const now = new Date().toISOString()
