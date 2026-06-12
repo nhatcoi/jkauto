@@ -1,14 +1,16 @@
 import * as TabsPrimitive from '@radix-ui/react-tabs'
-import { AlertCircle, Terminal, Activity, Trash2 } from 'lucide-react'
+import { AlertCircle, Terminal, Activity, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useRunStore } from '@/store/run.store'
 import { useEffect, useRef, useState } from 'react'
 import { useTabDnd, moveItem } from '@/hooks/useTabDnd'
+import { useLayoutStore } from '@/store/layout.store'
 
 type BottomTabId = 'problems' | 'console' | 'eventlog'
 
 export function BottomPanel() {
   const { logs, events, clearLogs } = useRunStore()
+  const { bottomCollapsed, toggleBottom } = useLayoutStore()
   const consoleEndRef = useRef<HTMLDivElement>(null)
   const [order, setOrder] = useState<BottomTabId[]>(['problems', 'console', 'eventlog'])
   const { getTabProps, overIndex } = useTabDnd((from, to) =>
@@ -58,17 +60,26 @@ export function BottomPanel() {
           })}
         </div>
 
-        {/* Action button */}
-        {(logs.length > 0 || events.length > 0) && (
+        {/* Action buttons */}
+        <div className="flex items-center gap-0.5">
+          {(logs.length > 0 || events.length > 0) && (
+            <button
+              onClick={clearLogs}
+              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-secondary/40 transition-colors"
+              title="Clear all logs"
+            >
+              <Trash2 className="w-3 h-3" />
+              Clear
+            </button>
+          )}
           <button
-            onClick={clearLogs}
-            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-secondary/40 transition-colors"
-            title="Clear all logs"
+            onClick={toggleBottom}
+            className="flex items-center text-muted-foreground hover:text-foreground px-1.5 py-1 rounded hover:bg-secondary/40 transition-colors"
+            title={bottomCollapsed ? 'Expand panel' : 'Collapse panel'}
           >
-            <Trash2 className="w-3 h-3" />
-            Clear
+            {bottomCollapsed ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
-        )}
+        </div>
       </TabsPrimitive.List>
 
       {/* Problems Panel */}

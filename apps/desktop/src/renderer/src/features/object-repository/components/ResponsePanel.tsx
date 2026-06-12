@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowRight, Check, X } from 'lucide-react'
+import { ArrowRight, Check, X, Copy } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { useProjectStore } from '@/store/project.store'
@@ -131,12 +131,27 @@ function SaveToEnvPanel({ body }: { body: string }) {
 
 function ResponseBodyView({ response }: { response: HttpResponse }) {
   const [showEnv, setShowEnv] = useState(false)
+  const [copied, setCopied] = useState(false)
   const { formatted, isJson } = tryFormatJson(response.body)
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(formatted)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center gap-1 px-3 py-1 border-b border-border shrink-0">
         <div className="flex-1" />
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded transition-colors text-muted-foreground hover:text-foreground hover:bg-secondary"
+        >
+          {copied ? <Check className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3" />}
+          {copied ? 'Copied!' : 'Copy'}
+        </button>
         {isJson && (
           <button
             type="button"

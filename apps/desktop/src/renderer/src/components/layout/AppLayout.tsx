@@ -1,3 +1,5 @@
+import { useRef, useEffect } from 'react'
+import type { ImperativePanelHandle } from 'react-resizable-panels'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { TitleBar } from './TitleBar'
 import { StatusBar } from './StatusBar'
@@ -5,8 +7,17 @@ import { LeftPanel } from './LeftPanel'
 import { MidPanel } from './MidPanel'
 import { RightPanel } from './RightPanel'
 import { BottomPanel } from './BottomPanel'
+import { useLayoutStore } from '@/store/layout.store'
 
 export function AppLayout() {
+  const bottomRef = useRef<ImperativePanelHandle>(null)
+  const { bottomCollapsed, setBottomCollapsed } = useLayoutStore()
+
+  useEffect(() => {
+    if (bottomCollapsed) bottomRef.current?.collapse()
+    else bottomRef.current?.expand()
+  }, [bottomCollapsed])
+
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
       <TitleBar />
@@ -37,7 +48,18 @@ export function AppLayout() {
               <MidPanel />
             </ResizablePanel>
             <ResizableHandle />
-            <ResizablePanel id="bottom" order={2} defaultSize={28} minSize={10} maxSize={55}>
+            <ResizablePanel
+              ref={bottomRef}
+              id="bottom"
+              order={2}
+              defaultSize={28}
+              minSize={4}
+              maxSize={55}
+              collapsible
+              collapsedSize={4}
+              onCollapse={() => setBottomCollapsed(true)}
+              onExpand={() => setBottomCollapsed(false)}
+            >
               <BottomPanel />
             </ResizablePanel>
           </ResizablePanelGroup>
