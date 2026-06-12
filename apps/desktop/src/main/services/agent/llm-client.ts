@@ -31,11 +31,17 @@ const DEFAULT_BASE_URL = 'http://127.0.0.1:3000/v1'
 const DEFAULT_MODEL = 'v1'
 const DEFAULT_API_KEY = 'sk-9223e8b9a66db387-iw96z0-515a4eee'
 
-function getConfig() {
+export interface AgentConfig {
+  baseUrl: string
+  apiKey: string
+  model: string
+}
+
+function getConfig(override?: Partial<AgentConfig>): AgentConfig {
   return {
-    baseUrl: process.env.JKAUTO_AGENT_BASE_URL ?? DEFAULT_BASE_URL,
-    apiKey: process.env.JKAUTO_AGENT_API_KEY ?? DEFAULT_API_KEY,
-    model: process.env.JKAUTO_AGENT_MODEL ?? DEFAULT_MODEL,
+    baseUrl: override?.baseUrl || process.env.JKAUTO_AGENT_BASE_URL || DEFAULT_BASE_URL,
+    apiKey: override?.apiKey || process.env.JKAUTO_AGENT_API_KEY || DEFAULT_API_KEY,
+    model: override?.model || process.env.JKAUTO_AGENT_MODEL || DEFAULT_MODEL,
   }
 }
 
@@ -86,8 +92,9 @@ async function postChatCompletion(
 export async function sendAgentChat(
   messages: AgentMessage[],
   contextSummary: string,
+  configOverride?: Partial<AgentConfig>,
 ): Promise<AgentLlmResult> {
-  const config = getConfig()
+  const config = getConfig(configOverride)
 
   const llmMessages: ChatCompletionMessage[] = [
     { role: 'system', content: AGENT_SYSTEM_PROMPT },

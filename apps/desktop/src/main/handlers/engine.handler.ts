@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { IpcChannels } from '@jkauto/core'
 import type { TestCase, Profile } from '@jkauto/core'
 import { runTestCase } from '@jkauto/engine'
+import { getSettings } from '../services/settings.service'
 
 interface ActiveRun {
   abort: AbortController
@@ -23,6 +24,7 @@ interface RunPayload {
 export function registerEngineHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(IpcChannels.ENGINE_RUN_CASE, async (event, payload: RunPayload) => {
     const { filePath, debugMode = false, profileVariables = {} } = payload
+    const settings = await getSettings()
 
     const raw = await fs.readFile(filePath, 'utf-8')
     const tcData = JSON.parse(raw) as Partial<TestCase>
@@ -69,7 +71,7 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
       abort.signal,
       debugMode
         ? {
-            headless: false,
+            headless: settings.execution.headless,
             waitForNext: (stepIndex: number) =>
               new Promise<void>((resolve) => {
                 debugNextResolvers.set(runId, resolve)
@@ -79,7 +81,7 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
                 }
               }),
           }
-        : { headless: false },
+        : { headless: settings.execution.headless },
     ).catch((err) => {
       activeRuns.delete(runId)
       if (!webContents.isDestroyed()) {

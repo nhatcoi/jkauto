@@ -35,6 +35,34 @@
     --run-running: 38 92% 50%;
   }
 
+  /* ── light theme ── */
+  .light {
+    --background: 0 0% 97%;
+    --foreground: 222 20% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 20% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 20% 15%;
+    --primary: 207 90% 44%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 16% 90%;
+    --secondary-foreground: 222 20% 15%;
+    --muted: 210 14% 93%;
+    --muted-foreground: 215 14% 45%;
+    --accent: 207 90% 44%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 48%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 16% 82%;
+    --input: 210 16% 94%;
+    --ring: 207 90% 44%;
+
+    --sidebar-bg: 210 18% 94%;
+    --panel-bg: 0 0% 98%;
+    --titlebar-bg: 210 20% 89%;
+    --statusbar-bg: 207 90% 44%;
+  }
+
   * {
     @apply border-border box-border;
   }

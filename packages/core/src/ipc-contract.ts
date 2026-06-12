@@ -55,6 +55,9 @@ export const IpcChannels = {
   AGENT_CHAT: 'agent:chat',
   AGENT_GET_CONTEXT: 'agent:get-context',
   AGENT_CANCEL: 'agent:cancel',
+
+  APP_SETTINGS_GET: 'app-settings:get',
+  APP_SETTINGS_SET: 'app-settings:set',
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]

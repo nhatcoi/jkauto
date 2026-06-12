@@ -1,9 +1,12 @@
-import { useState } from 'react'
-import { Play, Square, FolderOpen, Settings, Layers } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Play, Square, FolderOpen, Settings, Layers, SlidersHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { Kbd } from '@/components/ui/kbd'
 import { useProjectStore } from '@/store/project.store'
 import { ProjectSettingsDialog } from '@/features/project/ProjectSettingsDialog'
 import { NewProjectDialog } from '@/features/project/NewProjectDialog'
+import { SettingsDialog } from '@/features/settings/SettingsDialog'
 import { IpcChannels } from '@jkauto/core'
 import type { Project } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
@@ -12,7 +15,8 @@ import { cn } from '@/lib/utils'
 export function TitleBar() {
   const { activeProject, activeProjectPath, projects } = useProjectStore()
   const addProject = useProjectStore((s) => s.addProject)
-  const [showSettings, setShowSettings] = useState(false)
+  const [showProjectSettings, setShowProjectSettings] = useState(false)
+  const [showAppSettings, setShowAppSettings] = useState(false)
   const [showNew, setShowNew] = useState(false)
 
   const handleOpenProject = async () => {
@@ -21,6 +25,18 @@ export function TitleBar() {
     )
     if (result) addProject(result.projectPath, result.project)
   }
+
+  // Ctrl+, opens app settings
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === ',') {
+        e.preventDefault()
+        setShowAppSettings((v) => !v)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   return (
     <div className="flex items-center h-9 bg-titlebar border-b border-border px-3 gap-3 shrink-0 select-none">
@@ -84,33 +100,57 @@ export function TitleBar() {
 
       {/* Actions */}
       <div className="flex items-center gap-0.5">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 text-muted-foreground hover:text-foreground"
-          title="Open Project"
-          onClick={handleOpenProject}
-        >
-          <FolderOpen className="w-4 h-4" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              onClick={handleOpenProject}
+            >
+              <FolderOpen className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Open Project</TooltipContent>
+        </Tooltip>
+
         {activeProject && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-foreground"
-            title="Project Settings"
-            onClick={() => setShowSettings(true)}
-          >
-            <Settings className="w-4 h-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowProjectSettings(true)}
+              >
+                <Settings className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Project Settings</TooltipContent>
+          </Tooltip>
         )}
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              onClick={() => setShowAppSettings(true)}
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>App Settings<Kbd>Ctrl+,</Kbd></TooltipContent>
+        </Tooltip>
       </div>
 
       <ProjectSettingsDialog
-        open={showSettings}
-        onOpenChange={setShowSettings}
+        open={showProjectSettings}
+        onOpenChange={setShowProjectSettings}
         projectPath={activeProjectPath ?? undefined}
       />
+      <SettingsDialog open={showAppSettings} onOpenChange={setShowAppSettings} />
       <NewProjectDialog open={showNew} onOpenChange={setShowNew} />
     </div>
   )

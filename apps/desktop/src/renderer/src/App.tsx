@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useProjectStore } from './store/project.store'
+import { useAppSettingsStore } from './store/app-settings.store'
 import { AppLayout } from './components/layout/AppLayout'
 import { WelcomeView } from './features/project/WelcomeView'
 import { IpcChannels } from '@jkauto/core'
@@ -10,6 +11,11 @@ import { TooltipProvider } from './components/ui/tooltip'
 export default function App() {
   const hasProjects = useProjectStore((s) => s.projects.length > 0)
   const addProject = useProjectStore((s) => s.addProject)
+  const loadSettings = useAppSettingsStore((s) => s.load)
+
+  useEffect(() => {
+    loadSettings().catch(() => {})
+  }, [])
 
   // Restore workspace on startup
   useEffect(() => {
