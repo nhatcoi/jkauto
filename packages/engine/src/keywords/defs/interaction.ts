@@ -1,4 +1,4 @@
-import type { KeywordDef, PageKeywordExecutor } from '../types'
+import type { KeywordDef, PageKeywordExecutor, AppiumKeywordExecutor } from '../types'
 
 const clickFn: PageKeywordExecutor = async ({ page, objectRef, resolveLocator }) => {
   const s = await resolveLocator(objectRef)
@@ -11,6 +11,21 @@ const typeFn: PageKeywordExecutor = async ({ page, objectRef, input, resolveLoca
 const clearFn: PageKeywordExecutor = async ({ page, objectRef, resolveLocator }) => {
   const s = await resolveLocator(objectRef)
   await page.fill(s, '')
+}
+
+const appiumClickFn: AppiumKeywordExecutor = async ({ driver, objectRef, resolveLocator }) => {
+  const s = await resolveLocator(objectRef)
+  await driver.$(s).click()
+}
+const appiumTypeFn: AppiumKeywordExecutor = async ({ driver, objectRef, input, resolveLocator, interpolate }) => {
+  const s = await resolveLocator(objectRef)
+  const el = driver.$(s)
+  await el.clearValue()
+  await el.setValue(interpolate(input))
+}
+const appiumClearFn: AppiumKeywordExecutor = async ({ driver, objectRef, resolveLocator }) => {
+  const s = await resolveLocator(objectRef)
+  await driver.$(s).clearValue()
 }
 const hoverFn: PageKeywordExecutor = async ({ page, objectRef, resolveLocator }) => {
   const s = await resolveLocator(objectRef)
@@ -42,20 +57,20 @@ export const interactionKeywords: KeywordDef[] = [
     label: 'Click',
     color: 'bg-green-600',
     description: 'Click an element',
-    platforms: ['web', 'mobile', 'desktop'],
+    platforms: ['web', 'mobile', 'desktop', 'appium'],
     params: [{ name: 'objectRef', description: 'CSS selector or object reference', required: true }],
     hasObject: true,
     hasInput: false,
     hasExpected: false,
     objectPlaceholder: 'Selector',
-    executors: { web: clickFn, mobile: clickFn, desktop: clickFn },
+    executors: { web: clickFn, mobile: clickFn, desktop: clickFn, appium: appiumClickFn },
   },
   {
     name: 'type-text',
     label: 'Type Text',
     color: 'bg-violet-600',
     description: 'Type text into an input element',
-    platforms: ['web', 'mobile', 'desktop'],
+    platforms: ['web', 'mobile', 'desktop', 'appium'],
     params: [
       { name: 'objectRef', description: 'CSS selector or object reference', required: true },
       { name: 'input', description: 'Text to type', required: true },
@@ -65,20 +80,20 @@ export const interactionKeywords: KeywordDef[] = [
     hasExpected: false,
     objectPlaceholder: 'Selector',
     inputPlaceholder: 'Text',
-    executors: { web: typeFn, mobile: typeFn, desktop: typeFn },
+    executors: { web: typeFn, mobile: typeFn, desktop: typeFn, appium: appiumTypeFn },
   },
   {
     name: 'clear-text',
     label: 'Clear Text',
     color: 'bg-orange-500',
     description: 'Clear the value of an input element',
-    platforms: ['web', 'mobile', 'desktop'],
+    platforms: ['web', 'mobile', 'desktop', 'appium'],
     params: [{ name: 'objectRef', description: 'CSS selector or object reference', required: true }],
     hasObject: true,
     hasInput: false,
     hasExpected: false,
     objectPlaceholder: 'Selector',
-    executors: { web: clearFn, mobile: clearFn, desktop: clearFn },
+    executors: { web: clearFn, mobile: clearFn, desktop: clearFn, appium: appiumClearFn },
   },
   {
     name: 'hover',

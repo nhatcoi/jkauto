@@ -175,6 +175,7 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
       debugMode,
       profileVariables,
       projectPath: activeProject?.path,
+      device: tcRef.current?.device,
     })
     startRun(result.runId, filePath, debugMode)
   }, [filePath, runStatus, markTabDirty, startRun, activeProject, isYaml])
@@ -541,6 +542,33 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
             <option value="api">API</option>
           </select>
         </div>
+
+        {/* device picker — visible only when platform === mobile */}
+        {platform === 'mobile' && (
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-muted-foreground/70 shrink-0">Device:</span>
+            <input
+              list="device-list"
+              value={tc.device ?? ''}
+              placeholder="iPhone 14"
+              onChange={(e) => mutate((prev) => ({ ...prev, device: e.target.value || undefined }))}
+              className="text-xs bg-input text-foreground px-1.5 py-0.5 rounded border border-border focus:border-primary outline-none w-32"
+            />
+            <datalist id="device-list">
+              <option value="iPhone 14" />
+              <option value="iPhone 14 Pro" />
+              <option value="iPhone 14 Plus" />
+              <option value="iPhone SE" />
+              <option value="iPhone 13" />
+              <option value="Pixel 7" />
+              <option value="Pixel 5" />
+              <option value="Galaxy S8" />
+              <option value="Galaxy Tab S4" />
+              <option value="iPad (gen 7)" />
+              <option value="iPad Mini" />
+            </datalist>
+          </div>
+        )}
 
         <div className="flex-1" />
 

@@ -18,7 +18,17 @@ export interface RunOptions {
   appPath?: string
 }
 
-function buildSelector(locator: Locator): string {
+function buildSelector(locator: Locator, platform: Platform): string {
+  if (platform === 'appium') {
+    // WebDriverIO Appium selector conventions.
+    switch (locator.strategy) {
+      case 'testid':
+      case 'label': return `~${locator.value}`          // accessibility ID
+      case 'xpath': return locator.value               // must start with //
+      case 'text':  return `~${locator.value}`         // accessibility label fallback
+      default:      return locator.value
+    }
+  }
   switch (locator.strategy) {
     case 'testid': return `[data-testid="${locator.value}"]`
     case 'css': return locator.value
@@ -41,7 +51,7 @@ function buildLocatorIndex(repos: ObjectRepository[], platform: Platform): Map<s
         .sort((a, b) => b.priority - a.priority)
       const best = candidates[0]
       if (!best) continue
-      const selector = buildSelector(best)
+      const selector = buildSelector(best, platform)
       index.set(obj.name.toLowerCase(), selector)
       index.set(`${repo.name.toLowerCase()}.${obj.name.toLowerCase()}`, selector)
     }

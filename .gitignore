@@ -23,3 +23,8 @@ apps/desktop/tsconfig.node.tsbuildinfo
 # OS
 .DS_Store
 Thumbs.db
+
+# mobile-template build artifacts
+test-project/mobile-template/.expo/
+test-project/mobile-template/ios/
+test-project/mobile-template/package-lock.json

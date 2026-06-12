@@ -17,7 +17,8 @@
   },
   "dependencies": {
     "@jkauto/core": "workspace:*",
-    "@playwright/test": "^1.46.0"
+    "@playwright/test": "^1.46.0",
+    "webdriverio": "^9.0.0"
   },
   "devDependencies": {
     "typescript": "^5.5.4"

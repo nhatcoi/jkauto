@@ -4,12 +4,14 @@ import { WebAdapter } from './web-adapter'
 import { MobileAdapter } from './mobile-adapter'
 import { DesktopAdapter } from './desktop-adapter'
 import { ApiAdapter } from './api-adapter'
+import { AppiumAdapter } from './appium-adapter'
 
 const factories: Record<Platform, () => EngineAdapter> = {
   web: () => new WebAdapter(),
   mobile: () => new MobileAdapter(),
   desktop: () => new DesktopAdapter(),
   api: () => new ApiAdapter(),
+  appium: () => new AppiumAdapter(),
 }
 
 export function getAdapter(platform: Platform): EngineAdapter {

@@ -122,7 +122,7 @@ export interface KeywordMeta {
   label: string
   color: string
   description: string
-  platforms: Array<'web' | 'mobile' | 'desktop' | 'api'>
+  platforms: Array<'web' | 'mobile' | 'desktop' | 'api' | 'appium'>
   params: KeywordMetaParam[]
   hasObject: boolean
   hasInput: boolean

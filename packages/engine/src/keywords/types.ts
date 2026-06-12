@@ -1,6 +1,25 @@
 import type { Page } from '@playwright/test'
 import type { KeywordMeta } from '@jkauto/core'
 
+// Minimal Appium/WebDriverIO driver contract — avoids importing webdriverio in every keyword file.
+export interface AppiumElement {
+  click(): Promise<void>
+  setValue(value: string | number | string[]): Promise<void>
+  clearValue(): Promise<void>
+  getText(): Promise<string>
+  isDisplayed(): Promise<boolean>
+  waitForDisplayed(opts?: { timeout?: number }): Promise<boolean>
+}
+export interface AppiumDriver {
+  $(selector: string): AppiumElement
+  pause(ms: number): Promise<unknown>
+  url(address: string): Promise<unknown>
+  getWindowSize(): Promise<{ width: number; height: number }>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  touchAction(actions: any[]): Promise<unknown>
+  deleteSession(): Promise<void>
+}
+
 // Mutable API test session — api keywords read/write this across steps.
 export interface ApiSession {
   baseUrl: string
@@ -36,8 +55,19 @@ export interface ApiKeywordContext {
   interpolate: (value: string) => string
 }
 
+// Context for appium platform (native iOS/Android via WebDriverIO).
+export interface AppiumKeywordContext {
+  driver: AppiumDriver
+  objectRef: string
+  input: string
+  expected: string
+  resolveLocator: (ref: string) => Promise<string>
+  interpolate: (value: string) => string
+}
+
 export type PageKeywordExecutor = (ctx: KeywordContext) => Promise<void>
 export type ApiKeywordExecutor = (ctx: ApiKeywordContext) => Promise<void>
+export type AppiumKeywordExecutor = (ctx: AppiumKeywordContext) => Promise<void>
 
 // Backwards-compat alias.
 export type KeywordExecutor = PageKeywordExecutor
@@ -48,5 +78,6 @@ export interface KeywordDef extends KeywordMeta {
     mobile?: PageKeywordExecutor
     desktop?: PageKeywordExecutor
     api?: ApiKeywordExecutor
+    appium?: AppiumKeywordExecutor
   }
 }

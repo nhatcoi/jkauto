@@ -21,6 +21,8 @@ interface RunPayload {
   debugMode?: boolean
   profileVariables?: Record<string, string>
   projectPath?: string
+  device?: string
+  appPath?: string
 }
 
 async function loadObjectRepositories(projectPath: string): Promise<ObjectRepository[]> {
@@ -94,7 +96,7 @@ function sendSuiteEvent(webContents: WebContents, event: SuiteEvent): void {
 
 export function registerEngineHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(IpcChannels.ENGINE_RUN_CASE, async (event, payload: RunPayload) => {
-    const { filePath, debugMode = false, profileVariables = {}, projectPath } = payload
+    const { filePath, debugMode = false, profileVariables = {}, projectPath, device, appPath } = payload
     const settings = await getSettings()
 
     const testCase = await readTestCase(filePath)
@@ -132,6 +134,8 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
         ? {
             headless: settings.execution.headless,
             objectRepositories,
+            device,
+            appPath,
             waitForNext: (stepIndex: number) =>
               new Promise<void>((resolve) => {
                 debugNextResolvers.set(runId, resolve)
@@ -140,7 +144,7 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
                 }
               }),
           }
-        : { headless: settings.execution.headless, objectRepositories },
+        : { headless: settings.execution.headless, objectRepositories, device, appPath },
     ).catch((err) => {
       activeRuns.delete(runId)
       if (!webContents.isDestroyed()) {

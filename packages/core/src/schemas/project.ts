@@ -3,10 +3,10 @@ import { z } from 'zod'
 export const ProjectTypeSchema = z.enum(['web', 'mobile', 'desktop', 'api'])
 export type ProjectType = z.infer<typeof ProjectTypeSchema>
 
-// Platform = same value space as ProjectType, declared at test-case level.
+// Platform extends ProjectType with 'appium' for native device automation.
 // Runtime fallback: testCase.platform ?? project.type.
-export const PlatformSchema = ProjectTypeSchema
-export type Platform = ProjectType
+export const PlatformSchema = z.enum(['web', 'mobile', 'desktop', 'api', 'appium'])
+export type Platform = z.infer<typeof PlatformSchema>
 
 export const ProjectFormatSchema = z.enum(['json', 'yaml'])
 export type ProjectFormat = z.infer<typeof ProjectFormatSchema>

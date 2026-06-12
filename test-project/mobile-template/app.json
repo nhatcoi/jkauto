@@ -1,22 +1,22 @@
 {
   "expo": {
-    "name": "SleekMobile App",
+    "name": "QA Tasks Mobile",
     "slug": "mobile-template",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0f172a"
-    },
+    "userInterfaceStyle": "light",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.mobile-template"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0f172a"
+        "backgroundColor": "#f8fafc"
       }
     }
   }

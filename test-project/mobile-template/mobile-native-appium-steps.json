@@ -1,0 +1,178 @@
+[
+  {
+    "keyword": "wait-for-element",
+    "description": "Wait for login screen",
+    "objectRef": "~login-submit-button",
+    "input": "15000"
+  },
+  {
+    "keyword": "clear-text",
+    "description": "Clear email field",
+    "objectRef": "~login-email-input"
+  },
+  {
+    "keyword": "type-text",
+    "description": "Enter valid email",
+    "objectRef": "~login-email-input",
+    "input": "tester@example.com"
+  },
+  {
+    "keyword": "clear-text",
+    "description": "Clear password field",
+    "objectRef": "~login-password-input"
+  },
+  {
+    "keyword": "type-text",
+    "description": "Enter valid password",
+    "objectRef": "~login-password-input",
+    "input": "password123"
+  },
+  {
+    "keyword": "tap",
+    "description": "Tap login button",
+    "objectRef": "~login-submit-button"
+  },
+  {
+    "keyword": "wait-for-element",
+    "description": "Wait for tasks screen after login",
+    "objectRef": "~tasks-screen",
+    "input": "15000"
+  },
+  {
+    "keyword": "assert-visible",
+    "description": "Verify tasks screen visible",
+    "objectRef": "~tasks-screen"
+  },
+  {
+    "keyword": "assert-text",
+    "description": "Verify signed-in email shown",
+    "objectRef": "~signed-in-email-text",
+    "expected": "tester@example.com"
+  },
+  {
+    "keyword": "clear-text",
+    "description": "Clear task title input",
+    "objectRef": "~task-title-input"
+  },
+  {
+    "keyword": "type-text",
+    "description": "Enter new task title",
+    "objectRef": "~task-title-input",
+    "input": "Native Appium smoke test"
+  },
+  {
+    "keyword": "clear-text",
+    "description": "Clear task note input",
+    "objectRef": "~task-note-input"
+  },
+  {
+    "keyword": "type-text",
+    "description": "Enter new task note",
+    "objectRef": "~task-note-input",
+    "input": "Created via Appium on iOS"
+  },
+  {
+    "keyword": "tap",
+    "description": "Tap create task button",
+    "objectRef": "~task-save-button"
+  },
+  {
+    "keyword": "wait-for-element",
+    "description": "Wait for new task card at index 0",
+    "objectRef": "~task-card-0",
+    "input": "10000"
+  },
+  {
+    "keyword": "assert-text",
+    "description": "Verify new task title",
+    "objectRef": "~task-title-0",
+    "expected": "Native Appium smoke test"
+  },
+  {
+    "keyword": "assert-text",
+    "description": "Verify new task note",
+    "objectRef": "~task-note-0",
+    "expected": "Created via Appium on iOS"
+  },
+  {
+    "keyword": "tap",
+    "description": "Tap edit button on new task",
+    "objectRef": "~task-edit-button-0"
+  },
+  {
+    "keyword": "wait-for-element",
+    "description": "Wait for cancel button (edit mode active)",
+    "objectRef": "~task-cancel-edit-button",
+    "input": "10000"
+  },
+  {
+    "keyword": "clear-text",
+    "description": "Clear title before update",
+    "objectRef": "~task-title-input"
+  },
+  {
+    "keyword": "type-text",
+    "description": "Enter updated title",
+    "objectRef": "~task-title-input",
+    "input": "Native Appium smoke test updated"
+  },
+  {
+    "keyword": "clear-text",
+    "description": "Clear note before update",
+    "objectRef": "~task-note-input"
+  },
+  {
+    "keyword": "type-text",
+    "description": "Enter updated note",
+    "objectRef": "~task-note-input",
+    "input": "Updated via Appium on iOS"
+  },
+  {
+    "keyword": "tap",
+    "description": "Save updated task",
+    "objectRef": "~task-save-button"
+  },
+  {
+    "keyword": "wait-ms",
+    "description": "Wait for list to re-render",
+    "input": "500"
+  },
+  {
+    "keyword": "assert-text",
+    "description": "Verify updated task title",
+    "objectRef": "~task-title-0",
+    "expected": "Native Appium smoke test updated"
+  },
+  {
+    "keyword": "assert-text",
+    "description": "Verify updated task note",
+    "objectRef": "~task-note-0",
+    "expected": "Updated via Appium on iOS"
+  },
+  {
+    "keyword": "tap",
+    "description": "Delete updated task",
+    "objectRef": "~task-delete-button-0"
+  },
+  {
+    "keyword": "wait-ms",
+    "description": "Wait for task list to update",
+    "input": "500"
+  },
+  {
+    "keyword": "assert-hidden",
+    "description": "Verify deleted task no longer at index 0 with that title",
+    "objectRef": "~task-title-0"
+  },
+  {
+    "keyword": "tap",
+    "description": "Tap logout",
+    "objectRef": "~logout-button"
+  },
+  {
+    "keyword": "wait-for-element",
+    "description": "Verify login screen shown after logout",
+    "objectRef": "~login-submit-button",
+    "input": "10000"
+  }
+]

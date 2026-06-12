@@ -20,6 +20,7 @@ export const TestCaseSchema = z.object({
   name: z.string().min(1),
   description: z.string().default(''),
   platform: PlatformSchema.optional(), // fallback = project.type tại runtime
+  device: z.string().optional(),       // mobile: e.g. "iPhone 14"; undefined = adapter default
   tags: z.array(z.string()).default([]),
   steps: z.array(StepSchema).default([]),
   createdAt: z.string().datetime(),

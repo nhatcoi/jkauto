@@ -1,0 +1,168 @@
+[
+  {
+    "keyword": "navigate-to",
+    "description": "Open Expo mobile web app",
+    "input": "http://localhost:8081"
+  },
+  {
+    "keyword": "wait-for-element",
+    "description": "Wait for login form",
+    "objectRef": "[data-testid=\"login-email-input\"]",
+    "input": "10000"
+  },
+  {
+    "keyword": "clear-text",
+    "description": "Clear email",
+    "objectRef": "[data-testid=\"login-email-input\"]"
+  },
+  {
+    "keyword": "type-text",
+    "description": "Enter valid email",
+    "objectRef": "[data-testid=\"login-email-input\"]",
+    "input": "tester@example.com"
+  },
+  {
+    "keyword": "clear-text",
+    "description": "Clear password",
+    "objectRef": "[data-testid=\"login-password-input\"]"
+  },
+  {
+    "keyword": "type-text",
+    "description": "Enter valid password",
+    "objectRef": "[data-testid=\"login-password-input\"]",
+    "input": "password123"
+  },
+  {
+    "keyword": "tap",
+    "description": "Submit login",
+    "objectRef": "[data-testid=\"login-submit-button\"]"
+  },
+  {
+    "keyword": "wait-for-element",
+    "description": "Wait for tasks screen",
+    "objectRef": "[data-testid=\"tasks-screen\"]",
+    "input": "10000"
+  },
+  {
+    "keyword": "assert-visible",
+    "description": "Verify tasks screen is visible",
+    "objectRef": "[data-testid=\"tasks-screen\"]"
+  },
+  {
+    "keyword": "assert-text",
+    "description": "Verify signed in email",
+    "objectRef": "[data-testid=\"signed-in-email-text\"]",
+    "expected": "tester@example.com"
+  },
+  {
+    "keyword": "type-text",
+    "description": "Enter new task title",
+    "objectRef": "[data-testid=\"task-title-input\"]",
+    "input": "Mobile CRUD smoke test"
+  },
+  {
+    "keyword": "type-text",
+    "description": "Enter new task note",
+    "objectRef": "[data-testid=\"task-note-input\"]",
+    "input": "Created from imported mobile test steps"
+  },
+  {
+    "keyword": "tap",
+    "description": "Create task",
+    "objectRef": "[data-testid=\"task-save-button\"]"
+  },
+  {
+    "keyword": "wait-for-element",
+    "description": "Wait for created task card",
+    "objectRef": "[data-testid=\"task-card-0\"]",
+    "input": "10000"
+  },
+  {
+    "keyword": "assert-text",
+    "description": "Verify created task title",
+    "objectRef": "[data-testid=\"task-title-0\"]",
+    "expected": "Mobile CRUD smoke test"
+  },
+  {
+    "keyword": "assert-text",
+    "description": "Verify created task note",
+    "objectRef": "[data-testid=\"task-note-0\"]",
+    "expected": "Created from imported mobile test steps"
+  },
+  {
+    "keyword": "tap",
+    "description": "Open edit mode for created task",
+    "objectRef": "[data-testid=\"task-edit-button-0\"]"
+  },
+  {
+    "keyword": "wait-for-element",
+    "description": "Wait for edit form",
+    "objectRef": "[data-testid=\"task-cancel-edit-button\"]",
+    "input": "10000"
+  },
+  {
+    "keyword": "clear-text",
+    "description": "Clear task title before update",
+    "objectRef": "[data-testid=\"task-title-input\"]"
+  },
+  {
+    "keyword": "type-text",
+    "description": "Enter updated task title",
+    "objectRef": "[data-testid=\"task-title-input\"]",
+    "input": "Mobile CRUD smoke test updated"
+  },
+  {
+    "keyword": "clear-text",
+    "description": "Clear task note before update",
+    "objectRef": "[data-testid=\"task-note-input\"]"
+  },
+  {
+    "keyword": "type-text",
+    "description": "Enter updated task note",
+    "objectRef": "[data-testid=\"task-note-input\"]",
+    "input": "Updated from imported mobile test steps"
+  },
+  {
+    "keyword": "tap",
+    "description": "Save updated task",
+    "objectRef": "[data-testid=\"task-save-button\"]"
+  },
+  {
+    "keyword": "assert-text",
+    "description": "Verify updated task title",
+    "objectRef": "[data-testid=\"task-title-0\"]",
+    "expected": "Mobile CRUD smoke test updated"
+  },
+  {
+    "keyword": "assert-text",
+    "description": "Verify updated task note",
+    "objectRef": "[data-testid=\"task-note-0\"]",
+    "expected": "Updated from imported mobile test steps"
+  },
+  {
+    "keyword": "tap",
+    "description": "Delete updated task",
+    "objectRef": "[data-testid=\"task-delete-button-0\"]"
+  },
+  {
+    "keyword": "wait-ms",
+    "description": "Wait for task list to update",
+    "input": "500"
+  },
+  {
+    "keyword": "assert-hidden",
+    "description": "Verify deleted task card is gone from first position",
+    "objectRef": "text=\"Mobile CRUD smoke test updated\""
+  },
+  {
+    "keyword": "tap",
+    "description": "Logout",
+    "objectRef": "[data-testid=\"logout-button\"]"
+  },
+  {
+    "keyword": "wait-for-element",
+    "description": "Verify login screen after logout",
+    "objectRef": "[data-testid=\"login-submit-button\"]",
+    "input": "10000"
+  }
+]
