@@ -14,7 +14,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { IpcChannels } from '@jkauto/core'
-import type { FsTreeNode, RunRecord, StepEvent, TestCase, TestSuite } from '@jkauto/core'
+import type { FsTreeNode, RunRecord, StepEvent, SuiteEvent, TestCase, TestSuite } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { useProjectStore } from '@/store/project.store'
@@ -67,6 +67,7 @@ function normalizeSuite(raw: Partial<TestSuite> & { testCaseIds?: string[] }, fi
     name: raw.name ?? basename(filePath).replace(/\.suite\.(json|ya?ml)$/i, ''),
     description: raw.description ?? '',
     profile: raw.profile ?? 'default',
+    continueOnFailure: raw.continueOnFailure ?? false,
     items: (raw.items ?? legacyItems).map((item, index) => ({
       testCaseId: item.testCaseId,
       testCasePath: item.testCasePath,
@@ -101,6 +102,7 @@ export function SuiteEditor({ filePath }: { filePath: string }) {
   const {
     startRun,
     handleStepEvent,
+    handleSuiteEvent,
     handleRunComplete,
     stopRun,
     appendRunRecord,
@@ -164,6 +166,23 @@ export function SuiteEditor({ filePath }: { filePath: string }) {
   }, [loadTestCases])
 
   useEffect(() => {
+    const offSuite = window.api.on(IpcChannels.ENGINE_SUITE_EVENT, (payload: unknown) => {
+      const event = payload as SuiteEvent
+      handleSuiteEvent(event)
+
+      if (event.type === 'case-start' && event.testCasePath) {
+        setCaseStatuses((prev) => ({ ...prev, [event.testCasePath!]: 'running' }))
+      }
+      if (event.type === 'case-complete' && event.testCasePath) {
+        setCaseStatuses((prev) => ({
+          ...prev,
+          [event.testCasePath!]: event.status === 'stopped' ? 'skipped' : event.status ?? 'idle',
+        }))
+        if (event.message) {
+          setCaseMessages((prev) => ({ ...prev, [event.testCasePath!]: event.message ?? '' }))
+        }
+      }
+    })
     const offStep = window.api.on(IpcChannels.ENGINE_STEP_EVENT, (payload: unknown) => {
       const event = payload as StepEvent
       handleStepEvent(event)
@@ -171,7 +190,7 @@ export function SuiteEditor({ filePath }: { filePath: string }) {
       if (!item) return
       setCaseStatuses((prev) => ({
         ...prev,
-        [item.testCasePath]: event.status === 'failed' ? 'failed' : event.status === 'skipped' ? 'skipped' : event.status === 'passed' ? 'passed' : 'running',
+        [item.testCasePath]: event.status === 'failed' ? 'failed' : 'running',
       }))
       if (event.message) {
         setCaseMessages((prev) => ({ ...prev, [item.testCasePath]: event.message ?? '' }))
@@ -194,10 +213,11 @@ export function SuiteEditor({ filePath }: { filePath: string }) {
       invoke(IpcChannels.ENGINE_SAVE_RUN, filePath, record).catch(console.error)
     })
     return () => {
+      offSuite()
       offStep()
       offComplete()
     }
-  }, [filePath, handleStepEvent, handleRunComplete, appendRunRecord])
+  }, [filePath, handleSuiteEvent, handleStepEvent, handleRunComplete, appendRunRecord])
 
   const mutate = (fn: (prev: TestSuite) => TestSuite) => {
     setSuite((prev) => {
@@ -364,6 +384,15 @@ export function SuiteEditor({ filePath }: { filePath: string }) {
           className="h-7 w-28 bg-input text-xs px-2 rounded border border-border focus:border-primary outline-none"
           title="Profile"
         />
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap">
+          <input
+            type="checkbox"
+            checked={suite.continueOnFailure}
+            onChange={(e) => mutate((prev) => ({ ...prev, continueOnFailure: e.target.checked }))}
+            className="w-3 h-3 accent-primary"
+          />
+          Continue on failure
+        </label>
         <div className="flex-1" />
         <select
           value={selectedPath}

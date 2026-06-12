@@ -36,10 +36,12 @@ export const IpcChannels = {
   ENGINE_RUN_SUITE: 'engine:run-suite',
   ENGINE_STOP: 'engine:stop',
   ENGINE_STEP_EVENT: 'engine:step-event',
+  ENGINE_SUITE_EVENT: 'engine:suite-event',
   ENGINE_RUN_COMPLETE: 'engine:run-complete',
   ENGINE_GET_RUNS: 'engine:get-runs',
   ENGINE_SAVE_RUN: 'engine:save-run',
   ENGINE_DEBUG_NEXT: 'engine:debug-next',
+  ENGINE_GET_KEYWORDS: 'engine:get-keywords',
 
   HTTP_SEND_REQUEST: 'http:send-request',
   HTTP_IMPORT_OPENAPI: 'http:import-openapi',
@@ -108,6 +110,28 @@ export interface FsWatchEvent {
   path: string
 }
 
+export interface KeywordMetaParam {
+  name: string
+  description: string
+  required: boolean
+}
+
+// Serializable keyword metadata (no executor fn) — single source for renderer UI.
+export interface KeywordMeta {
+  name: string
+  label: string
+  color: string
+  description: string
+  platforms: Array<'web' | 'mobile' | 'desktop' | 'api'>
+  params: KeywordMetaParam[]
+  hasObject: boolean
+  hasInput: boolean
+  hasExpected: boolean
+  inputPlaceholder?: string
+  objectPlaceholder?: string
+  expectedPlaceholder?: string
+}
+
 export interface StepEvent {
   runId: string
   testCaseId: string
@@ -115,6 +139,21 @@ export interface StepEvent {
   status: 'running' | 'passed' | 'failed' | 'skipped'
   message?: string
   screenshotPath?: string
+  durationMs?: number
+}
+
+export interface SuiteEvent {
+  runId: string
+  suiteId: string
+  suiteName: string
+  type: 'suite-start' | 'case-start' | 'case-complete' | 'suite-complete'
+  caseIndex?: number
+  totalCases?: number
+  testCaseId?: string
+  testCasePath?: string
+  testCaseName?: string
+  status?: 'running' | 'passed' | 'failed' | 'skipped' | 'stopped'
+  message?: string
   durationMs?: number
 }
 

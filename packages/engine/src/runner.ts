@@ -1,7 +1,6 @@
-import { chromium } from '@playwright/test'
-import type { TestCase, Profile } from '@jkauto/core'
+import type { TestCase, Profile, Platform, ObjectRepository, Locator } from '@jkauto/core'
 import type { StepEvent, RunCompleteEvent } from '@jkauto/core'
-import { getKeyword } from './keywords/registry'
+import { getAdapter } from './adapter/registry'
 
 export type StepEventCallback = (event: StepEvent) => void
 export type RunCompleteCallback = (event: RunCompleteEvent) => void
@@ -10,6 +9,44 @@ export interface RunOptions {
   headless?: boolean
   stepDelay?: number
   waitForNext?: (stepIndex: number) => Promise<void>
+  platform?: Platform
+  /** Loaded object repositories for resolveLocator. Passed by engine handler at runtime. */
+  objectRepositories?: ObjectRepository[]
+  /** Mobile device name, e.g. "iPhone 14". Forwarded to adapter.start(). */
+  device?: string
+  /** Desktop app executable path. Forwarded to adapter.start(). */
+  appPath?: string
+}
+
+function buildSelector(locator: Locator): string {
+  switch (locator.strategy) {
+    case 'testid': return `[data-testid="${locator.value}"]`
+    case 'css': return locator.value
+    case 'xpath': return `xpath=${locator.value}`
+    case 'text': return `text=${locator.value}`
+    case 'role': return `role=${locator.value}`
+    case 'label': return `[aria-label="${locator.value}"]`
+    case 'placeholder': return `[placeholder="${locator.value}"]`
+    default: return locator.value
+  }
+}
+
+function buildLocatorIndex(repos: ObjectRepository[], platform: Platform): Map<string, string> {
+  const index = new Map<string, string>()
+  for (const repo of repos) {
+    for (const obj of repo.objects) {
+      // Platform-specific locators first, then untagged ones.
+      const candidates = obj.locators
+        .filter((l) => !l.platform || l.platform === platform)
+        .sort((a, b) => b.priority - a.priority)
+      const best = candidates[0]
+      if (!best) continue
+      const selector = buildSelector(best)
+      index.set(obj.name.toLowerCase(), selector)
+      index.set(`${repo.name.toLowerCase()}.${obj.name.toLowerCase()}`, selector)
+    }
+  }
+  return index
 }
 
 export async function runTestCase(
@@ -21,15 +58,16 @@ export async function runTestCase(
   signal?: AbortSignal,
   options: RunOptions = {},
 ): Promise<void> {
-  const { headless = false, stepDelay = 0, waitForNext } = options
+  const { headless = false, stepDelay = 0, waitForNext, objectRepositories = [], device, appPath } = options
+  const platform: Platform = testCase.platform ?? options.platform ?? 'web'
   const startTime = Date.now()
   let passedSteps = 0
   let failedSteps = 0
 
   const variables = profile.variables
+  const locatorIndex = buildLocatorIndex(objectRepositories, platform)
 
   function interpolate(value: string): string {
-    // support both {{key}} (app-wide convention) and ${key} (legacy)
     return value
       .replace(/\{\{(\w+)\}\}/g, (_, key) => variables[key] ?? `{{${key}}}`)
       .replace(/\$\{(\w+)\}/g, (_, key) => variables[key] ?? `\${${key}}`)
@@ -37,12 +75,16 @@ export async function runTestCase(
 
   async function resolveLocator(ref: string): Promise<string> {
     if (!ref) return ''
+    // Object repo lookup: try exact key, then case-insensitive.
+    const key = ref.toLowerCase()
+    const resolved = locatorIndex.get(key)
+    if (resolved) return resolved
+    // Fall back to treating ref as a raw CSS / XPath selector.
     return ref
   }
 
-  const browser = await chromium.launch({ headless })
-  const context = await browser.newContext()
-  const page = await context.newPage()
+  const adapter = getAdapter(platform)
+  const session = await adapter.start(profile, { headless, device, appPath })
 
   try {
     for (let i = 0; i < testCase.steps.length; i++) {
@@ -56,47 +98,20 @@ export async function runTestCase(
 
       onStep({ runId, testCaseId: testCase.id, stepIndex: i, status: 'running' })
 
-      const keyword = getKeyword(step.keyword)
-      if (!keyword) {
-        onStep({
-          runId,
-          testCaseId: testCase.id,
-          stepIndex: i,
-          status: 'failed',
-          message: `Unknown keyword: ${step.keyword}`,
-        })
-        failedSteps++
-        if (!step.continueOnFailure) break
-        continue
-      }
-
       const stepStart = Date.now()
       const timeout = step.timeout ?? 30000
       try {
         await Promise.race([
-          keyword.execute({ page, objectRef: step.objectRef, input: step.input, expected: step.expected, resolveLocator, interpolate }),
+          adapter.execute(session, step, { resolveLocator, interpolate }),
           new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error(`Step timeout after ${timeout}ms`)), timeout),
           ),
         ])
-        onStep({
-          runId,
-          testCaseId: testCase.id,
-          stepIndex: i,
-          status: 'passed',
-          durationMs: Date.now() - stepStart,
-        })
+        onStep({ runId, testCaseId: testCase.id, stepIndex: i, status: 'passed', durationMs: Date.now() - stepStart })
         passedSteps++
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
-        onStep({
-          runId,
-          testCaseId: testCase.id,
-          stepIndex: i,
-          status: 'failed',
-          message,
-          durationMs: Date.now() - stepStart,
-        })
+        onStep({ runId, testCaseId: testCase.id, stepIndex: i, status: 'failed', message, durationMs: Date.now() - stepStart })
         failedSteps++
         if (!step.continueOnFailure) break
       }
@@ -108,17 +123,9 @@ export async function runTestCase(
       }
     }
   } finally {
-    await browser.close()
+    await adapter.stop(session)
   }
 
   const finalStatus = signal?.aborted ? 'stopped' : failedSteps > 0 ? 'failed' : 'passed'
-
-  onComplete({
-    runId,
-    status: finalStatus,
-    totalSteps: testCase.steps.length,
-    passedSteps,
-    failedSteps,
-    durationMs: Date.now() - startTime,
-  })
+  onComplete({ runId, status: finalStatus, totalSteps: testCase.steps.length, passedSteps, failedSteps, durationMs: Date.now() - startTime })
 }

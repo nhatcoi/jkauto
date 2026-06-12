@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { PlatformSchema } from './project'
 
 export const StepSchema = z.object({
   id: z.string(),
@@ -18,6 +19,7 @@ export const TestCaseSchema = z.object({
   id: z.string(),
   name: z.string().min(1),
   description: z.string().default(''),
+  platform: PlatformSchema.optional(), // fallback = project.type tại runtime
   tags: z.array(z.string()).default([]),
   steps: z.array(StepSchema).default([]),
   createdAt: z.string().datetime(),

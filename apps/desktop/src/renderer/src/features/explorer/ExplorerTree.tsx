@@ -548,6 +548,7 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
           name: displayName,
           description: '',
           profile: 'default',
+          continueOnFailure: false,
           items: [],
           createdAt: now,
           updatedAt: now,

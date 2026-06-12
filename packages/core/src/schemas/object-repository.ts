@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { PlatformSchema } from './project'
 
 // ── UI Web Object (existing) ──────────────────────────────────────────────────
 
@@ -11,6 +12,7 @@ export const LocatorSchema = z.object({
   strategy: LocatorStrategySchema,
   value: z.string().min(1),
   priority: z.number().default(0),
+  platform: PlatformSchema.optional(), // forward-prep; resolution filtering chưa wire
 })
 export type Locator = z.infer<typeof LocatorSchema>
 

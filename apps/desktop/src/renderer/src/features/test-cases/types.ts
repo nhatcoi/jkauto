@@ -15,5 +15,6 @@ export interface TestCase {
   id: string
   name: string
   description: string
+  platform?: 'web' | 'mobile' | 'desktop' | 'api'
   steps: TestStep[]
 }

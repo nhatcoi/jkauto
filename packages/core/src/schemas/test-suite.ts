@@ -14,6 +14,7 @@ export const TestSuiteSchema = z.object({
   name: z.string().min(1),
   description: z.string().default(''),
   profile: z.string().default('default'),
+  continueOnFailure: z.boolean().default(false),
   items: z.array(SuiteItemSchema).default([]),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),

@@ -22,12 +22,15 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { Kbd } from '@/components/ui/kbd'
 import { useGlobalKeymap } from '@/hooks/useGlobalKeymap'
 import { TEST_CASE_KEYMAPS } from '@/shared/keymaps'
+import { parse as yamlParse, stringify as yamlStringify } from 'yaml'
 import { IpcChannels } from '@jkauto/core'
-import type { RunRecord } from '@jkauto/core'
+import type { RunRecord, Platform } from '@jkauto/core'
 import { useProjectStore } from '@/store/project.store'
 import { useRunStore } from '@/store/run.store'
 import type { StepStatus } from '@/store/run.store'
 import { getKeyword } from './keywords'
+import { useKeywords } from './hooks/useKeywords'
+import { useObjectItems } from './hooks/useObjectItems'
 import { readEnv } from '@/features/env/api'
 import { ImportStepsDialog } from './components/ImportStepsDialog'
 import { StepRow } from './components/StepRow'
@@ -68,6 +71,9 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
   } = useRunStore()
   
   const [tc, setTc] = useState<TestCase | null>(null)
+  const platform = tc?.platform ?? activeProject?.project.type
+  const keywords = useKeywords(platform)
+  const objectItems = useObjectItems(activeProject?.path)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
@@ -91,17 +97,19 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
   const tcRef = useRef<TestCase | null>(null)
   tcRef.current = tc
 
+  const isYaml = filePath.endsWith('.yaml') || filePath.endsWith('.yml')
+
   const load = useCallback(async () => {
     try {
       setError('')
       const raw = await invoke<string>(IpcChannels.FS_READ_FILE, filePath)
-      const parsed = JSON.parse(raw) as TestCase
+      const parsed = (isYaml ? yamlParse(raw) : JSON.parse(raw)) as TestCase
       setTc(parsed)
       setSelectedIdx(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load')
     }
-  }, [filePath])
+  }, [filePath, isYaml])
 
   // Load run history whenever the file changes
   useEffect(() => {
@@ -150,7 +158,8 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
     if (runStatus === 'running') return
     const current = tcRef.current
     if (current) {
-      await invoke(IpcChannels.FS_WRITE_FILE, filePath, JSON.stringify(current, null, 2))
+      const content = isYaml ? yamlStringify(current) : JSON.stringify(current, null, 2)
+      await invoke(IpcChannels.FS_WRITE_FILE, filePath, content)
       markTabDirty(filePath, false)
     }
     let profileVariables: Record<string, string> = {}
@@ -165,9 +174,10 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
       filePath,
       debugMode,
       profileVariables,
+      projectPath: activeProject?.path,
     })
     startRun(result.runId, filePath, debugMode)
-  }, [filePath, runStatus, markTabDirty, startRun, activeProject])
+  }, [filePath, runStatus, markTabDirty, startRun, activeProject, isYaml])
 
   const handleStop = useCallback(async () => {
     if (!runId) return
@@ -185,14 +195,15 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
     if (!current) return
     setSaving(true)
     try {
-      await invoke(IpcChannels.FS_WRITE_FILE, filePath, JSON.stringify(current, null, 2))
+      const content = isYaml ? yamlStringify(current) : JSON.stringify(current, null, 2)
+      await invoke(IpcChannels.FS_WRITE_FILE, filePath, content)
       markTabDirty(filePath, false)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Save failed')
     } finally {
       setSaving(false)
     }
-  }, [filePath, markTabDirty])
+  }, [filePath, markTabDirty, isYaml])
 
   const mutate = (fn: (prev: TestCase) => TestCase) => {
     setTc((prev) => {
@@ -510,6 +521,27 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
           <TooltipContent>Move Down<Kbd>Alt+↓</Kbd></TooltipContent>
         </Tooltip>
 
+        <div className="w-px h-4 bg-border mx-0.5" />
+
+        {/* platform picker */}
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] text-muted-foreground/70 shrink-0">Platform:</span>
+          <select
+            value={tc.platform ?? ''}
+            onChange={(e) => {
+              const v = e.target.value as Platform | ''
+              mutate((prev) => ({ ...prev, platform: v || undefined }))
+            }}
+            className="text-xs bg-input text-foreground px-1.5 py-0.5 rounded border border-border focus:border-primary outline-none cursor-pointer"
+          >
+            <option value="">inherit</option>
+            <option value="web">Web</option>
+            <option value="mobile">Mobile</option>
+            <option value="desktop">Desktop</option>
+            <option value="api">API</option>
+          </select>
+        </div>
+
         <div className="flex-1" />
 
         {/* run status + run controls */}
@@ -666,7 +698,9 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
                 onSelect={() => setSelectedIdx(idx)}
                 onChange={(patch) => updateStep(idx, patch)}
                 onDelete={() => deleteStep(idx)}
-                kw={getKeyword(step.keyword)}
+                kw={getKeyword(keywords, step.keyword)}
+                platform={platform}
+                objectItems={objectItems}
                 stepStatus={stepStatuses[idx]}
                 stepMessage={stepMessages[idx]}
                 onDragStart={handleDragStart}

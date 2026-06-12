@@ -1,8 +1,9 @@
 import type { IpcMain, WebContents } from 'electron'
 import fs from 'node:fs/promises'
+import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { IpcChannels } from '@jkauto/core'
-import type { TestCase, TestSuite, Profile, RunCompleteEvent } from '@jkauto/core'
+import type { TestCase, TestSuite, Profile, RunCompleteEvent, SuiteEvent, ObjectRepository } from '@jkauto/core'
 import { runTestCase, getKeywordMeta } from '@jkauto/engine'
 import { getSettings } from '../services/settings.service'
 
@@ -19,6 +20,23 @@ interface RunPayload {
   filePath: string
   debugMode?: boolean
   profileVariables?: Record<string, string>
+  projectPath?: string
+}
+
+async function loadObjectRepositories(projectPath: string): Promise<ObjectRepository[]> {
+  const repoDir = path.join(projectPath, 'object-repository')
+  const repos: ObjectRepository[] = []
+  try {
+    const entries = await fs.readdir(repoDir)
+    for (const entry of entries) {
+      if (!entry.endsWith('.objects.json')) continue
+      try {
+        const raw = await fs.readFile(path.join(repoDir, entry), 'utf-8')
+        repos.push(JSON.parse(raw) as ObjectRepository)
+      } catch { /* skip malformed file */ }
+    }
+  } catch { /* object-repository dir missing */ }
+  return repos
 }
 
 function normalizeTestCase(tcData: Partial<TestCase>): TestCase {
@@ -51,6 +69,7 @@ function normalizeSuite(suiteData: Partial<TestSuite> & { testCaseIds?: string[]
     name: suiteData.name ?? 'Unnamed Suite',
     description: suiteData.description ?? '',
     profile: suiteData.profile ?? 'default',
+    continueOnFailure: suiteData.continueOnFailure ?? false,
     items: (suiteData.items ?? legacyItems).map((item, order) => ({
       testCaseId: item.testCaseId,
       testCasePath: item.testCasePath,
@@ -67,12 +86,19 @@ async function readTestCase(filePath: string): Promise<TestCase> {
   return normalizeTestCase(JSON.parse(raw) as Partial<TestCase>)
 }
 
+function sendSuiteEvent(webContents: WebContents, event: SuiteEvent): void {
+  if (!webContents.isDestroyed()) {
+    webContents.send(IpcChannels.ENGINE_SUITE_EVENT, event)
+  }
+}
+
 export function registerEngineHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(IpcChannels.ENGINE_RUN_CASE, async (event, payload: RunPayload) => {
-    const { filePath, debugMode = false, profileVariables = {} } = payload
+    const { filePath, debugMode = false, profileVariables = {}, projectPath } = payload
     const settings = await getSettings()
 
     const testCase = await readTestCase(filePath)
+    const objectRepositories = projectPath ? await loadObjectRepositories(projectPath) : []
 
     const profile: Profile = {
       schemaVersion: 1,
@@ -105,16 +131,16 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
       debugMode
         ? {
             headless: settings.execution.headless,
+            objectRepositories,
             waitForNext: (stepIndex: number) =>
               new Promise<void>((resolve) => {
                 debugNextResolvers.set(runId, resolve)
-                // notify renderer that engine is paused at this step
                 if (!webContents.isDestroyed()) {
                   webContents.send(IpcChannels.ENGINE_DEBUG_NEXT, { runId, stepIndex, paused: true })
                 }
               }),
           }
-        : { headless: settings.execution.headless },
+        : { headless: settings.execution.headless, objectRepositories },
     ).catch((err) => {
       activeRuns.delete(runId)
       if (!webContents.isDestroyed()) {
@@ -154,40 +180,81 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
     const webContents: WebContents = event.sender
     activeRuns.set(runId, { abort, webContents })
 
-    ;(async () => {
+    setTimeout(() => {
+      void (async () => {
       const startedAt = Date.now()
       let totalSteps = 0
       let passedSteps = 0
       let failedSteps = 0
       let stopped = false
+      let passedCases = 0
+      let failedCases = 0
+      let skippedCases = 0
 
-      const testCases: TestCase[] = []
-      for (const item of enabledItems) {
+      sendSuiteEvent(webContents, {
+        runId,
+        suiteId: suite.id,
+        suiteName: suite.name,
+        type: 'suite-start',
+        totalCases: enabledItems.length,
+      })
+
+      for (let index = 0; index < enabledItems.length; index++) {
+        const item = enabledItems[index]
+        if (abort.signal.aborted) {
+          stopped = true
+          break
+        }
+
+        let testCase: TestCase
+        const caseStartedAt = Date.now()
         try {
-          const testCase = await readTestCase(item.testCasePath)
-          testCases.push(testCase)
-          totalSteps += testCase.steps.length
+          testCase = await readTestCase(item.testCasePath)
         } catch {
+          const message = `Cannot read test case: ${item.testCasePath}`
           failedSteps++
+          failedCases++
           totalSteps++
+          sendSuiteEvent(webContents, {
+            runId,
+            suiteId: suite.id,
+            suiteName: suite.name,
+            type: 'case-complete',
+            caseIndex: index,
+            totalCases: enabledItems.length,
+            testCaseId: item.testCaseId,
+            testCasePath: item.testCasePath,
+            testCaseName: item.testCasePath,
+            status: 'failed',
+            message,
+            durationMs: Date.now() - caseStartedAt,
+          })
           if (!webContents.isDestroyed()) {
             webContents.send(IpcChannels.ENGINE_STEP_EVENT, {
               runId,
               testCaseId: item.testCaseId,
               stepIndex: 0,
               status: 'failed',
-              message: `Cannot read test case: ${item.testCasePath}`,
+              message,
             })
           }
-          break
+          if (!suite.continueOnFailure) break
+          continue
         }
-      }
 
-      for (const testCase of testCases) {
-        if (abort.signal.aborted) {
-          stopped = true
-          break
-        }
+        totalSteps += testCase.steps.length
+        sendSuiteEvent(webContents, {
+          runId,
+          suiteId: suite.id,
+          suiteName: suite.name,
+          type: 'case-start',
+          caseIndex: index,
+          totalCases: enabledItems.length,
+          testCaseId: testCase.id,
+          testCasePath: item.testCasePath,
+          testCaseName: testCase.name,
+          status: 'running',
+        })
 
         const caseResult = await new Promise<RunCompleteEvent>((resolve, reject) => {
           runTestCase(
@@ -207,19 +274,49 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
 
         passedSteps += caseResult.passedSteps
         failedSteps += caseResult.failedSteps
+        if (caseResult.status === 'passed') passedCases++
+        if (caseResult.status === 'failed') failedCases++
+        if (caseResult.status === 'stopped') skippedCases += enabledItems.length - index - 1
+
+        sendSuiteEvent(webContents, {
+          runId,
+          suiteId: suite.id,
+          suiteName: suite.name,
+          type: 'case-complete',
+          caseIndex: index,
+          totalCases: enabledItems.length,
+          testCaseId: testCase.id,
+          testCasePath: item.testCasePath,
+          testCaseName: testCase.name,
+          status: caseResult.status,
+          durationMs: caseResult.durationMs,
+        })
+
         if (caseResult.status === 'stopped') {
           stopped = true
           break
         }
-        if (caseResult.status === 'failed') break
+        if (caseResult.status === 'failed' && !suite.continueOnFailure) break
       }
 
       if (abort.signal.aborted) stopped = true
+      const suiteStatus = stopped ? 'stopped' : failedSteps > 0 ? 'failed' : 'passed'
+
+      sendSuiteEvent(webContents, {
+        runId,
+        suiteId: suite.id,
+        suiteName: suite.name,
+        type: 'suite-complete',
+        totalCases: enabledItems.length,
+        status: suiteStatus,
+        message: `${passedCases} passed, ${failedCases} failed, ${skippedCases} skipped`,
+        durationMs: Date.now() - startedAt,
+      })
 
       if (!webContents.isDestroyed()) {
         webContents.send(IpcChannels.ENGINE_RUN_COMPLETE, {
           runId,
-          status: stopped ? 'stopped' : failedSteps > 0 ? 'failed' : 'passed',
+          status: suiteStatus,
           totalSteps,
           passedSteps,
           failedSteps,
@@ -227,20 +324,21 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
         })
       }
       activeRuns.delete(runId)
-    })().catch((err) => {
-      activeRuns.delete(runId)
-      if (!webContents.isDestroyed()) {
-        webContents.send(IpcChannels.ENGINE_RUN_COMPLETE, {
-          runId,
-          status: 'failed',
-          totalSteps: enabledItems.length,
-          passedSteps: 0,
-          failedSteps: 1,
-          durationMs: 0,
-          error: err instanceof Error ? err.message : String(err),
-        })
-      }
-    })
+      })().catch((err) => {
+        activeRuns.delete(runId)
+        if (!webContents.isDestroyed()) {
+          webContents.send(IpcChannels.ENGINE_RUN_COMPLETE, {
+            runId,
+            status: 'failed',
+            totalSteps: enabledItems.length,
+            passedSteps: 0,
+            failedSteps: 1,
+            durationMs: 0,
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
+      })
+    }, 0)
 
     return { runId }
   })

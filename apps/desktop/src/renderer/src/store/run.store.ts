@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { StepEvent, RunCompleteEvent, RunRecord } from '@jkauto/core'
+import type { StepEvent, RunCompleteEvent, RunRecord, SuiteEvent } from '@jkauto/core'
 
 export type StepStatus = 'idle' | 'running' | 'passed' | 'failed' | 'skipped'
 
@@ -33,6 +33,7 @@ interface RunStore {
   // actions
   startRun: (runId: string, filePath: string, debugMode?: boolean) => void
   handleStepEvent: (event: StepEvent) => void
+  handleSuiteEvent: (event: SuiteEvent) => void
   handleRunComplete: (event: RunCompleteEvent) => void
   setDebugPaused: (paused: boolean) => void
   stopRun: () => void
@@ -125,6 +126,39 @@ export const useRunStore = create<RunStore>((set, get) => ({
         logs: [
           ...state.logs,
           { id: uid(), time: ts(), level: logLevel as LogEntry['level'], message: logMsg, stepIndex },
+        ],
+      }
+    })
+  },
+
+  handleSuiteEvent: (event: SuiteEvent) => {
+    set((state) => {
+      let level: LogEntry['level'] = 'info'
+      let message = ''
+
+      if (event.type === 'suite-start') {
+        message = `Suite started — ${event.suiteName} (${event.totalCases ?? 0} cases)`
+      } else if (event.type === 'case-start') {
+        message = `Case ${(event.caseIndex ?? 0) + 1}/${event.totalCases ?? '?'}: ${event.testCaseName ?? event.testCasePath}`
+      } else if (event.type === 'case-complete') {
+        level = event.status === 'passed' ? 'success' : event.status === 'failed' ? 'error' : event.status === 'stopped' ? 'warn' : 'info'
+        const duration = event.durationMs !== undefined ? ` (${event.durationMs}ms)` : ''
+        message = `Case ${(event.caseIndex ?? 0) + 1}/${event.totalCases ?? '?'} ${event.status ?? 'completed'} — ${event.testCaseName ?? event.testCasePath}${duration}`
+        if (event.message) message += ` — ${event.message}`
+      } else {
+        level = event.status === 'passed' ? 'success' : event.status === 'failed' ? 'error' : event.status === 'stopped' ? 'warn' : 'info'
+        const duration = event.durationMs !== undefined ? ` (${event.durationMs}ms)` : ''
+        message = `Suite ${event.status ?? 'completed'} — ${event.message ?? event.suiteName}${duration}`
+      }
+
+      return {
+        logs: [
+          ...state.logs,
+          { id: uid(), time: ts(), level, message },
+        ],
+        events: [
+          ...state.events,
+          { id: uid(), time: ts(), message },
         ],
       }
     })
