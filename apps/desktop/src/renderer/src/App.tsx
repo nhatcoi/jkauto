@@ -5,6 +5,7 @@ import { WelcomeView } from './features/project/WelcomeView'
 import { IpcChannels } from '@jkauto/core'
 import type { Project } from '@jkauto/core'
 import { invoke } from './lib/utils'
+import { TooltipProvider } from './components/ui/tooltip'
 
 export default function App() {
   const hasProjects = useProjectStore((s) => s.projects.length > 0)
@@ -23,5 +24,9 @@ export default function App() {
       .catch(() => {})
   }, [])
 
-  return hasProjects ? <AppLayout /> : <WelcomeView />
+  return (
+    <TooltipProvider delayDuration={600}>
+      {hasProjects ? <AppLayout /> : <WelcomeView />}
+    </TooltipProvider>
+  )
 }

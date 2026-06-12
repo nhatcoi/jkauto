@@ -1,6 +1,9 @@
 import { Send, Loader2, Save } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { HttpMethod } from '../types'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { Kbd } from '@/components/ui/kbd'
+import { REQUEST_EDITOR_KEYMAPS } from '@/shared/keymaps'
 
 const METHODS: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']
 
@@ -61,36 +64,46 @@ export function MethodUrlBar({
         className="flex-1 bg-input text-foreground text-xs px-3 py-1.5 rounded border border-border focus:border-primary outline-none font-mono"
       />
 
-      <button
-        type="button"
-        onClick={onSend}
-        disabled={sending}
-        className={cn(
-          'flex items-center gap-1.5 text-xs px-3 py-1.5 rounded font-medium transition-colors shrink-0',
-          'bg-primary hover:bg-primary/90 text-primary-foreground',
-          'disabled:opacity-50 disabled:cursor-not-allowed',
-        )}
-      >
-        {sending
-          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          : <Send className="w-3.5 h-3.5" />
-        }
-        {sending ? 'Sending…' : 'Send'}
-      </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={onSend}
+            disabled={sending}
+            className={cn(
+              'flex items-center gap-1.5 text-xs px-3 py-1.5 rounded font-medium transition-colors shrink-0',
+              'bg-primary hover:bg-primary/90 text-primary-foreground',
+              'disabled:opacity-50 disabled:cursor-not-allowed',
+            )}
+          >
+            {sending
+              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              : <Send className="w-3.5 h-3.5" />
+            }
+            {sending ? 'Sending…' : 'Send'}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>Send request<Kbd>{REQUEST_EDITOR_KEYMAPS.send.hint}</Kbd></TooltipContent>
+      </Tooltip>
 
-      <button
-        type="button"
-        onClick={onSave}
-        disabled={saving}
-        className={cn(
-          'flex items-center gap-1 text-xs px-2 py-1.5 rounded transition-colors shrink-0',
-          'hover:bg-secondary text-muted-foreground hover:text-foreground',
-          'disabled:opacity-50',
-        )}
-      >
-        <Save className="w-3.5 h-3.5" />
-        {saving ? 'Saving…' : 'Save'}
-      </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={saving}
+            className={cn(
+              'flex items-center gap-1 text-xs px-2 py-1.5 rounded transition-colors shrink-0',
+              'hover:bg-secondary text-muted-foreground hover:text-foreground',
+              'disabled:opacity-50',
+            )}
+          >
+            <Save className="w-3.5 h-3.5" />
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>Save<Kbd>{REQUEST_EDITOR_KEYMAPS.save.hint}</Kbd></TooltipContent>
+      </Tooltip>
     </div>
   )
 }

@@ -18,6 +18,10 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { invoke } from '@/lib/utils'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { Kbd } from '@/components/ui/kbd'
+import { useGlobalKeymap } from '@/hooks/useGlobalKeymap'
+import { TEST_CASE_KEYMAPS } from '@/shared/keymaps'
 import { IpcChannels } from '@jkauto/core'
 import type { RunRecord } from '@jkauto/core'
 import { useProjectStore } from '@/store/project.store'
@@ -190,18 +194,6 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
     }
   }, [filePath, markTabDirty])
 
-  // Ctrl+S
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault()
-        save()
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [save])
-
   const mutate = (fn: (prev: TestCase) => TestCase) => {
     setTc((prev) => {
       if (!prev) return prev
@@ -248,6 +240,30 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
       steps: [...tc.steps, ...importedSteps],
     }))
   }
+
+  const duplicateStep = (idx: number) => {
+    if (!tc) return
+    const src = tc.steps[idx]
+    mutate((prev) => {
+      const steps = [...prev.steps]
+      steps.splice(idx + 1, 0, { ...src, id: crypto.randomUUID() })
+      return { ...prev, steps }
+    })
+    setSelectedIdx(idx + 1)
+  }
+
+  useGlobalKeymap(TEST_CASE_KEYMAPS, {
+    save,
+    addStep,
+    deleteStep:    () => { if (selectedIdx !== null) deleteStep(selectedIdx) },
+    moveUp:        () => { if (selectedIdx !== null) moveStep(selectedIdx, -1) },
+    moveDown:      () => { if (selectedIdx !== null) moveStep(selectedIdx, 1) },
+    duplicateStep: () => { if (selectedIdx !== null) duplicateStep(selectedIdx) },
+    run:           () => { if (runStatus !== 'running') handleRun(false) },
+    debug:         () => { if (runStatus !== 'running') handleRun(true) },
+    stop:          () => { if (runStatus === 'running') handleStop() },
+    toggleHistory: () => setShowHistory((v) => !v),
+  })
 
   // Drag & Drop Handlers
   const handleDragStart = (e: React.DragEvent, index: number) => {
@@ -436,44 +452,63 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
       {/* ── toolbar ── */}
       <div className="flex items-center gap-1 px-2 py-1 border-b border-border bg-panel shrink-0">
         {/* edit actions */}
-        <button
-          type="button"
-          onClick={addStep}
-          className="flex items-center gap-1 text-xs px-2 py-1 rounded hover:bg-secondary transition-colors text-foreground/80"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Add Step
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={addStep}
+              className="flex items-center gap-1 text-xs px-2 py-1 rounded hover:bg-secondary transition-colors text-foreground/80"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add Step
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Add Step<Kbd>Alt+A</Kbd></TooltipContent>
+        </Tooltip>
 
-        <button
-          type="button"
-          onClick={() => setShowImport(true)}
-          className="flex items-center gap-1 text-xs px-2 py-1 rounded hover:bg-secondary transition-colors text-foreground/80"
-        >
-          <Upload className="w-3.5 h-3.5" />
-          Import Steps
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => setShowImport(true)}
+              className="flex items-center gap-1 text-xs px-2 py-1 rounded hover:bg-secondary transition-colors text-foreground/80"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              Import Steps
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Import steps from file</TooltipContent>
+        </Tooltip>
 
         <div className="w-px h-4 bg-border mx-0.5" />
 
-        <button
-          type="button"
-          disabled={selectedIdx === null || selectedIdx === 0}
-          onClick={() => selectedIdx !== null && moveStep(selectedIdx, -1)}
-          className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground disabled:opacity-30"
-          title="Move Up"
-        >
-          <ChevronUp className="w-3.5 h-3.5" />
-        </button>
-        <button
-          type="button"
-          disabled={selectedIdx === null || selectedIdx === tc.steps.length - 1}
-          onClick={() => selectedIdx !== null && moveStep(selectedIdx, 1)}
-          className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground disabled:opacity-30"
-          title="Move Down"
-        >
-          <ChevronDown className="w-3.5 h-3.5" />
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              disabled={selectedIdx === null || selectedIdx === 0}
+              onClick={() => selectedIdx !== null && moveStep(selectedIdx, -1)}
+              className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground disabled:opacity-30"
+            >
+              <ChevronUp className="w-3.5 h-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Move Up<Kbd>Alt+↑</Kbd></TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              disabled={selectedIdx === null || selectedIdx === tc.steps.length - 1}
+              onClick={() => selectedIdx !== null && moveStep(selectedIdx, 1)}
+              className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground disabled:opacity-30"
+            >
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Move Down<Kbd>Alt+↓</Kbd></TooltipContent>
+        </Tooltip>
 
         <div className="flex-1" />
 
@@ -485,81 +520,105 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
         {runStatus === 'running' ? (
           <>
             {isDebugMode && isDebugPaused && (
-              <button
-                type="button"
-                onClick={handleDebugNext}
-                className="flex items-center gap-1 text-xs px-2.5 py-1 rounded font-medium transition-colors bg-blue-600 hover:bg-blue-500 text-white"
-                title="Execute next step"
-              >
-                <StepForward className="w-3.5 h-3.5" />
-                Next Step
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={handleDebugNext}
+                    className="flex items-center gap-1 text-xs px-2.5 py-1 rounded font-medium transition-colors bg-blue-600 hover:bg-blue-500 text-white"
+                  >
+                    <StepForward className="w-3.5 h-3.5" />
+                    Next Step
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Execute next step</TooltipContent>
+              </Tooltip>
             )}
-            <button
-              type="button"
-              onClick={handleStop}
-              className="flex items-center gap-1 text-xs px-2.5 py-1 rounded font-medium transition-colors bg-red-600 hover:bg-red-500 text-white"
-              title="Stop run"
-            >
-              <Square className="w-3 h-3 fill-white" />
-              Stop
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={handleStop}
+                  className="flex items-center gap-1 text-xs px-2.5 py-1 rounded font-medium transition-colors bg-red-600 hover:bg-red-500 text-white"
+                >
+                  <Square className="w-3 h-3 fill-white" />
+                  Stop
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Stop run<Kbd>Shift+F5</Kbd></TooltipContent>
+            </Tooltip>
           </>
         ) : (
-          <button
-            type="button"
-            onClick={() => handleRun(false)}
-            className="flex items-center gap-1 text-xs px-2.5 py-1 rounded font-medium transition-colors bg-[hsl(142,72%,29%)] hover:bg-[hsl(142,72%,34%)] text-white"
-            title="Run test case"
-          >
-            <Play className="w-3 h-3 fill-white" />
-            Run
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => handleRun(false)}
+                className="flex items-center gap-1 text-xs px-2.5 py-1 rounded font-medium transition-colors bg-[hsl(142,72%,29%)] hover:bg-[hsl(142,72%,34%)] text-white"
+              >
+                <Play className="w-3 h-3 fill-white" />
+                Run
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Run test case<Kbd>F5</Kbd></TooltipContent>
+          </Tooltip>
         )}
 
-        <button
-          type="button"
-          disabled={runStatus === 'running'}
-          onClick={() => handleRun(true)}
-          className={cn(
-            'flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors',
-            'bg-secondary hover:bg-secondary/80 text-foreground/80',
-            'disabled:opacity-40',
-          )}
-          title="Debug (1s pause between steps)"
-        >
-          <Bug className="w-3.5 h-3.5" />
-          Debug
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              disabled={runStatus === 'running'}
+              onClick={() => handleRun(true)}
+              className={cn(
+                'flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors',
+                'bg-secondary hover:bg-secondary/80 text-foreground/80',
+                'disabled:opacity-40',
+              )}
+            >
+              <Bug className="w-3.5 h-3.5" />
+              Debug
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Debug — 1 s pause between steps<Kbd>F6</Kbd></TooltipContent>
+        </Tooltip>
 
         <div className="w-px h-4 bg-border mx-0.5" />
 
-        <button
-          type="button"
-          onClick={() => setShowHistory((v) => !v)}
-          className={cn(
-            'flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors',
-            'hover:bg-secondary text-muted-foreground hover:text-foreground',
-            showHistory && 'bg-secondary text-foreground',
-          )}
-          title="View Test Run History"
-        >
-          <History className="w-3.5 h-3.5" />
-          History
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => setShowHistory((v) => !v)}
+              className={cn(
+                'flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors',
+                'hover:bg-secondary text-muted-foreground hover:text-foreground',
+                showHistory && 'bg-secondary text-foreground',
+              )}
+            >
+              <History className="w-3.5 h-3.5" />
+              History
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Toggle run history<Kbd>{TEST_CASE_KEYMAPS.toggleHistory.hint}</Kbd></TooltipContent>
+        </Tooltip>
 
         <div className="w-px h-4 bg-border mx-0.5" />
 
-        <button
-          type="button"
-          onClick={save}
-          disabled={saving}
-          className="flex items-center gap-1 text-xs px-2 py-1 rounded hover:bg-secondary transition-colors text-foreground/80 disabled:opacity-50"
-          title="Save (Ctrl+S)"
-        >
-          <Save className="w-3.5 h-3.5" />
-          {saving ? 'Saving…' : 'Save'}
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving}
+              className="flex items-center gap-1 text-xs px-2 py-1 rounded hover:bg-secondary transition-colors text-foreground/80 disabled:opacity-50"
+            >
+              <Save className="w-3.5 h-3.5" />
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Save<Kbd>{TEST_CASE_KEYMAPS.save.hint}</Kbd></TooltipContent>
+        </Tooltip>
       </div>
 
       {/* ── table ── */}

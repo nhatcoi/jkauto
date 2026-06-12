@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { AlertCircle, Terminal, Clipboard, Check } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { useProjectStore } from '@/store/project.store'
@@ -12,6 +12,10 @@ import { AssertionsPanel } from './components/AssertionsPanel'
 import { CurlImportDialog } from './components/CurlImportDialog'
 import { toCurl } from './utils/curl'
 import type { ApiRequest } from './types'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { Kbd } from '@/components/ui/kbd'
+import { useGlobalKeymap } from '@/hooks/useGlobalKeymap'
+import { REQUEST_EDITOR_KEYMAPS } from '@/shared/keymaps'
 
 export function RequestEditor({ filePath }: { filePath: string }) {
   const { markTabDirty, activeProject } = useProjectStore()
@@ -51,17 +55,12 @@ export function RequestEditor({ filePath }: { filePath: string }) {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  // Ctrl+S
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault()
-        save()
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [save])
+  useGlobalKeymap(REQUEST_EDITOR_KEYMAPS, {
+    save,
+    send,
+    importCurl: () => setCurlImportOpen(true),
+    copyCurl:   handleCopyCurl,
+  })
 
   if (error) {
     return (
@@ -104,25 +103,33 @@ export function RequestEditor({ filePath }: { filePath: string }) {
 
       {/* cURL toolbar */}
       <div className="flex items-center gap-1 px-3 py-1 border-b border-border bg-panel/50 shrink-0">
-        <button
-          type="button"
-          onClick={() => setCurlImportOpen(true)}
-          title="Import from cURL"
-          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary px-2 py-0.5 rounded transition-colors"
-        >
-          <Terminal className="w-3 h-3" />
-          Import cURL
-        </button>
-        <button
-          type="button"
-          onClick={handleCopyCurl}
-          disabled={!request}
-          title="Copy as cURL"
-          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary px-2 py-0.5 rounded transition-colors disabled:opacity-40"
-        >
-          {copied ? <Check className="w-3 h-3 text-green-400" /> : <Clipboard className="w-3 h-3" />}
-          {copied ? 'Copied!' : 'Copy cURL'}
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => setCurlImportOpen(true)}
+              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary px-2 py-0.5 rounded transition-colors"
+            >
+              <Terminal className="w-3 h-3" />
+              Import cURL
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Import from cURL<Kbd>{REQUEST_EDITOR_KEYMAPS.importCurl.hint}</Kbd></TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={handleCopyCurl}
+              disabled={!request}
+              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary px-2 py-0.5 rounded transition-colors disabled:opacity-40"
+            >
+              {copied ? <Check className="w-3 h-3 text-green-400" /> : <Clipboard className="w-3 h-3" />}
+              {copied ? 'Copied!' : 'Copy cURL'}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Copy as cURL<Kbd>{REQUEST_EDITOR_KEYMAPS.copyCurl.hint}</Kbd></TooltipContent>
+        </Tooltip>
       </div>
 
       {/* request / response split */}
