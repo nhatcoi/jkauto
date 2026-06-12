@@ -540,8 +540,18 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
       await invoke(IpcChannels.FS_CREATE_FILE, pathJoin(dir, fileName), content)
     } else if (type === 'suite') {
       const fileName = `${key}.suite.json`
+      const now = new Date().toISOString()
       const content = JSON.stringify(
-        { schemaVersion: 1, id: randomUUID(), name: displayName, description: '', testCaseIds: [] },
+        {
+          schemaVersion: 1,
+          id: randomUUID(),
+          name: displayName,
+          description: '',
+          profile: 'default',
+          items: [],
+          createdAt: now,
+          updatedAt: now,
+        },
         null,
         2,
       )

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { X, FileText, Globe, Database } from 'lucide-react'
+import { X, FileText, Globe, Database, Layers } from 'lucide-react'
 import { useProjectStore } from '@/store/project.store'
 import { IpcChannels } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { TestCaseEditor } from '@/features/test-cases/TestCaseEditor'
 import { RequestEditor } from '@/features/object-repository/RequestEditor'
 import { ObjectEditor } from '@/features/object-repository/ObjectEditor'
+import { SuiteEditor } from '@/features/test-suites/SuiteEditor'
 import { useTabDnd } from '@/hooks/useTabDnd'
 
 function isTestCase(path: string) {
@@ -21,9 +22,14 @@ function isObjectRepo(path: string) {
   return path.endsWith('.objects.json') || path.endsWith('.objects.yaml')
 }
 
+function isTestSuite(path: string) {
+  return path.endsWith('.suite.json') || path.endsWith('.suite.yaml')
+}
+
 function getTabIcon(path: string): React.ElementType {
   if (isApiRequest(path)) return Globe
   if (isObjectRepo(path)) return Database
+  if (isTestSuite(path)) return Layers
   return FileText
 }
 
@@ -62,6 +68,7 @@ function FileContent({ path }: { path: string }) {
 
 function TabContent({ path }: { path: string }) {
   if (isTestCase(path)) return <TestCaseEditor key={path} filePath={path} />
+  if (isTestSuite(path)) return <SuiteEditor key={path} filePath={path} />
   if (isApiRequest(path)) return <RequestEditor key={path} filePath={path} />
   if (isObjectRepo(path)) return <ObjectEditor key={path} filePath={path} />
   return <FileContent path={path} />
