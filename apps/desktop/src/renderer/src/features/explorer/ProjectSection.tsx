@@ -5,11 +5,8 @@ import {
   FolderOpenDot,
   Settings,
   X,
-  Globe,
-  Smartphone,
-  Monitor,
-  Zap,
 } from 'lucide-react'
+import { ProjectIcon } from '@/components/file-icons'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,13 +22,6 @@ import { cn } from '@/lib/utils'
 import { ExplorerTree } from './ExplorerTree'
 import { ProjectSettingsDialog } from '@/features/project/ProjectSettingsDialog'
 
-const TYPE_ICON: Record<string, React.ElementType> = {
-  web: Globe,
-  mobile: Smartphone,
-  desktop: Monitor,
-  api: Zap,
-}
-
 interface Props {
   entry: WorkspaceProject
 }
@@ -40,8 +30,6 @@ export function ProjectSection({ entry }: Props) {
   const [expanded, setExpanded] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
   const removeProject = useProjectStore((s) => s.removeProject)
-
-  const Icon = TYPE_ICON[entry.project.type] ?? Globe
 
   const handleOpenFolder = () => {
     invoke(IpcChannels.FS_OPEN_CONTAINING_FOLDER, entry.path)
@@ -66,7 +54,7 @@ export function ProjectSection({ entry }: Props) {
           ) : (
             <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />
           )}
-          <Icon className="w-3.5 h-3.5 text-primary/70 shrink-0" />
+          <ProjectIcon className="w-3.5 h-3.5" />
           <span className="text-[11px] font-semibold text-foreground/80 truncate uppercase tracking-wide">
             {entry.project.name}
           </span>

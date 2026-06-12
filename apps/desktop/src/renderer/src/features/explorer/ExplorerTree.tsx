@@ -8,12 +8,11 @@ import {
   FolderOpen,
   FileText,
   FileJson,
-  TestTube2,
-  Layers,
   Database,
   Code2,
   Globe,
 } from 'lucide-react'
+import { TestCaseIcon, TestSuiteIcon } from '@/components/file-icons'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -77,8 +76,8 @@ function stripKnownExtension(name: string, type: NewItemType): string {
 
 function getFileIcon(node: FsTreeNode): React.ElementType {
   const name = node.name.toLowerCase()
-  if (name.endsWith('.test.json') || name.endsWith('.test.yaml')) return TestTube2
-  if (name.endsWith('.suite.json') || name.endsWith('.suite.yaml')) return Layers
+  if (name.endsWith('.test.json') || name.endsWith('.test.yaml')) return TestCaseIcon
+  if (name.endsWith('.suite.json') || name.endsWith('.suite.yaml')) return TestSuiteIcon
   if (name.endsWith('.objects.json') || name.endsWith('.objects.yaml')) return Database
   if (name.endsWith('.keywords.json') || name.endsWith('.keywords.yaml')) return Code2
   if (name.endsWith('.request.json')) return Globe
