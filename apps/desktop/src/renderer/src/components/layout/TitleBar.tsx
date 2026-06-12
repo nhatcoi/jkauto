@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Play, Square, FolderOpen, Settings, Layers, SlidersHorizontal } from 'lucide-react'
+import logoUrl from '@/assets/logo.png'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Kbd } from '@/components/ui/kbd'
@@ -42,9 +43,7 @@ export function TitleBar() {
     <div className="flex items-center h-9 bg-titlebar border-b border-border px-3 gap-3 shrink-0 select-none">
       {/* Logo */}
       <div className="flex items-center gap-2 min-w-0">
-        <div className="w-5 h-5 rounded bg-primary flex items-center justify-center shrink-0">
-          <span className="text-[10px] font-bold text-primary-foreground">JK</span>
-        </div>
+        <img src={logoUrl} className="w-5 h-5 shrink-0 object-contain" alt="JKAuto" />
         <span className="text-xs font-semibold text-foreground/70 hidden sm:block">JKAuto</span>
 
         {activeProject && (

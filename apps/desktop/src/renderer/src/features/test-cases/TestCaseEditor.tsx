@@ -6,7 +6,6 @@ import {
   Save,
   Play,
   Bug,
-  History,
   CircleCheck,
   CircleX,
   Circle,
@@ -35,7 +34,6 @@ import { readEnv } from '@/features/env/api'
 import { ImportStepsDialog } from './components/ImportStepsDialog'
 import { StepRow } from './components/StepRow'
 import { StepContextMenu } from './components/StepContextMenu'
-import { RunHistoryPanel } from './components/RunHistoryPanel'
 import type { TestCase, TestStep } from './types'
 
 function makeStep(keyword = 'click'): TestStep {
@@ -63,7 +61,6 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
     stepStatuses,
     stepMessages,
     runId,
-    runHistory,
     setRunHistory,
     appendRunRecord,
     isDebugMode,
@@ -77,7 +74,6 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
-  const [showHistory, setShowHistory] = useState(false)
   const [showImport, setShowImport] = useState(false)
 
   // Drag and Drop State
@@ -274,7 +270,7 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
     run:           () => { if (runStatus !== 'running') handleRun(false) },
     debug:         () => { if (runStatus !== 'running') handleRun(true) },
     stop:          () => { if (runStatus === 'running') handleStop() },
-    toggleHistory: () => setShowHistory((v) => !v),
+    toggleHistory: () => {},
   })
 
   // Drag & Drop Handlers
@@ -649,26 +645,6 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
           <TooltipTrigger asChild>
             <button
               type="button"
-              onClick={() => setShowHistory((v) => !v)}
-              className={cn(
-                'flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors',
-                'hover:bg-secondary text-muted-foreground hover:text-foreground',
-                showHistory && 'bg-secondary text-foreground',
-              )}
-            >
-              <History className="w-3.5 h-3.5" />
-              History
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>Toggle run history<Kbd>{TEST_CASE_KEYMAPS.toggleHistory.hint}</Kbd></TooltipContent>
-        </Tooltip>
-
-        <div className="w-px h-4 bg-border mx-0.5" />
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
               onClick={save}
               disabled={saving}
               className="flex items-center gap-1 text-xs px-2 py-1 rounded hover:bg-secondary transition-colors text-foreground/80 disabled:opacity-50"
@@ -744,9 +720,6 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
           </tbody>
         </table>
       </div>
-
-      {/* ── history panel ── */}
-      {showHistory && <RunHistoryPanel records={runHistory} />}
 
       {/* ── step detail (continue-on-failure, timeout) ── */}
       {sel && (

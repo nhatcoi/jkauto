@@ -5,6 +5,7 @@ import type { RunRecord } from '@jkauto/core'
 
 interface RunHistoryPanelProps {
   records: RunRecord[]
+  embedded?: boolean  // true = inside BottomPanel tab (no outer border/max-height)
 }
 
 function formatDuration(ms: number): string {
@@ -94,18 +95,23 @@ function RunRow({ record }: { record: RunRecord }) {
   )
 }
 
-export function RunHistoryPanel({ records }: RunHistoryPanelProps) {
+export function RunHistoryPanel({ records, embedded = false }: RunHistoryPanelProps) {
   return (
-    <div className="border-t border-border bg-muted/10 shrink-0 max-h-52 flex flex-col">
-      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/50 shrink-0">
-        <History className="w-3.5 h-3.5 text-muted-foreground" />
-        <span className="text-xs font-medium text-foreground/70">Run History</span>
-        {records.length > 0 && (
-          <span className="text-[10px] text-muted-foreground/50 ml-auto">
-            {records.length} run{records.length !== 1 ? 's' : ''}
-          </span>
-        )}
-      </div>
+    <div className={cn(
+      'flex flex-col h-full',
+      !embedded && 'border-t border-border bg-muted/10 shrink-0 max-h-52',
+    )}>
+      {!embedded && (
+        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/50 shrink-0">
+          <History className="w-3.5 h-3.5 text-muted-foreground" />
+          <span className="text-xs font-medium text-foreground/70">Run History</span>
+          {records.length > 0 && (
+            <span className="text-[10px] text-muted-foreground/50 ml-auto">
+              {records.length} run{records.length !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+      )}
 
       {records.length === 0 ? (
         <div className="px-3 py-6 text-center text-xs text-muted-foreground/50">

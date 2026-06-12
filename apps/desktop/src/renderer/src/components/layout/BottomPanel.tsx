@@ -1,18 +1,19 @@
 import * as TabsPrimitive from '@radix-ui/react-tabs'
-import { AlertCircle, Terminal, Activity, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
+import { AlertCircle, Terminal, Activity, Trash2, ChevronDown, ChevronUp, History } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useRunStore } from '@/store/run.store'
 import { useEffect, useRef, useState } from 'react'
 import { useTabDnd, moveItem } from '@/hooks/useTabDnd'
 import { useLayoutStore } from '@/store/layout.store'
+import { RunHistoryPanel } from '@/features/test-cases/components/RunHistoryPanel'
 
-type BottomTabId = 'problems' | 'console' | 'eventlog'
+type BottomTabId = 'problems' | 'console' | 'eventlog' | 'runhistory'
 
 export function BottomPanel() {
-  const { logs, events, clearLogs } = useRunStore()
+  const { logs, events, clearLogs, runHistory } = useRunStore()
   const { bottomCollapsed, toggleBottom } = useLayoutStore()
   const consoleEndRef = useRef<HTMLDivElement>(null)
-  const [order, setOrder] = useState<BottomTabId[]>(['problems', 'console', 'eventlog'])
+  const [order, setOrder] = useState<BottomTabId[]>(['problems', 'console', 'eventlog', 'runhistory'])
   const { getTabProps, overIndex } = useTabDnd((from, to) =>
     setOrder((prev) => moveItem(prev, from, to)),
   )
@@ -28,6 +29,7 @@ export function BottomPanel() {
     problems: { label: 'Problems', icon: AlertCircle, count: errors.length },
     console: { label: 'Console', icon: Terminal },
     eventlog: { label: 'Event Log', icon: Activity },
+    runhistory: { label: 'Run History', icon: History, count: runHistory.length || undefined },
   }
 
   return (
@@ -144,6 +146,11 @@ export function BottomPanel() {
             ))}
           </div>
         )}
+      </TabsPrimitive.Content>
+
+      {/* Run History Panel */}
+      <TabsPrimitive.Content value="runhistory" className="flex-1 overflow-hidden">
+        <RunHistoryPanel records={runHistory} embedded />
       </TabsPrimitive.Content>
     </TabsPrimitive.Root>
   )

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { FolderOpen, Plus, Clock, Globe, Smartphone, Monitor, Zap } from 'lucide-react'
+import logoUrl from '@/assets/logo.png'
 import { Button } from '@/components/ui/button'
 import { NewProjectDialog } from './NewProjectDialog'
 import { IpcChannels } from '@jkauto/core'
@@ -60,9 +61,7 @@ export function WelcomeView() {
     <div className="flex flex-col items-center justify-center h-screen bg-background gap-8">
       {/* Logo */}
       <div className="flex flex-col items-center gap-3">
-        <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/25">
-          <span className="text-2xl font-bold text-primary-foreground">JK</span>
-        </div>
+        <img src={logoUrl} className="w-20 h-20 object-contain drop-shadow-lg" alt="JKAuto" />
         <div className="text-center">
           <h1 className="text-2xl font-bold text-foreground">JKAuto</h1>
           <p className="text-sm text-muted-foreground mt-1">Automation Test Platform</p>
