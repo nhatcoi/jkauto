@@ -1,13 +1,15 @@
 # object-repository feature
 
 ## Purpose
-REST API client for `.request.json` files (like Postman/Bruno). Supports sending HTTP requests, OpenAPI import, cURL import/export, env variable resolution, response history, and save-to-env auth chaining.
+Two distinct editors sharing this feature folder:
+1. **RequestEditor** — REST API client for `.request.json` files (Postman/Bruno-style). HTTP send, OpenAPI import, cURL import/export, env variable resolution, response history, save-to-env auth chaining.
+2. **ObjectEditor** — Multi-locator element repository for `.objects.json` files. Used by test steps to resolve `objectRef` values to CSS/XPath/etc selectors.
 
 ## File structure
 ```
 object-repository/
-├── RequestEditor.tsx         # root component — orchestrates all panels
-├── ObjectEditor.tsx          # editor for .objects.json (multi-locator repo)
+├── RequestEditor.tsx         # root component — orchestrates all panels (for .request.json)
+├── ObjectEditor.tsx          # editor for .objects.json (multi-locator element repo)
 ├── ImportOpenApiDialog.tsx   # import OpenAPI/Swagger spec dialog
 ├── api.ts                    # IPC call wrappers
 ├── types.ts                  # re-exports from @jkauto/core + AssertionResult
@@ -18,7 +20,8 @@ object-repository/
 │   ├── AuthPanel.tsx         # auth type selector (none/bearer/basic/api-key)
 │   ├── AssertionsPanel.tsx   # test assertions editor + results display
 │   ├── ResponsePanel.tsx     # Body/Headers/History tabs + → ENV panel
-│   └── CurlImportDialog.tsx  # paste cURL → parse → fill request fields
+│   ├── CurlImportDialog.tsx  # paste cURL → parse → fill request fields
+│   └── ImportDataDialog.tsx  # import key-value data from CSV/JSON data-files
 ├── hooks/
 │   └── useRequestEditor.ts   # all request editor state and logic
 └── utils/
@@ -169,3 +172,74 @@ Operators: `eq`, `ne`, `contains`, `not-contains`, `exists`, `not-exists`, `lt`,
 - History stored as JSON files not SQLite — simpler, no migration needed, consistent with project FS-first approach
 - AssertionResults computed **client-side** in renderer (no IPC round-trip needed)
 - cURL tokenizer custom-written (no dependencies) to handle edge cases from browser DevTools copy (ANSI-C quoting)
+
+---
+
+## ObjectEditor — `.objects.json` files
+
+### Purpose
+Visual editor for element repositories used by test steps. Each `.objects.json` holds named objects with one or more fallback locators. The engine tries locators in priority order until one resolves.
+
+### Data model (`@jkauto/core`)
+```typescript
+interface ObjectRepository {
+  schemaVersion: number
+  id: string
+  name: string
+  objects: ObjectItem[]
+}
+interface ObjectItem {
+  id: string           // stable UUID
+  name: string         // referenced in step.objectRef (e.g. "LoginPage.usernameInput")
+  description: string
+  locators: Locator[]  // at least one required
+}
+interface Locator {
+  strategy: LocatorStrategy
+  value: string
+  priority: number     // lower = tried first
+}
+type LocatorStrategy = 'testid' | 'css' | 'xpath' | 'text' | 'role' | 'label' | 'placeholder'
+```
+
+### UI
+- Collapsible accordion list — first object expanded by default on load
+- Each object row: name input + description input + delete button (hover-reveal)
+- Expanded: locator grid (strategy select, value input, priority number, delete)
+- Add Object → creates new `ObjectItem` with one empty CSS locator, auto-expands
+- Add Locator → append blank locator to object
+- Delete locator disabled when only one remains (must have at least one locator)
+- Toolbar: Add Object | Save
+- Ctrl/Cmd+S → save
+
+### IPC channels
+| Channel | Direction | Purpose |
+|---------|-----------|---------|
+| FS_READ_FILE | invoke | load .objects.json |
+| FS_WRITE_FILE | invoke | save |
+
+### Explorer integration
+- `.objects.json` files open `ObjectEditor` (not `RequestEditor`) — routed by file extension in `MidPanel`
+
+---
+
+## ImportDataDialog — import from data-files
+
+Shared utility dialog used in `RequestEditor` to bulk-fill params/headers/body from project data files.
+
+### Behavior
+1. Lists all `.json` / `.csv` files in `<projectPath>/data-files/`
+2. Browse button → `DIALOG_OPEN_FILE` to pick any file outside data-files
+3. CSV: reads row 0 as headers, row 1 as values → key-value pairs
+4. JSON: if array → uses first element; if object → uses top-level keys
+5. Preview table shown after parse
+6. User picks import target: `params | headers | body-json`
+7. Confirm → `onImport({ target, rows })` callback
+8. Caller merges rows into the corresponding request field
+
+### IPC channels
+| Channel | Direction | Purpose |
+|---------|-----------|---------|
+| FS_LIST_DIR | invoke | list data-files/ |
+| FS_READ_FILE | invoke | read selected file |
+| DIALOG_OPEN_FILE | invoke | native file picker |
