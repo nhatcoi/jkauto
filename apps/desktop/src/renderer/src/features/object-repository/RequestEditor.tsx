@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AlertCircle, Terminal, Clipboard, Check } from 'lucide-react'
+import { AlertCircle, Terminal, Clipboard, Check, Database } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { useProjectStore } from '@/store/project.store'
 import { useRequestEditor } from './hooks/useRequestEditor'
@@ -10,6 +10,7 @@ import { AuthPanel } from './components/AuthPanel'
 import { ResponsePanel } from './components/ResponsePanel'
 import { AssertionsPanel } from './components/AssertionsPanel'
 import { CurlImportDialog } from './components/CurlImportDialog'
+import { ImportDataDialog, type DataImportResult } from './components/ImportDataDialog'
 import { toCurl } from './utils/curl'
 import type { ApiRequest } from './types'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
@@ -34,10 +35,23 @@ export function RequestEditor({ filePath }: { filePath: string }) {
   } = useRequestEditor(filePath)
 
   const [curlImportOpen, setCurlImportOpen] = useState(false)
+  const [importDataOpen, setImportDataOpen] = useState(false)
   const [copied, setCopied] = useState(false)
 
   const handleImportCurl = (partial: Partial<ApiRequest>) => {
     mutate((r) => ({ ...r, ...partial }))
+  }
+
+  const handleImportData = ({ target, rows }: DataImportResult) => {
+    const kvItems = rows.map(({ key, value }) => ({ key, value, enabled: true }))
+    if (target === 'params') {
+      mutate((r) => ({ ...r, params: [...r.params, ...kvItems] }))
+    } else if (target === 'headers') {
+      mutate((r) => ({ ...r, headers: [...r.headers, ...kvItems] }))
+    } else {
+      const obj = Object.fromEntries(rows.map(({ key, value }) => [key, value]))
+      mutate((r) => ({ ...r, body: { type: 'raw-json', content: JSON.stringify(obj, null, 2) } }))
+    }
   }
 
   const handleCopyCurl = async () => {
@@ -89,6 +103,11 @@ export function RequestEditor({ filePath }: { filePath: string }) {
         onClose={() => setCurlImportOpen(false)}
         onImport={handleImportCurl}
       />
+      <ImportDataDialog
+        open={importDataOpen}
+        onClose={() => setImportDataOpen(false)}
+        onImport={handleImportData}
+      />
 
       <MethodUrlBar
         method={request.method}
@@ -129,6 +148,19 @@ export function RequestEditor({ filePath }: { filePath: string }) {
             </button>
           </TooltipTrigger>
           <TooltipContent>Copy as cURL<Kbd>{REQUEST_EDITOR_KEYMAPS.copyCurl.hint}</Kbd></TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => setImportDataOpen(true)}
+              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary px-2 py-0.5 rounded transition-colors"
+            >
+              <Database className="w-3 h-3" />
+              Import Data
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Import from data file</TooltipContent>
         </Tooltip>
       </div>
 

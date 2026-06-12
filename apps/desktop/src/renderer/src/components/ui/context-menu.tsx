@@ -106,6 +106,17 @@ const ContextMenuLabel = React.forwardRef<
 ))
 ContextMenuLabel.displayName = ContextMenuPrimitive.Label.displayName
 
+const ContextMenuShortcut = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLSpanElement>) => (
+  <span
+    className={cn('ml-auto pl-4 text-[10px] tracking-widest text-muted-foreground/60', className)}
+    {...props}
+  />
+)
+ContextMenuShortcut.displayName = 'ContextMenuShortcut'
+
 export {
   ContextMenu,
   ContextMenuTrigger,
@@ -118,4 +129,5 @@ export {
   ContextMenuSubTrigger,
   ContextMenuSubContent,
   ContextMenuRadioGroup,
+  ContextMenuShortcut,
 }

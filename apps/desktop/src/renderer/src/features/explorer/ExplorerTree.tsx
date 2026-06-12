@@ -19,11 +19,13 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuShortcut,
   ContextMenuSub,
   ContextMenuSubContent,
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
+import { EXPLORER_KEYMAPS, matchesBinding } from '@/shared/keymaps'
 import { IpcChannels } from '@jkauto/core'
 import type { FsTreeNode } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
@@ -153,7 +155,9 @@ function ObjectRepoMenu({
 
       {!isRoot && (
         <>
-          <ContextMenuItem className="text-xs" onSelect={cb.onEdit}>Rename</ContextMenuItem>
+          <ContextMenuItem className="text-xs" onSelect={cb.onEdit}>
+            Rename<ContextMenuShortcut>{EXPLORER_KEYMAPS.rename.hint}</ContextMenuShortcut>
+          </ContextMenuItem>
           {!isFolder && (
             <ContextMenuItem className="text-xs" onSelect={cb.onCopy}>Copy</ContextMenuItem>
           )}
@@ -161,7 +165,7 @@ function ObjectRepoMenu({
             className="text-xs text-destructive focus:text-destructive"
             onSelect={cb.onDelete}
           >
-            Delete
+            Delete<ContextMenuShortcut>{EXPLORER_KEYMAPS.delete.hint}</ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuSeparator />
         </>
@@ -187,7 +191,7 @@ function TestCasesMenu({
       {isFolder && (
         <>
           <ContextMenuItem className="text-xs" onSelect={() => cb.onNewItem({ dir: node.data.path, type: 'test-case' })}>
-            New Test Case
+            New Test Case<ContextMenuShortcut>{EXPLORER_KEYMAPS.newItem.hint}</ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuItem className="text-xs" onSelect={() => cb.onNewItem({ dir: node.data.path, type: 'folder' })}>
             New Folder
@@ -197,7 +201,9 @@ function TestCasesMenu({
       )}
       {!isRoot && (
         <>
-          <ContextMenuItem className="text-xs" onSelect={cb.onEdit}>Rename</ContextMenuItem>
+          <ContextMenuItem className="text-xs" onSelect={cb.onEdit}>
+            Rename<ContextMenuShortcut>{EXPLORER_KEYMAPS.rename.hint}</ContextMenuShortcut>
+          </ContextMenuItem>
           {!isFolder && (
             <ContextMenuItem className="text-xs" onSelect={cb.onCopy}>Copy</ContextMenuItem>
           )}
@@ -205,7 +211,7 @@ function TestCasesMenu({
             className="text-xs text-destructive focus:text-destructive"
             onSelect={cb.onDelete}
           >
-            Delete
+            Delete<ContextMenuShortcut>{EXPLORER_KEYMAPS.delete.hint}</ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuSeparator />
         </>
@@ -230,7 +236,7 @@ function TestSuitesMenu({
       {isFolder && (
         <>
           <ContextMenuItem className="text-xs" onSelect={() => cb.onNewItem({ dir: node.data.path, type: 'suite' })}>
-            New Test Suite
+            New Test Suite<ContextMenuShortcut>{EXPLORER_KEYMAPS.newItem.hint}</ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuItem className="text-xs" onSelect={() => cb.onNewItem({ dir: node.data.path, type: 'folder' })}>
             New Folder
@@ -240,7 +246,9 @@ function TestSuitesMenu({
       )}
       {!isRoot && (
         <>
-          <ContextMenuItem className="text-xs" onSelect={cb.onEdit}>Rename</ContextMenuItem>
+          <ContextMenuItem className="text-xs" onSelect={cb.onEdit}>
+            Rename<ContextMenuShortcut>{EXPLORER_KEYMAPS.rename.hint}</ContextMenuShortcut>
+          </ContextMenuItem>
           {!isFolder && (
             <ContextMenuItem className="text-xs" onSelect={cb.onCopy}>Copy</ContextMenuItem>
           )}
@@ -248,7 +256,7 @@ function TestSuitesMenu({
             className="text-xs text-destructive focus:text-destructive"
             onSelect={cb.onDelete}
           >
-            Delete
+            Delete<ContextMenuShortcut>{EXPLORER_KEYMAPS.delete.hint}</ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuSeparator />
         </>
@@ -272,7 +280,9 @@ function GenericMenu({
     <>
       {!isRoot && (
         <>
-          <ContextMenuItem className="text-xs" onSelect={cb.onEdit}>Rename</ContextMenuItem>
+          <ContextMenuItem className="text-xs" onSelect={cb.onEdit}>
+            Rename<ContextMenuShortcut>{EXPLORER_KEYMAPS.rename.hint}</ContextMenuShortcut>
+          </ContextMenuItem>
           {!isFolder && (
             <ContextMenuItem className="text-xs" onSelect={cb.onCopy}>Copy</ContextMenuItem>
           )}
@@ -280,7 +290,7 @@ function GenericMenu({
             className="text-xs text-destructive focus:text-destructive"
             onSelect={cb.onDelete}
           >
-            Delete
+            Delete<ContextMenuShortcut>{EXPLORER_KEYMAPS.delete.hint}</ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuSeparator />
         </>
@@ -422,7 +432,7 @@ const ROW_H = 24
 
 export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
   const { tree, reload } = useExplorerTree(projectPath)
-  const { renameTab, renameTabsUnderPath } = useProjectStore()
+  const { renameTab, renameTabsUnderPath, closeTab, closeTabsUnderPath } = useProjectStore()
   const containerRef = useRef<HTMLDivElement>(null)
   const treeRef = useRef<TreeApi<FsTreeNode> | null>(null)
   const [width, setWidth] = useState(0)
@@ -534,8 +544,46 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
     reload()
   }
 
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      const active = document.activeElement
+      const isEditable =
+        active instanceof HTMLInputElement ||
+        active instanceof HTMLTextAreaElement ||
+        (active as HTMLElement)?.isContentEditable
+      if (isEditable) return
+
+      const selected = treeRef.current?.selectedNodes[0]
+      if (!selected) return
+
+      if (matchesBinding(e.nativeEvent, EXPLORER_KEYMAPS.delete.keys) && !isTopLevel(selected.id)) {
+        e.preventDefault()
+        const isFolder = selected.isInternal
+        const label = isFolder ? 'folder and all its contents' : `"${selected.data.name}"`
+        if (!confirm(`Delete ${label}? This cannot be undone.`)) return
+        if (isFolder) closeTabsUnderPath(selected.data.path)
+        else closeTab(selected.data.path)
+        invoke(IpcChannels.FS_DELETE, selected.data.path)
+        return
+      }
+
+      if (matchesBinding(e.nativeEvent, EXPLORER_KEYMAPS.newItem.keys)) {
+        e.preventDefault()
+        const dir = selected.isInternal ? selected.data.path : pathDirname(selected.data.path)
+        const feature = featureOf(selected.id)
+        const type: NewItemType =
+          feature === 'test-cases' ? 'test-case'
+          : feature === 'test-suites' ? 'suite'
+          : feature === 'object-repository' ? 'api-request'
+          : 'folder'
+        setNewItemState({ dir, type })
+      }
+    },
+    [closeTab, closeTabsUnderPath, setNewItemState],
+  )
+
   return (
-    <div ref={containerRef} className="w-full">
+    <div ref={containerRef} className="w-full" onKeyDown={handleKeyDown}>
       {width > 0 && (
         <Tree<FsTreeNode>
           ref={treeRef}

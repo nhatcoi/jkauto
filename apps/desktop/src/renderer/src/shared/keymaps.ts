@@ -12,49 +12,72 @@ export function modKey(): string {
   return isMac() ? '⌘' : 'Ctrl'
 }
 
-function matchesBinding(e: KeyboardEvent, keys: string[]): boolean {
+/**
+ * Binding syntax:
+ *   mod   → Ctrl (Win/Linux) or Cmd (macOS) — use this for cross-platform shortcuts
+ *   ctrl  → strictly Ctrl key only
+ *   meta  → strictly Cmd key only
+ *   alt   → Alt / Option
+ *   shift → Shift
+ *
+ * Examples: 'mod+s', 'mod+shift+c', 'alt+arrowup', 'f5'
+ */
+export function matchesBinding(e: KeyboardEvent, keys: string[]): boolean {
   return keys.some((combo) => {
     const parts = combo.toLowerCase().split('+')
     const key = parts[parts.length - 1]
-    const needCtrl = parts.includes('ctrl')
-    const needMeta = parts.includes('meta')
-    const needAlt = parts.includes('alt')
-    const needShift = parts.includes('shift')
-    const needMod = needCtrl || needMeta
+    const hasMod   = parts.includes('mod')
+    const hasCtrl  = parts.includes('ctrl')
+    const hasMeta  = parts.includes('meta')
+    const hasAlt   = parts.includes('alt')
+    const hasShift = parts.includes('shift')
+
+    const modPressed = e.ctrlKey || e.metaKey
+    const modMatch = hasMod
+      ? modPressed
+      : hasCtrl && hasMeta
+        ? e.ctrlKey || e.metaKey   // explicit both = same as mod
+        : hasCtrl
+          ? e.ctrlKey && !e.metaKey
+          : hasMeta
+            ? e.metaKey && !e.ctrlKey
+            : !e.ctrlKey && !e.metaKey
 
     return (
       e.key.toLowerCase() === key &&
-      (needMod ? e.ctrlKey || e.metaKey : !e.ctrlKey && !e.metaKey) &&
-      (needAlt ? e.altKey : !e.altKey) &&
-      (needShift ? e.shiftKey : !e.shiftKey)
+      modMatch &&
+      (hasAlt   ? e.altKey   : !e.altKey) &&
+      (hasShift ? e.shiftKey : !e.shiftKey)
     )
   })
 }
 
+const M = modKey()
+
 export const TEST_CASE_KEYMAPS = {
-  save:          { keys: ['ctrl+s', 'meta+s'],          label: 'Save',        hint: `${modKey()}+S` },
-  addStep:       { keys: ['alt+a'],                     label: 'Add Step',    hint: 'Alt+A' },
-  deleteStep:    { keys: ['delete', 'backspace'],        label: 'Delete Step', hint: 'Del' },
-  moveUp:        { keys: ['alt+arrowup'],               label: 'Move Up',     hint: 'Alt+↑' },
-  moveDown:      { keys: ['alt+arrowdown'],             label: 'Move Down',   hint: 'Alt+↓' },
-  duplicateStep: { keys: ['ctrl+d', 'meta+d'],          label: 'Duplicate',   hint: `${modKey()}+D` },
-  run:           { keys: ['f5'],                        label: 'Run',         hint: 'F5' },
-  debug:         { keys: ['f6'],                        label: 'Debug',       hint: 'F6' },
-  stop:          { keys: ['shift+f5'],                  label: 'Stop',        hint: 'Shift+F5' },
-  toggleHistory: { keys: ['ctrl+h', 'meta+h'],          label: 'History',     hint: `${modKey()}+H` },
+  save:          { keys: ['mod+s'],          label: 'Save',        hint: `${M}+S`   },
+  addStep:       { keys: ['alt+a'],          label: 'Add Step',    hint: 'Alt+A'    },
+  deleteStep:    { keys: ['delete', 'backspace'], label: 'Delete Step', hint: 'Del' },
+  moveUp:        { keys: ['alt+arrowup'],    label: 'Move Up',     hint: 'Alt+↑'    },
+  moveDown:      { keys: ['alt+arrowdown'],  label: 'Move Down',   hint: 'Alt+↓'    },
+  duplicateStep: { keys: ['mod+d'],          label: 'Duplicate',   hint: `${M}+D`   },
+  run:           { keys: ['f5'],             label: 'Run',         hint: 'F5'       },
+  debug:         { keys: ['f6'],             label: 'Debug',       hint: 'F6'       },
+  stop:          { keys: ['shift+f5'],       label: 'Stop',        hint: 'Shift+F5' },
+  toggleHistory: { keys: ['mod+h'],          label: 'History',     hint: `${M}+H`   },
 } satisfies Record<string, KeyBinding>
 
 export const REQUEST_EDITOR_KEYMAPS = {
-  save:       { keys: ['ctrl+s', 'meta+s'],             label: 'Save',         hint: `${modKey()}+S` },
-  send:       { keys: ['ctrl+enter', 'meta+enter'],     label: 'Send',         hint: `${modKey()}+↵` },
-  importCurl: { keys: ['ctrl+i', 'meta+i'],             label: 'Import cURL',  hint: `${modKey()}+I` },
-  copyCurl:   { keys: ['ctrl+shift+c', 'meta+shift+c'], label: 'Copy cURL',    hint: `${modKey()}+⇧+C` },
+  save:       { keys: ['mod+s'],          label: 'Save',        hint: `${M}+S`   },
+  send:       { keys: ['mod+enter'],      label: 'Send',        hint: `${M}+↵`   },
+  importCurl: { keys: ['mod+i'],          label: 'Import cURL', hint: `${M}+I`   },
+  copyCurl:   { keys: ['mod+shift+c'],    label: 'Copy cURL',   hint: `${M}+⇧+C` },
 } satisfies Record<string, KeyBinding>
 
 export const EXPLORER_KEYMAPS = {
-  rename: { keys: ['f2'],              label: 'Rename',  hint: 'F2' },
-  delete: { keys: ['delete'],          label: 'Delete',  hint: 'Del' },
-  newItem:{ keys: ['ctrl+n', 'meta+n'],label: 'New Item',hint: `${modKey()}+N` },
+  rename:     { keys: ['f2'],      label: 'Rename',                hint: 'F2'      },
+  delete:     { keys: ['delete'],  label: 'Delete',                hint: 'Del'     },
+  newItem:    { keys: ['mod+n'],   label: 'New Item',              hint: `${M}+N`  },
+  copy:       { keys: [],          label: 'Copy',                  hint: ''        },
+  openFolder: { keys: [],          label: 'Open Containing Folder', hint: ''       },
 } satisfies Record<string, KeyBinding>
-
-export { matchesBinding }
