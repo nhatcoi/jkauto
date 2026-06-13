@@ -132,7 +132,11 @@ export function useSuiteRun(
     setRunSummary(null)
     runModeRef.current = 'suite'
 
-    const result = await invoke<{ runId: string }>(IpcChannels.ENGINE_RUN_SUITE, { filePath, profileVariables })
+    const result = await invoke<{ runId: string }>(IpcChannels.ENGINE_RUN_SUITE, {
+      filePath,
+      profileVariables,
+      projectPath: activeProject?.path,
+    })
     startRun(result.runId, filePath, false)
   }, [activeProject, filePath, runStatus, saveSuiteToFile, startRun, suiteRef])
 

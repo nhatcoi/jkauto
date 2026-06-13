@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import {
   Plus,
   ChevronUp,
@@ -14,44 +14,49 @@ import {
   Upload,
   AlertCircle,
   StepForward,
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { invoke } from '@/lib/utils'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-import { Kbd } from '@/components/ui/kbd'
-import { useGlobalKeymap } from '@/hooks/useGlobalKeymap'
-import { TEST_CASE_KEYMAPS } from '@/shared/keymaps'
-import { parse as yamlParse, stringify as yamlStringify } from 'yaml'
-import { IpcChannels } from '@jkauto/core'
-import type { RunRecord, Platform } from '@jkauto/core'
-import { useProjectStore } from '@/store/project.store'
-import { useRunStore } from '@/store/run.store'
-import type { StepStatus } from '@/store/run.store'
-import { getKeyword } from './keywords'
-import { useKeywords } from './hooks/useKeywords'
-import { useObjectItems } from './hooks/useObjectItems'
-import { readEnv } from '@/features/env/api'
-import { ImportStepsDialog } from './components/ImportStepsDialog'
-import { StepRow } from './components/StepRow'
-import { StepContextMenu } from './components/StepContextMenu'
-import type { TestCase, TestStep } from './types'
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { invoke } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
+import { Kbd } from "@/components/ui/kbd";
+import { useGlobalKeymap } from "@/hooks/useGlobalKeymap";
+import { TEST_CASE_KEYMAPS } from "@/shared/keymaps";
+import { parse as yamlParse, stringify as yamlStringify } from "yaml";
+import { IpcChannels } from "@jkauto/core";
+import type { RunRecord, Platform } from "@jkauto/core";
+import { useProjectStore } from "@/store/project.store";
+import { useRunStore } from "@/store/run.store";
+import type { StepStatus } from "@/store/run.store";
+import { getKeyword } from "./keywords";
+import { useKeywords } from "./hooks/useKeywords";
+import { useObjectItems } from "./hooks/useObjectItems";
+import { readEnv } from "@/features/env/api";
+import { ImportStepsDialog } from "./components/ImportStepsDialog";
+import { CallTestCaseDialog } from "./components/CallTestCaseDialog";
+import { StepRow } from "./components/StepRow";
+import { StepContextMenu } from "./components/StepContextMenu";
+import type { TestCase, TestStep } from "./types";
 
-function makeStep(keyword = 'click'): TestStep {
+function makeStep(keyword = "click"): TestStep {
   return {
     id: crypto.randomUUID(),
     keyword,
-    description: '',
-    objectRef: '',
-    input: '',
-    expected: '',
+    description: "",
+    objectRef: "",
+    input: "",
+    expected: "",
     enabled: true,
     continueOnFailure: false,
     timeout: null,
-  }
+  };
 }
 
 export function TestCaseEditor({ filePath }: { filePath: string }) {
-  const { markTabDirty, activeProject } = useProjectStore()
+  const { markTabDirty, activeProject } = useProjectStore();
   const {
     startRun,
     handleStepEvent,
@@ -65,359 +70,433 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
     appendRunRecord,
     isDebugMode,
     isDebugPaused,
-  } = useRunStore()
-  
-  const [tc, setTc] = useState<TestCase | null>(null)
-  const platform = tc?.platform ?? activeProject?.project.type
-  const keywords = useKeywords(platform)
-  const objectItems = useObjectItems(activeProject?.path)
-  const [error, setError] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
-  const [showImport, setShowImport] = useState(false)
+  } = useRunStore();
+
+  const [tc, setTc] = useState<TestCase | null>(null);
+  const platform = tc?.platform ?? activeProject?.project.type;
+  const keywords = useKeywords(platform);
+  const objectItems = useObjectItems(activeProject?.path);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [showImport, setShowImport] = useState(false);
+  const [showCallDialog, setShowCallDialog] = useState(false);
+  const [callDialogTargetIdx, setCallDialogTargetIdx] = useState<number | null>(
+    null,
+  );
 
   // Drag and Drop State
-  const [draggedIdx, setDraggedIdx] = useState<number | null>(null)
-  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
+  const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
   // Context Menu and Clipboard State
-  const [clipboard, setClipboard] = useState<Partial<TestStep> | null>(null)
+  const [clipboard, setClipboard] = useState<Partial<TestStep> | null>(null);
   const [contextMenu, setContextMenu] = useState<{
-    x: number
-    y: number
-    visible: boolean
-    stepIdx: number
-  } | null>(null)
+    x: number;
+    y: number;
+    visible: boolean;
+    stepIdx: number;
+  } | null>(null);
 
   // keep ref for save callback (avoids stale closure in keydown)
-  const tcRef = useRef<TestCase | null>(null)
-  tcRef.current = tc
+  const tcRef = useRef<TestCase | null>(null);
+  tcRef.current = tc;
 
-  const isYaml = filePath.endsWith('.yaml') || filePath.endsWith('.yml')
+  const isYaml = filePath.endsWith(".yaml") || filePath.endsWith(".yml");
 
   const load = useCallback(async () => {
     try {
-      setError('')
-      const raw = await invoke<string>(IpcChannels.FS_READ_FILE, filePath)
-      const parsed = (isYaml ? yamlParse(raw) : JSON.parse(raw)) as TestCase
-      setTc(parsed)
-      setSelectedIdx(null)
+      setError("");
+      const raw = await invoke<string>(IpcChannels.FS_READ_FILE, filePath);
+      const parsed = (isYaml ? yamlParse(raw) : JSON.parse(raw)) as TestCase;
+      setTc(parsed);
+      setSelectedIdx(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load')
+      setError(e instanceof Error ? e.message : "Failed to load");
     }
-  }, [filePath, isYaml])
+  }, [filePath, isYaml]);
 
   // Load run history whenever the file changes
   useEffect(() => {
     invoke<RunRecord[]>(IpcChannels.ENGINE_GET_RUNS, filePath)
       .then((records) => setRunHistory(records ?? []))
-      .catch(() => setRunHistory([]))
-  }, [filePath, setRunHistory])
+      .catch(() => setRunHistory([]));
+  }, [filePath, setRunHistory]);
 
   useEffect(() => {
-    load()
-  }, [load])
+    load();
+  }, [load]);
 
   // Subscribe to engine events
   useEffect(() => {
-    const offStep = window.api.on(IpcChannels.ENGINE_STEP_EVENT, (event: any) => {
-      handleStepEvent(event)
-    })
+    const offStep = window.api.on(
+      IpcChannels.ENGINE_STEP_EVENT,
+      (event: any) => {
+        handleStepEvent(event);
+      },
+    );
     // ENGINE_DEBUG_NEXT from main signals engine is paused — store already tracks via handleStepEvent
     // We just need to unsub on cleanup; the actual pause state is managed in run.store
-    const offDebugNext = window.api.on(IpcChannels.ENGINE_DEBUG_NEXT, () => {})
-    const offComplete = window.api.on(IpcChannels.ENGINE_RUN_COMPLETE, (event: any) => {
-      handleRunComplete(event)
-      // Persist the run record and update in-memory history
-      const record: RunRecord = {
-        runId: event.runId,
-        filePath,
-        status: event.status,
-        totalSteps: event.totalSteps,
-        passedSteps: event.passedSteps,
-        failedSteps: event.failedSteps,
-        durationMs: event.durationMs,
-        startedAt: new Date(Date.now() - event.durationMs).toISOString(),
-        endedAt: new Date().toISOString(),
-      }
-      appendRunRecord(record)
-      invoke(IpcChannels.ENGINE_SAVE_RUN, filePath, record).catch(console.error)
-    })
+    const offDebugNext = window.api.on(IpcChannels.ENGINE_DEBUG_NEXT, () => {});
+    const offComplete = window.api.on(
+      IpcChannels.ENGINE_RUN_COMPLETE,
+      (event: any) => {
+        handleRunComplete(event);
+        // Persist the run record and update in-memory history
+        const record: RunRecord = {
+          runId: event.runId,
+          filePath,
+          status: event.status,
+          totalSteps: event.totalSteps,
+          passedSteps: event.passedSteps,
+          failedSteps: event.failedSteps,
+          durationMs: event.durationMs,
+          startedAt: new Date(Date.now() - event.durationMs).toISOString(),
+          endedAt: new Date().toISOString(),
+        };
+        appendRunRecord(record);
+        invoke(IpcChannels.ENGINE_SAVE_RUN, filePath, record).catch(
+          console.error,
+        );
+      },
+    );
     return () => {
-      offStep()
-      offDebugNext()
-      offComplete()
-    }
-  }, [filePath, handleStepEvent, handleRunComplete, appendRunRecord])
+      offStep();
+      offDebugNext();
+      offComplete();
+    };
+  }, [filePath, handleStepEvent, handleRunComplete, appendRunRecord]);
 
-  const handleRun = useCallback(async (debugMode = false) => {
-    if (runStatus === 'running') return
-    const current = tcRef.current
-    if (current) {
-      const content = isYaml ? yamlStringify(current) : JSON.stringify(current, null, 2)
-      await invoke(IpcChannels.FS_WRITE_FILE, filePath, content)
-      markTabDirty(filePath, false)
-    }
-    let profileVariables: Record<string, string> = {}
-    if (activeProject) {
-      try {
-        profileVariables = await readEnv(
-          `${activeProject.path}/profiles/${activeProject.activeProfile}.env.json`,
-        )
-      } catch { /* profile missing — ignore */ }
-    }
-    const result = await invoke<{ runId: string }>(IpcChannels.ENGINE_RUN_CASE, {
-      filePath,
-      debugMode,
-      profileVariables,
-      projectPath: activeProject?.path,
-      device: tcRef.current?.device,
-    })
-    startRun(result.runId, filePath, debugMode)
-  }, [filePath, runStatus, markTabDirty, startRun, activeProject, isYaml])
+  const handleRun = useCallback(
+    async (debugMode = false) => {
+      if (runStatus === "running") return;
+      const current = tcRef.current;
+      if (current) {
+        const content = isYaml
+          ? yamlStringify(current)
+          : JSON.stringify(current, null, 2);
+        await invoke(IpcChannels.FS_WRITE_FILE, filePath, content);
+        markTabDirty(filePath, false);
+      }
+      let profileVariables: Record<string, string> = {};
+      if (activeProject) {
+        try {
+          profileVariables = await readEnv(
+            `${activeProject.path}/profiles/${activeProject.activeProfile}.env.json`,
+          );
+        } catch {
+          /* profile missing — ignore */
+        }
+      }
+      const result = await invoke<{ runId: string }>(
+        IpcChannels.ENGINE_RUN_CASE,
+        {
+          filePath,
+          debugMode,
+          profileVariables,
+          projectPath: activeProject?.path,
+          device: tcRef.current?.device,
+        },
+      );
+      startRun(result.runId, filePath, debugMode);
+    },
+    [filePath, runStatus, markTabDirty, startRun, activeProject, isYaml],
+  );
 
   const handleStop = useCallback(async () => {
-    if (!runId) return
-    await invoke(IpcChannels.ENGINE_STOP, runId)
-    stopRun()
-  }, [runId, stopRun])
+    if (!runId) return;
+    await invoke(IpcChannels.ENGINE_STOP, runId);
+    stopRun();
+  }, [runId, stopRun]);
 
   const handleDebugNext = useCallback(async () => {
-    if (!runId) return
-    await invoke(IpcChannels.ENGINE_DEBUG_NEXT, runId)
-  }, [runId])
+    if (!runId) return;
+    await invoke(IpcChannels.ENGINE_DEBUG_NEXT, runId);
+  }, [runId]);
 
   const save = useCallback(async () => {
-    const current = tcRef.current
-    if (!current) return
-    setSaving(true)
+    const current = tcRef.current;
+    if (!current) return;
+    setSaving(true);
     try {
-      const content = isYaml ? yamlStringify(current) : JSON.stringify(current, null, 2)
-      await invoke(IpcChannels.FS_WRITE_FILE, filePath, content)
-      markTabDirty(filePath, false)
+      const content = isYaml
+        ? yamlStringify(current)
+        : JSON.stringify(current, null, 2);
+      await invoke(IpcChannels.FS_WRITE_FILE, filePath, content);
+      markTabDirty(filePath, false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Save failed')
+      setError(e instanceof Error ? e.message : "Save failed");
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }, [filePath, markTabDirty, isYaml])
+  }, [filePath, markTabDirty, isYaml]);
 
   const mutate = (fn: (prev: TestCase) => TestCase) => {
     setTc((prev) => {
-      if (!prev) return prev
-      const next = fn(prev)
-      markTabDirty(filePath, true)
-      return next
-    })
-  }
+      if (!prev) return prev;
+      const next = fn(prev);
+      markTabDirty(filePath, true);
+      return next;
+    });
+  };
 
   const updateStep = (idx: number, patch: Partial<TestStep>) => {
     mutate((tc) => ({
       ...tc,
       steps: tc.steps.map((s, i) => (i === idx ? { ...s, ...patch } : s)),
-    }))
-  }
+    }));
+  };
 
   const addStep = () => {
     mutate((tc) => ({
       ...tc,
       steps: [...tc.steps, makeStep()],
-    }))
-    setSelectedIdx(tc?.steps.length ?? 0)
-  }
+    }));
+    setSelectedIdx(tc?.steps.length ?? 0);
+  };
 
   const deleteStep = (idx: number) => {
-    mutate((tc) => ({ ...tc, steps: tc.steps.filter((_, i) => i !== idx) }))
-    setSelectedIdx(null)
-  }
+    mutate((tc) => ({ ...tc, steps: tc.steps.filter((_, i) => i !== idx) }));
+    setSelectedIdx(null);
+  };
 
   const moveStep = (idx: number, dir: -1 | 1) => {
-    const target = idx + dir
+    const target = idx + dir;
     mutate((tc) => {
-      if (target < 0 || target >= tc.steps.length) return tc
-      const steps = [...tc.steps]
-      ;[steps[idx], steps[target]] = [steps[target], steps[idx]]
-      return { ...tc, steps }
-    })
-    setSelectedIdx(target)
-  }
+      if (target < 0 || target >= tc.steps.length) return tc;
+      const steps = [...tc.steps];
+      [steps[idx], steps[target]] = [steps[target], steps[idx]];
+      return { ...tc, steps };
+    });
+    setSelectedIdx(target);
+  };
 
   const handleImport = (importedSteps: any[]) => {
     mutate((tc) => ({
       ...tc,
       steps: [...tc.steps, ...importedSteps],
-    }))
-  }
+    }));
+  };
 
   const duplicateStep = (idx: number) => {
-    if (!tc) return
-    const src = tc.steps[idx]
+    if (!tc) return;
+    const src = tc.steps[idx];
     mutate((prev) => {
-      const steps = [...prev.steps]
-      steps.splice(idx + 1, 0, { ...src, id: crypto.randomUUID() })
-      return { ...prev, steps }
-    })
-    setSelectedIdx(idx + 1)
-  }
+      const steps = [...prev.steps];
+      steps.splice(idx + 1, 0, { ...src, id: crypto.randomUUID() });
+      return { ...prev, steps };
+    });
+    setSelectedIdx(idx + 1);
+  };
 
   useGlobalKeymap(TEST_CASE_KEYMAPS, {
     save,
     addStep,
-    deleteStep:    () => { if (selectedIdx !== null) deleteStep(selectedIdx) },
-    moveUp:        () => { if (selectedIdx !== null) moveStep(selectedIdx, -1) },
-    moveDown:      () => { if (selectedIdx !== null) moveStep(selectedIdx, 1) },
-    duplicateStep: () => { if (selectedIdx !== null) duplicateStep(selectedIdx) },
-    run:           () => { if (runStatus !== 'running') handleRun(false) },
-    debug:         () => { if (runStatus !== 'running') handleRun(true) },
-    stop:          () => { if (runStatus === 'running') handleStop() },
+    deleteStep: () => {
+      if (selectedIdx !== null) deleteStep(selectedIdx);
+    },
+    moveUp: () => {
+      if (selectedIdx !== null) moveStep(selectedIdx, -1);
+    },
+    moveDown: () => {
+      if (selectedIdx !== null) moveStep(selectedIdx, 1);
+    },
+    duplicateStep: () => {
+      if (selectedIdx !== null) duplicateStep(selectedIdx);
+    },
+    run: () => {
+      if (runStatus !== "running") handleRun(false);
+    },
+    debug: () => {
+      if (runStatus !== "running") handleRun(true);
+    },
+    stop: () => {
+      if (runStatus === "running") handleStop();
+    },
     toggleHistory: () => {},
-  })
+  });
 
   // Drag & Drop Handlers
   const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedIdx(index)
-    e.dataTransfer.effectAllowed = 'move'
-    e.dataTransfer.setData('text/plain', index.toString())
-  }
+    setDraggedIdx(index);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", index.toString());
+  };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault()
-  }
+    e.preventDefault();
+  };
 
   const handleDragEnter = (index: number) => {
-    setDragOverIdx(index)
-  }
+    setDragOverIdx(index);
+  };
 
   const handleDragLeave = () => {
     // handled on dragEnd / drop
-  }
+  };
 
   const handleDragEnd = () => {
-    setDraggedIdx(null)
-    setDragOverIdx(null)
-  }
+    setDraggedIdx(null);
+    setDragOverIdx(null);
+  };
 
   const handleDrop = (e: React.DragEvent, targetIndex: number) => {
-    e.preventDefault()
+    e.preventDefault();
     if (draggedIdx === null || draggedIdx === targetIndex) {
-      setDraggedIdx(null)
-      setDragOverIdx(null)
-      return
+      setDraggedIdx(null);
+      setDragOverIdx(null);
+      return;
     }
 
     mutate((tc) => {
-      const steps = [...tc.steps]
-      const [draggedItem] = steps.splice(draggedIdx, 1)
-      steps.splice(targetIndex, 0, draggedItem)
-      return { ...tc, steps }
-    })
-    
-    setSelectedIdx(targetIndex)
-    setDraggedIdx(null)
-    setDragOverIdx(null)
-  }
+      const steps = [...tc.steps];
+      const [draggedItem] = steps.splice(draggedIdx, 1);
+      steps.splice(targetIndex, 0, draggedItem);
+      return { ...tc, steps };
+    });
+
+    setSelectedIdx(targetIndex);
+    setDraggedIdx(null);
+    setDragOverIdx(null);
+  };
 
   // Context Menu Handlers
   const handleContextMenu = (e: React.MouseEvent, index: number) => {
-    e.preventDefault()
-    setSelectedIdx(index)
-    
-    const menuWidth = 220
-    const menuHeight = 280
-    const screenWidth = window.innerWidth
-    const screenHeight = window.innerHeight
-    
-    let posX = e.clientX
-    let posY = e.clientY
-    
-    if (posX + menuWidth > screenWidth) posX = screenWidth - menuWidth - 8
-    if (posY + menuHeight > screenHeight) posY = screenHeight - menuHeight - 8
+    e.preventDefault();
+    setSelectedIdx(index);
+
+    const menuWidth = 220;
+    const menuHeight = 280;
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+
+    let posX = e.clientX;
+    let posY = e.clientY;
+
+    if (posX + menuWidth > screenWidth) posX = screenWidth - menuWidth - 8;
+    if (posY + menuHeight > screenHeight) posY = screenHeight - menuHeight - 8;
 
     setContextMenu({
       x: posX,
       y: posY,
       visible: true,
-      stepIdx: index
-    })
-  }
+      stepIdx: index,
+    });
+  };
 
   const closeContextMenu = () => {
-    setContextMenu(null)
-  }
+    setContextMenu(null);
+  };
 
   // Action Methods
   const insertStepBefore = (idx: number) => {
     mutate((tc) => {
-      const steps = [...tc.steps]
-      steps.splice(idx, 0, makeStep())
-      return { ...tc, steps }
-    })
-    setSelectedIdx(idx)
-  }
+      const steps = [...tc.steps];
+      steps.splice(idx, 0, makeStep());
+      return { ...tc, steps };
+    });
+    setSelectedIdx(idx);
+  };
 
   const insertStepAfter = (idx: number) => {
     mutate((tc) => {
-      const steps = [...tc.steps]
-      steps.splice(idx + 1, 0, makeStep())
-      return { ...tc, steps }
-    })
-    setSelectedIdx(idx + 1)
-  }
+      const steps = [...tc.steps];
+      steps.splice(idx + 1, 0, makeStep());
+      return { ...tc, steps };
+    });
+    setSelectedIdx(idx + 1);
+  };
 
   const copyStep = (idx: number) => {
-    if (!tc) return
-    const stepToCopy = tc.steps[idx]
-    setClipboard({ ...stepToCopy, id: undefined })
-  }
+    if (!tc) return;
+    const stepToCopy = tc.steps[idx];
+    setClipboard({ ...stepToCopy, id: undefined });
+  };
 
   const cutStep = (idx: number) => {
-    if (!tc) return
-    const stepToCut = tc.steps[idx]
-    setClipboard({ ...stepToCut, id: undefined })
-    deleteStep(idx)
-  }
+    if (!tc) return;
+    const stepToCut = tc.steps[idx];
+    setClipboard({ ...stepToCut, id: undefined });
+    deleteStep(idx);
+  };
 
   const pasteStepBefore = (idx: number) => {
-    if (!clipboard) return
+    if (!clipboard) return;
     mutate((tc) => {
-      const steps = [...tc.steps]
-      steps.splice(idx, 0, { ...makeStep(clipboard.keyword), ...clipboard, id: crypto.randomUUID() })
-      return { ...tc, steps }
-    })
-    setSelectedIdx(idx)
-  }
+      const steps = [...tc.steps];
+      steps.splice(idx, 0, {
+        ...makeStep(clipboard.keyword),
+        ...clipboard,
+        id: crypto.randomUUID(),
+      });
+      return { ...tc, steps };
+    });
+    setSelectedIdx(idx);
+  };
 
   const pasteStepAfter = (idx: number) => {
-    if (!clipboard) return
+    if (!clipboard) return;
     mutate((tc) => {
-      const steps = [...tc.steps]
-      steps.splice(idx + 1, 0, { ...makeStep(clipboard.keyword), ...clipboard, id: crypto.randomUUID() })
-      return { ...tc, steps }
-    })
-    setSelectedIdx(idx + 1)
-  }
+      const steps = [...tc.steps];
+      steps.splice(idx + 1, 0, {
+        ...makeStep(clipboard.keyword),
+        ...clipboard,
+        id: crypto.randomUUID(),
+      });
+      return { ...tc, steps };
+    });
+    setSelectedIdx(idx + 1);
+  };
 
   const toggleFailureHandling = (idx: number) => {
-    if (!tc) return
-    updateStep(idx, { continueOnFailure: !tc.steps[idx].continueOnFailure })
-  }
+    if (!tc) return;
+    updateStep(idx, { continueOnFailure: !tc.steps[idx].continueOnFailure });
+  };
+
+  const openCallDialog = (idx: number) => {
+    closeContextMenu();
+    setCallDialogTargetIdx(idx);
+    setShowCallDialog(true);
+  };
+
+  const handleCallTestCaseSelect = (path: string, name: string) => {
+    const targetIdx = callDialogTargetIdx;
+    mutate((tc) => {
+      const steps = [...tc.steps];
+      const newStep = {
+        ...makeStep("call-test-case"),
+        description: `Call: ${name}`,
+        input: path,
+      };
+      steps.splice(
+        targetIdx !== null ? targetIdx + 1 : steps.length,
+        0,
+        newStep,
+      );
+      return { ...tc, steps };
+    });
+    setSelectedIdx(
+      targetIdx !== null ? targetIdx + 1 : (tc?.steps.length ?? 0),
+    );
+    setCallDialogTargetIdx(null);
+  };
 
   // Close context menu on window mousedown
   useEffect(() => {
-    if (!contextMenu || !contextMenu.visible) return
+    if (!contextMenu || !contextMenu.visible) return;
 
     const handleOutsideClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement
-      if (!target.closest('#step-context-menu')) {
-        closeContextMenu()
+      const target = e.target as HTMLElement;
+      if (!target.closest("#step-context-menu")) {
+        closeContextMenu();
       }
-    }
-    
-    document.addEventListener('mousedown', handleOutsideClick)
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
     return () => {
-      document.removeEventListener('mousedown', handleOutsideClick)
-    }
-  }, [contextMenu])
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [contextMenu]);
 
   if (error) {
     return (
@@ -425,7 +504,7 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
         <AlertCircle className="w-4 h-4" />
         {error}
       </div>
-    )
+    );
   }
 
   if (!tc) {
@@ -433,27 +512,39 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
       <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
         Loading…
       </div>
-    )
+    );
   }
 
-  const sel = selectedIdx !== null ? tc.steps[selectedIdx] : null
+  const sel = selectedIdx !== null ? tc.steps[selectedIdx] : null;
 
   const RunStatusBadge = () => {
-    const map: Record<string, { icon: React.ElementType; label: string; cls: string }> = {
-      idle: { icon: Circle, label: 'Never run', cls: 'text-muted-foreground/50' },
-      running: { icon: Loader2, label: 'Running…', cls: 'text-yellow-400' },
-      passed: { icon: CircleCheck, label: 'Passed', cls: 'text-green-500' },
-      failed: { icon: CircleX, label: 'Failed', cls: 'text-red-500' },
-      stopped: { icon: Square, label: 'Stopped', cls: 'text-muted-foreground' },
-    }
-    const { icon: Icon, label, cls } = map[runStatus] ?? map.idle
+    const map: Record<
+      string,
+      { icon: React.ElementType; label: string; cls: string }
+    > = {
+      idle: {
+        icon: Circle,
+        label: "Never run",
+        cls: "text-muted-foreground/50",
+      },
+      running: { icon: Loader2, label: "Running…", cls: "text-yellow-400" },
+      passed: { icon: CircleCheck, label: "Passed", cls: "text-green-500" },
+      failed: { icon: CircleX, label: "Failed", cls: "text-red-500" },
+      stopped: { icon: Square, label: "Stopped", cls: "text-muted-foreground" },
+    };
+    const { icon: Icon, label, cls } = map[runStatus] ?? map.idle;
     return (
-      <span className={cn('flex items-center gap-1 text-xs font-medium', cls)}>
-        <Icon className={cn('w-3.5 h-3.5', runStatus === 'running' && 'animate-spin')} />
+      <span className={cn("flex items-center gap-1 text-xs font-medium", cls)}>
+        <Icon
+          className={cn(
+            "w-3.5 h-3.5",
+            runStatus === "running" && "animate-spin",
+          )}
+        />
         {label}
       </span>
-    )
-  }
+    );
+  };
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -471,7 +562,9 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
               Add Step
             </button>
           </TooltipTrigger>
-          <TooltipContent>Add Step<Kbd>Alt+A</Kbd></TooltipContent>
+          <TooltipContent>
+            Add Step<Kbd>Alt+A</Kbd>
+          </TooltipContent>
         </Tooltip>
 
         <Tooltip>
@@ -501,33 +594,41 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
               <ChevronUp className="w-3.5 h-3.5" />
             </button>
           </TooltipTrigger>
-          <TooltipContent>Move Up<Kbd>Alt+↑</Kbd></TooltipContent>
+          <TooltipContent>
+            Move Up<Kbd>Alt+↑</Kbd>
+          </TooltipContent>
         </Tooltip>
 
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               type="button"
-              disabled={selectedIdx === null || selectedIdx === tc.steps.length - 1}
+              disabled={
+                selectedIdx === null || selectedIdx === tc.steps.length - 1
+              }
               onClick={() => selectedIdx !== null && moveStep(selectedIdx, 1)}
               className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground disabled:opacity-30"
             >
               <ChevronDown className="w-3.5 h-3.5" />
             </button>
           </TooltipTrigger>
-          <TooltipContent>Move Down<Kbd>Alt+↓</Kbd></TooltipContent>
+          <TooltipContent>
+            Move Down<Kbd>Alt+↓</Kbd>
+          </TooltipContent>
         </Tooltip>
 
         <div className="w-px h-4 bg-border mx-0.5" />
 
         {/* platform picker */}
         <div className="flex items-center gap-1">
-          <span className="text-[10px] text-muted-foreground/70 shrink-0">Platform:</span>
+          <span className="text-[10px] text-muted-foreground/70 shrink-0">
+            Platform:
+          </span>
           <select
-            value={tc.platform ?? ''}
+            value={tc.platform ?? ""}
             onChange={(e) => {
-              const v = e.target.value as Platform | ''
-              mutate((prev) => ({ ...prev, platform: v || undefined }))
+              const v = e.target.value as Platform | "";
+              mutate((prev) => ({ ...prev, platform: v || undefined }));
             }}
             className="text-xs bg-input text-foreground px-1.5 py-0.5 rounded border border-border focus:border-primary outline-none cursor-pointer"
           >
@@ -540,14 +641,21 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
         </div>
 
         {/* device picker — visible only when platform === mobile */}
-        {platform === 'mobile' && (
+        {platform === "mobile" && (
           <div className="flex items-center gap-1">
-            <span className="text-[10px] text-muted-foreground/70 shrink-0">Device:</span>
+            <span className="text-[10px] text-muted-foreground/70 shrink-0">
+              Device:
+            </span>
             <input
               list="device-list"
-              value={tc.device ?? ''}
+              value={tc.device ?? ""}
               placeholder="iPhone 14"
-              onChange={(e) => mutate((prev) => ({ ...prev, device: e.target.value || undefined }))}
+              onChange={(e) =>
+                mutate((prev) => ({
+                  ...prev,
+                  device: e.target.value || undefined,
+                }))
+              }
               className="text-xs bg-input text-foreground px-1.5 py-0.5 rounded border border-border focus:border-primary outline-none w-32"
             />
             <datalist id="device-list">
@@ -566,6 +674,29 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
           </div>
         )}
 
+        {/* step delay override */}
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] text-muted-foreground/70 shrink-0">
+            Delay:
+          </span>
+          <input
+            type="number"
+            min={0}
+            step={100}
+            value={tc.stepDelayMs ?? ""}
+            placeholder="ms"
+            onChange={(e) =>
+              mutate((prev) => ({
+                ...prev,
+                stepDelayMs: e.target.value
+                  ? Math.max(0, parseInt(e.target.value, 10))
+                  : null,
+              }))
+            }
+            className="text-xs bg-input text-foreground px-1.5 py-0.5 rounded border border-border focus:border-primary outline-none w-20"
+          />
+        </div>
+
         <div className="flex-1" />
 
         {/* run status + run controls */}
@@ -573,7 +704,7 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
 
         <div className="w-px h-4 bg-border mx-0.5" />
 
-        {runStatus === 'running' ? (
+        {runStatus === "running" ? (
           <>
             {isDebugMode && isDebugPaused && (
               <Tooltip>
@@ -601,7 +732,9 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
                   Stop
                 </button>
               </TooltipTrigger>
-              <TooltipContent>Stop run<Kbd>Shift+F5</Kbd></TooltipContent>
+              <TooltipContent>
+                Stop run<Kbd>Shift+F5</Kbd>
+              </TooltipContent>
             </Tooltip>
           </>
         ) : (
@@ -616,7 +749,9 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
                 Run
               </button>
             </TooltipTrigger>
-            <TooltipContent>Run test case<Kbd>F5</Kbd></TooltipContent>
+            <TooltipContent>
+              Run test case<Kbd>F5</Kbd>
+            </TooltipContent>
           </Tooltip>
         )}
 
@@ -624,19 +759,21 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
           <TooltipTrigger asChild>
             <button
               type="button"
-              disabled={runStatus === 'running'}
+              disabled={runStatus === "running"}
               onClick={() => handleRun(true)}
               className={cn(
-                'flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors',
-                'bg-secondary hover:bg-secondary/80 text-foreground/80',
-                'disabled:opacity-40',
+                "flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors",
+                "bg-secondary hover:bg-secondary/80 text-foreground/80",
+                "disabled:opacity-40",
               )}
             >
               <Bug className="w-3.5 h-3.5" />
               Debug
             </button>
           </TooltipTrigger>
-          <TooltipContent>Debug — 1 s pause between steps<Kbd>F6</Kbd></TooltipContent>
+          <TooltipContent>
+            Debug — 1 s pause between steps<Kbd>F6</Kbd>
+          </TooltipContent>
         </Tooltip>
 
         <div className="w-px h-4 bg-border mx-0.5" />
@@ -650,10 +787,12 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
               className="flex items-center gap-1 text-xs px-2 py-1 rounded hover:bg-secondary transition-colors text-foreground/80 disabled:opacity-50"
             >
               <Save className="w-3.5 h-3.5" />
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? "Saving…" : "Save"}
             </button>
           </TooltipTrigger>
-          <TooltipContent>Save<Kbd>{TEST_CASE_KEYMAPS.save.hint}</Kbd></TooltipContent>
+          <TooltipContent>
+            Save<Kbd>{TEST_CASE_KEYMAPS.save.hint}</Kbd>
+          </TooltipContent>
         </Tooltip>
       </div>
 
@@ -724,12 +863,18 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
       {/* ── step detail (continue-on-failure, timeout) ── */}
       {sel && (
         <div className="flex items-center gap-4 px-3 py-1.5 border-t border-border bg-muted/20 text-xs text-muted-foreground shrink-0">
-          <span className="font-medium text-foreground/60">Step {selectedIdx! + 1}</span>
+          <span className="font-medium text-foreground/60">
+            Step {selectedIdx! + 1}
+          </span>
           <label className="flex items-center gap-1.5 cursor-pointer">
             <input
               type="checkbox"
               checked={sel.continueOnFailure}
-              onChange={(e) => updateStep(selectedIdx!, { continueOnFailure: e.target.checked })}
+              onChange={(e) =>
+                updateStep(selectedIdx!, {
+                  continueOnFailure: e.target.checked,
+                })
+              }
               className="w-3 h-3 accent-primary"
             />
             Continue on failure
@@ -738,7 +883,7 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
             Timeout (ms):
             <input
               type="number"
-              value={sel.timeout ?? ''}
+              value={sel.timeout ?? ""}
               placeholder="default"
               onChange={(e) =>
                 updateStep(selectedIdx!, {
@@ -765,6 +910,7 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
           stepIdx={contextMenu.stepIdx}
           onInsertBefore={insertStepBefore}
           onInsertAfter={insertStepAfter}
+          onCallTestCase={openCallDialog}
           onCopy={copyStep}
           onCut={cutStep}
           onPasteBefore={pasteStepBefore}
@@ -773,6 +919,12 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
           onDelete={deleteStep}
         />
       )}
+
+      <CallTestCaseDialog
+        open={showCallDialog}
+        onOpenChange={setShowCallDialog}
+        onSelect={handleCallTestCaseSelect}
+      />
     </div>
-  )
+  );
 }

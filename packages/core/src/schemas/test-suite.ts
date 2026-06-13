@@ -15,6 +15,7 @@ export const TestSuiteSchema = z.object({
   description: z.string().default(''),
   profile: z.string().default('default'),
   continueOnFailure: z.boolean().default(false),
+  sharedBrowser: z.boolean().default(false),
   items: z.array(SuiteItemSchema).default([]),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),

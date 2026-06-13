@@ -91,6 +91,25 @@ export function ExecutionSection({ settings, onChange }: Props) {
           </p>
         </div>
 
+        {/* Step delay */}
+        <div className="space-y-1.5">
+          <Label htmlFor="exec-step-delay">Step delay (ms)</Label>
+          <Input
+            id="exec-step-delay"
+            type="number"
+            min={0}
+            step={100}
+            value={execution.stepDelayMs}
+            onChange={(e) =>
+              onChange({ stepDelayMs: Math.max(0, parseInt(e.target.value, 10) || 0) })
+            }
+            className="w-32 text-xs h-8"
+          />
+          <p className="text-[11px] text-muted-foreground/70">
+            Pause between steps. Per-test-case override takes precedence.
+          </p>
+        </div>
+
         {/* Screenshot on fail */}
         <div className="flex items-center justify-between">
           <div>

@@ -1,6 +1,7 @@
 import type { TestCase, Profile, Platform, ObjectRepository, Locator } from '@jkauto/core'
 import type { StepEvent, RunCompleteEvent } from '@jkauto/core'
 import { getAdapter } from './adapter/registry'
+import type { EngineAdapter } from './adapter/types'
 
 export type StepEventCallback = (event: StepEvent) => void
 export type RunCompleteCallback = (event: RunCompleteEvent) => void
@@ -16,6 +17,10 @@ export interface RunOptions {
   device?: string
   /** Desktop app executable path. Forwarded to adapter.start(). */
   appPath?: string
+  /** Pre-created session to reuse. When provided, start/stop are skipped — caller owns lifecycle. */
+  externalSession?: unknown
+  /** Loads a test case by path for call-test-case keyword — provided by engine handler. */
+  loadTestCase?: (path: string) => Promise<TestCase>
 }
 
 function buildSelector(locator: Locator, platform: Platform): string {
@@ -59,6 +64,25 @@ function buildLocatorIndex(repos: ObjectRepository[], platform: Platform): Map<s
   return index
 }
 
+async function executeCalledTestCase(
+  calledPath: string,
+  loadTestCase: ((path: string) => Promise<TestCase>) | undefined,
+  adapter: EngineAdapter,
+  session: unknown,
+  ctx: { resolveLocator: (ref: string) => Promise<string>; interpolate: (value: string) => string },
+  signal: AbortSignal | undefined,
+): Promise<void> {
+  const resolvedPath = ctx.interpolate(calledPath)
+  if (!resolvedPath) throw new Error('call-test-case: no test case path specified')
+  if (!loadTestCase) throw new Error('call-test-case: file system not available in this context')
+  const calledTc = await loadTestCase(resolvedPath)
+  for (const subStep of calledTc.steps) {
+    if (signal?.aborted) break
+    if (!subStep.enabled) continue
+    await adapter.execute(session, subStep, ctx)
+  }
+}
+
 export async function runTestCase(
   testCase: TestCase,
   profile: Profile,
@@ -68,7 +92,7 @@ export async function runTestCase(
   signal?: AbortSignal,
   options: RunOptions = {},
 ): Promise<void> {
-  const { headless = false, stepDelay = 0, waitForNext, objectRepositories = [], device, appPath } = options
+  const { headless = false, stepDelay = 0, waitForNext, objectRepositories = [], device, appPath, externalSession, loadTestCase } = options
   const platform: Platform = testCase.platform ?? options.platform ?? 'web'
   const startTime = Date.now()
   let passedSteps = 0
@@ -94,7 +118,7 @@ export async function runTestCase(
   }
 
   const adapter = getAdapter(platform)
-  const session = await adapter.start(profile, { headless, device, appPath })
+  const session = externalSession ?? await adapter.start(profile, { headless, device, appPath })
 
   try {
     for (let i = 0; i < testCase.steps.length; i++) {
@@ -111,8 +135,11 @@ export async function runTestCase(
       const stepStart = Date.now()
       const timeout = step.timeout ?? 30000
       try {
+        const work = step.keyword === 'call-test-case'
+          ? executeCalledTestCase(step.input, loadTestCase, adapter, session, { resolveLocator, interpolate }, signal)
+          : adapter.execute(session, step, { resolveLocator, interpolate })
         await Promise.race([
-          adapter.execute(session, step, { resolveLocator, interpolate }),
+          work,
           new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error(`Step timeout after ${timeout}ms`)), timeout),
           ),
@@ -133,7 +160,9 @@ export async function runTestCase(
       }
     }
   } finally {
-    await adapter.stop(session)
+    if (!externalSession) {
+      await adapter.stop(session)
+    }
   }
 
   const finalStatus = signal?.aborted ? 'stopped' : failedSteps > 0 ? 'failed' : 'passed'

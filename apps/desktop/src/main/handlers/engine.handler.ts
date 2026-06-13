@@ -4,8 +4,9 @@ import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { IpcChannels } from '@jkauto/core'
 import type { TestCase, TestSuite, Profile, RunCompleteEvent, SuiteEvent, ObjectRepository } from '@jkauto/core'
-import { runTestCase, getKeywordMeta } from '@jkauto/engine'
+import { runTestCase, getKeywordMeta, getAdapter } from '@jkauto/engine'
 import { getSettings } from '../services/settings.service'
+import { parse as yamlParse } from 'yaml'
 
 interface ActiveRun {
   abort: AbortController
@@ -48,6 +49,7 @@ function normalizeTestCase(tcData: Partial<TestCase>): TestCase {
     name: tcData.name ?? 'Unnamed',
     description: tcData.description ?? '',
     platform: tcData.platform, // undefined → runner falls back to 'web'
+    stepDelayMs: tcData.stepDelayMs ?? null,
     tags: tcData.tags ?? [],
     steps: tcData.steps ?? [],
     createdAt: tcData.createdAt ?? new Date().toISOString(),
@@ -72,6 +74,7 @@ function normalizeSuite(suiteData: Partial<TestSuite> & { testCaseIds?: string[]
     description: suiteData.description ?? '',
     profile: suiteData.profile ?? 'default',
     continueOnFailure: suiteData.continueOnFailure ?? false,
+    sharedBrowser: suiteData.sharedBrowser ?? false,
     items: (suiteData.items ?? legacyItems).map((item, order) => ({
       testCaseId: item.testCaseId,
       testCasePath: item.testCasePath,
@@ -85,7 +88,8 @@ function normalizeSuite(suiteData: Partial<TestSuite> & { testCaseIds?: string[]
 
 async function readTestCase(filePath: string): Promise<TestCase> {
   const raw = await fs.readFile(filePath, 'utf-8')
-  return normalizeTestCase(JSON.parse(raw) as Partial<TestCase>)
+  const isYaml = filePath.endsWith('.yaml') || filePath.endsWith('.yml')
+  return normalizeTestCase((isYaml ? yamlParse(raw) : JSON.parse(raw)) as Partial<TestCase>)
 }
 
 function sendSuiteEvent(webContents: WebContents, event: SuiteEvent): void {
@@ -114,6 +118,10 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
     activeRuns.set(runId, { abort, webContents })
 
     // Fire async — return runId immediately so renderer can subscribe
+    const loadTestCase = readTestCase
+
+    const stepDelay = testCase.stepDelayMs ?? settings.execution.stepDelayMs
+
     runTestCase(
       testCase,
       profile,
@@ -136,6 +144,7 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
             objectRepositories,
             device,
             appPath,
+            loadTestCase,
             waitForNext: (stepIndex: number) =>
               new Promise<void>((resolve) => {
                 debugNextResolvers.set(runId, resolve)
@@ -144,7 +153,7 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
                 }
               }),
           }
-        : { headless: settings.execution.headless, objectRepositories, device, appPath },
+        : { headless: settings.execution.headless, objectRepositories, device, appPath, loadTestCase, stepDelay },
     ).catch((err) => {
       activeRuns.delete(runId)
       if (!webContents.isDestroyed()) {
@@ -164,11 +173,12 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
   })
 
   ipcMain.handle(IpcChannels.ENGINE_RUN_SUITE, async (event, payload: RunPayload) => {
-    const { filePath, profileVariables = {} } = payload
+    const { filePath, profileVariables = {}, projectPath } = payload
     const settings = await getSettings()
 
     const raw = await fs.readFile(filePath, 'utf-8')
     const suite = normalizeSuite(JSON.parse(raw))
+    const objectRepositories = projectPath ? await loadObjectRepositories(projectPath) : []
     const enabledItems = suite.items
       .filter((item) => item.enabled)
       .sort((a, b) => a.order - b.order)
@@ -203,6 +213,13 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
         totalCases: enabledItems.length,
       })
 
+      // Shared browser: reuse one web session across web cases so login/cookie
+      // state persists. Created lazily on the first web case (suites with no web
+      // cases never open a browser). Non-web cases always get their own session.
+      const webAdapter = getAdapter('web')
+      let sharedSession: unknown | undefined
+
+      try {
       for (let index = 0; index < enabledItems.length; index++) {
         const item = enabledItems[index]
         if (abort.signal.aborted) {
@@ -260,6 +277,16 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
           status: 'running',
         })
 
+        // Only web cases share the session; others run isolated.
+        const casePlatform = testCase.platform ?? 'web'
+        let externalSession: unknown | undefined
+        if (suite.sharedBrowser && casePlatform === 'web') {
+          if (!sharedSession) {
+            sharedSession = await webAdapter.start(profile, { headless: settings.execution.headless })
+          }
+          externalSession = sharedSession
+        }
+
         const caseResult = await new Promise<RunCompleteEvent>((resolve, reject) => {
           runTestCase(
             testCase,
@@ -272,7 +299,13 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
             },
             resolve,
             abort.signal,
-            { headless: settings.execution.headless },
+            {
+              headless: settings.execution.headless,
+              objectRepositories,
+              externalSession,
+              loadTestCase: readTestCase,
+              stepDelay: testCase.stepDelayMs ?? settings.execution.stepDelayMs,
+            },
           ).catch(reject)
         })
 
@@ -301,6 +334,11 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
           break
         }
         if (caseResult.status === 'failed' && !suite.continueOnFailure) break
+      }
+      } finally {
+        if (sharedSession) {
+          await webAdapter.stop(sharedSession)
+        }
       }
 
       if (abort.signal.aborted) stopped = true

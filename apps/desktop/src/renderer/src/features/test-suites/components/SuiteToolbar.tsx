@@ -100,6 +100,16 @@ export function SuiteToolbar({
         Continue on failure
       </label>
 
+      <label className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap" title="All cases share one browser session — login state persists between cases">
+        <input
+          type="checkbox"
+          checked={suite.sharedBrowser ?? false}
+          onChange={(e) => onMutate((prev) => ({ ...prev, sharedBrowser: e.target.checked }))}
+          className="w-3 h-3 accent-primary"
+        />
+        Shared browser
+      </label>
+
       <div className="flex-1" />
 
       <input

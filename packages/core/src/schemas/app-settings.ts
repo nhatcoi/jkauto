@@ -13,6 +13,7 @@ export const AppSettingsSchema = z.object({
       headless: z.boolean().default(false),
       browser: z.enum(['chromium', 'firefox', 'webkit']).default('chromium'),
       defaultTimeoutMs: z.number().int().min(0).default(30000),
+      stepDelayMs: z.number().int().min(0).default(200),
       screenshotOnFail: z.boolean().default(true),
     })
     .default({}),

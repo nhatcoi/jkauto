@@ -12,6 +12,11 @@ export default defineConfig({
         '@jkauto/core': resolve('../../packages/core/src/index.ts'),
       },
     },
+    build: {
+      watch: {
+        include: ['src/main/**', '../../packages/engine/src/**', '../../packages/core/src/**'],
+      },
+    },
   },
   preload: {
     plugins: [externalizeDepsPlugin()],

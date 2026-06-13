@@ -51,6 +51,7 @@ function normalizeSuite(raw: Partial<TestSuite> & { testCaseIds?: string[] }, fi
     description: raw.description ?? '',
     profile: raw.profile ?? 'default',
     continueOnFailure: raw.continueOnFailure ?? false,
+    sharedBrowser: raw.sharedBrowser ?? false,
     items: (raw.items ?? legacyItems).map((item, index) => ({
       testCaseId: item.testCaseId,
       testCasePath: item.testCasePath,

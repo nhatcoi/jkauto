@@ -8,6 +8,7 @@ import { screenshotKeywords } from './defs/screenshot'
 import { mobileKeywords } from './defs/mobile'
 import { desktopKeywords } from './defs/desktop'
 import { apiKeywords } from './defs/api'
+import { callTestCaseKeyword } from './defs/call-test-case'
 
 export type { KeywordDef, KeywordContext, KeywordExecutor, PageKeywordExecutor, ApiKeywordExecutor, ApiSession, ApiKeywordContext } from './types'
 
@@ -20,6 +21,7 @@ const allDefs: KeywordDef[] = [
   ...mobileKeywords,
   ...desktopKeywords,
   ...apiKeywords,
+  callTestCaseKeyword,
 ]
 
 const keywords: Map<string, KeywordDef> = new Map(allDefs.map((d) => [d.name, d]))

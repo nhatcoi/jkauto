@@ -17,5 +17,6 @@ export interface TestCase {
   description: string
   platform?: 'web' | 'mobile' | 'desktop' | 'api'
   device?: string
+  stepDelayMs?: number | null
   steps: TestStep[]
 }

@@ -1,4 +1,4 @@
-import { Plus, Copy, Scissors, Clipboard, AlertCircle, Trash2 } from 'lucide-react'
+import { Plus, Copy, Scissors, Clipboard, AlertCircle, Trash2, PhoneCall } from 'lucide-react'
 import type { TestStep } from '../types'
 
 interface StepContextMenuProps {
@@ -8,6 +8,7 @@ interface StepContextMenuProps {
   stepIdx: number
   onInsertBefore: (idx: number) => void
   onInsertAfter: (idx: number) => void
+  onCallTestCase: (idx: number) => void
   onCopy: (idx: number) => void
   onCut: (idx: number) => void
   onPasteBefore: (idx: number) => void
@@ -23,6 +24,7 @@ export function StepContextMenu({
   stepIdx,
   onInsertBefore,
   onInsertAfter,
+  onCallTestCase,
   onCopy,
   onCut,
   onPasteBefore,
@@ -53,7 +55,14 @@ export function StepContextMenu({
         <Plus className="w-3.5 h-3.5 text-muted-foreground" />
         Insert Step After
       </button>
-      
+      <button
+        onClick={() => onCallTestCase(stepIdx)}
+        className="w-full text-left flex items-center gap-2 px-3 py-1.5 hover:bg-secondary transition-colors"
+      >
+        <PhoneCall className="w-3.5 h-3.5 text-cyan-500" />
+        Call Test Case
+      </button>
+
       <div className="h-px bg-border my-1" />
 
       <button
