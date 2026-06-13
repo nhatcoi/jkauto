@@ -6,7 +6,14 @@ Composer and runner for `.suite.json` files. Each suite references an ordered li
 ## File structure
 ```
 test-suites/
-└── SuiteEditor.tsx    # single-file feature (composer + runner)
+├── SuiteEditor.tsx              # thin orchestrator (~80 lines)
+├── hooks/
+│   ├── useSuite.ts              # load/save/mutate/CRUD/discovery
+│   └── useSuiteRun.ts           # run/stop/IPC events/caseStatuses/runSummary
+└── components/
+    ├── SuiteToolbar.tsx         # toolbar: profile dropdown, filter, run/save buttons
+    ├── SuiteTable.tsx           # table: per-row run button, relative paths, status icons
+    └── SuiteFooter.tsx          # footer: enabled count + run summary badge
 ```
 
 ## Data model (`@jkauto/core` TestSuite schema)
@@ -106,4 +113,8 @@ Auto-generates missing `id`, `name`, `description`, `profile`, `createdAt`, `upd
 - Profile can be set at suite level, overriding the project-level active profile — useful for running smoke suite on staging without changing global profile.
 - `updatedAt` updated on every `mutate()` call automatically (not just on save).
 - Case discovery reads all files in tree on mount — avoids stale list if cases added externally.
-- No YAML support in suite files currently (JSON only). `.suite.yaml` would need a trivial extension to `loadSuite`.
+- YAML suite files supported — `useSuite` detects `.suite.yaml/.yml` extension, uses `yaml.parse`/`yaml.stringify`.
+- Single case run from toolbar: per-row Play button (visible on hover) calls `ENGINE_RUN_CASE` with suite's profile.
+- Profile input is a dropdown (populated from `listEnvs`) with fallback to text input if no profiles found.
+- Path column shows relative path (stripped of project root prefix) for readability.
+- Run summary badge in footer shows `N/M cases passed (Xs)` after suite run completes.
