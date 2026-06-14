@@ -42,6 +42,7 @@ export const AppSettingsSchema = z.object({
       openApiImportNameSource: z.enum(['summary', 'operationId', 'methodPath']).default('summary'),
     })
     .default({}),
+  keymaps: z.record(z.array(z.string())).default({}),
 })
 
 export type AppSettings = z.infer<typeof AppSettingsSchema>

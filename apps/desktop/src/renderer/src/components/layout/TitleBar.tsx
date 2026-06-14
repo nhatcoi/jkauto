@@ -1,24 +1,22 @@
 import { useState } from 'react'
-import { FolderOpen, Settings, Layers, SlidersHorizontal, FolderPlus } from 'lucide-react'
+import { FolderOpen, Settings, Layers, FolderPlus } from 'lucide-react'
 import logoUrl from '@/assets/logo.png'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Kbd } from '@/components/ui/kbd'
 import { useProjectStore } from '@/store/project.store'
-import { ProjectSettingsDialog } from '@/features/project/ProjectSettingsDialog'
 import { NewProjectDialog } from '@/features/project/NewProjectDialog'
 import { SettingsDialog } from '@/features/settings/SettingsDialog'
 import { IpcChannels } from '@jkauto/core'
 import type { Project } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
 import { cn } from '@/lib/utils'
-import { useGlobalKeymap } from '@/hooks/useGlobalKeymap'
-import { APP_KEYMAPS, modKey } from '@/shared/keymaps'
+import { useSettingsKeymap } from '@/hooks/useSettingsKeymap'
+import { APP_KEYMAPS, KEYMAP_SCOPES } from '@/shared/keymaps'
 
 export function TitleBar() {
   const { activeProject, activeProjectPath, projects } = useProjectStore()
   const addProject = useProjectStore((s) => s.addProject)
-  const [showProjectSettings, setShowProjectSettings] = useState(false)
   const [showAppSettings, setShowAppSettings] = useState(false)
   const [showNew, setShowNew] = useState(false)
 
@@ -29,13 +27,11 @@ export function TitleBar() {
     if (result) addProject(result.projectPath, result.project)
   }
 
-  useGlobalKeymap(APP_KEYMAPS, {
+  const km = useSettingsKeymap(APP_KEYMAPS, KEYMAP_SCOPES.APP, {
     newProject:   () => setShowNew(true),
     openProject:  () => handleOpenProject(),
     openSettings: () => setShowAppSettings((v) => !v),
   })
-
-  const M = modKey()
 
   return (
     <div className="flex items-center h-9 bg-titlebar border-b border-border px-3 gap-3 shrink-0 select-none">
@@ -84,7 +80,7 @@ export function TitleBar() {
               <FolderPlus className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>New Project<Kbd>{M}+N</Kbd></TooltipContent>
+          <TooltipContent>New Project<Kbd>{km.newProject.hint}</Kbd></TooltipContent>
         </Tooltip>
 
         <Tooltip>
@@ -98,24 +94,8 @@ export function TitleBar() {
               <FolderOpen className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Open Project<Kbd>{M}+O</Kbd></TooltipContent>
+          <TooltipContent>Open Project<Kbd>{km.openProject.hint}</Kbd></TooltipContent>
         </Tooltip>
-
-        {activeProject && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                onClick={() => setShowProjectSettings(true)}
-              >
-                <Settings className="w-4 h-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Project Settings</TooltipContent>
-          </Tooltip>
-        )}
 
         <Tooltip>
           <TooltipTrigger asChild>
@@ -125,18 +105,13 @@ export function TitleBar() {
               className="h-7 w-7 text-muted-foreground hover:text-foreground"
               onClick={() => setShowAppSettings(true)}
             >
-              <SlidersHorizontal className="w-4 h-4" />
+              <Settings className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>App Settings<Kbd>{M}+,</Kbd></TooltipContent>
+          <TooltipContent>App Settings<Kbd>{km.openSettings.hint}</Kbd></TooltipContent>
         </Tooltip>
       </div>
 
-      <ProjectSettingsDialog
-        open={showProjectSettings}
-        onOpenChange={setShowProjectSettings}
-        projectPath={activeProjectPath ?? undefined}
-      />
       <SettingsDialog open={showAppSettings} onOpenChange={setShowAppSettings} />
       <NewProjectDialog open={showNew} onOpenChange={setShowNew} />
     </div>

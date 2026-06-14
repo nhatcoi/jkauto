@@ -87,3 +87,60 @@ export const APP_KEYMAPS = {
   openProject:  { keys: ['mod+o'], label: 'Open Project', hint: `${M}+O` },
   openSettings: { keys: ['mod+,'], label: 'App Settings', hint: `${M}+,` },
 } satisfies Record<string, KeyBinding>
+
+export const KEYMAP_SCOPES = {
+  APP:            'app',
+  TEST_CASE:      'testCase',
+  REQUEST_EDITOR: 'requestEditor',
+  EXPLORER:       'explorer',
+} as const
+
+function fmtHint(keys: string[]): string {
+  if (!keys.length) return ''
+  const _M = modKey()
+  return keys[0]
+    .split('+')
+    .map((p) => {
+      switch (p) {
+        case 'mod':   return _M
+        case 'shift': return '⇧'
+        case 'alt':   return 'Alt'
+        case 'ctrl':  return 'Ctrl'
+        case 'meta':  return isMac() ? '⌘' : 'Win'
+        default:      return p.length === 1 ? p.toUpperCase() : p.charAt(0).toUpperCase() + p.slice(1)
+      }
+    })
+    .join('+')
+}
+
+export function applyOverrides<K extends string>(
+  keymaps: Record<K, KeyBinding>,
+  overrides: Record<string, string[]>,
+  scope: string,
+): Record<K, KeyBinding> {
+  const result = {} as Record<K, KeyBinding>
+  for (const [id, binding] of Object.entries(keymaps) as [K, KeyBinding][]) {
+    const override = overrides[`${scope}.${id}`]
+    result[id] = override ? { ...binding, keys: override, hint: fmtHint(override) } : binding
+  }
+  return result
+}
+
+export const KEYMAP_REGISTRY: Array<{ scopedId: string; binding: KeyBinding }> = [
+  ...Object.entries(APP_KEYMAPS).map(([id, b]) => ({
+    scopedId: `${KEYMAP_SCOPES.APP}.${id}`,
+    binding: b as KeyBinding,
+  })),
+  ...Object.entries(TEST_CASE_KEYMAPS).map(([id, b]) => ({
+    scopedId: `${KEYMAP_SCOPES.TEST_CASE}.${id}`,
+    binding: b as KeyBinding,
+  })),
+  ...Object.entries(REQUEST_EDITOR_KEYMAPS).map(([id, b]) => ({
+    scopedId: `${KEYMAP_SCOPES.REQUEST_EDITOR}.${id}`,
+    binding: b as KeyBinding,
+  })),
+  ...Object.entries(EXPLORER_KEYMAPS).map(([id, b]) => ({
+    scopedId: `${KEYMAP_SCOPES.EXPLORER}.${id}`,
+    binding: b as KeyBinding,
+  })),
+]
