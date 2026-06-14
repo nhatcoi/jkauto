@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Play, Square, FolderOpen, Settings, Layers, SlidersHorizontal } from 'lucide-react'
+import { useState } from 'react'
+import { FolderOpen, Settings, Layers, SlidersHorizontal, FolderPlus } from 'lucide-react'
 import logoUrl from '@/assets/logo.png'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
@@ -12,6 +12,8 @@ import { IpcChannels } from '@jkauto/core'
 import type { Project } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import { useGlobalKeymap } from '@/hooks/useGlobalKeymap'
+import { APP_KEYMAPS, modKey } from '@/shared/keymaps'
 
 export function TitleBar() {
   const { activeProject, activeProjectPath, projects } = useProjectStore()
@@ -27,17 +29,13 @@ export function TitleBar() {
     if (result) addProject(result.projectPath, result.project)
   }
 
-  // Ctrl+, opens app settings
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === ',') {
-        e.preventDefault()
-        setShowAppSettings((v) => !v)
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [])
+  useGlobalKeymap(APP_KEYMAPS, {
+    newProject:   () => setShowNew(true),
+    openProject:  () => handleOpenProject(),
+    openSettings: () => setShowAppSettings((v) => !v),
+  })
+
+  const M = modKey()
 
   return (
     <div className="flex items-center h-9 bg-titlebar border-b border-border px-3 gap-3 shrink-0 select-none">
@@ -73,32 +71,22 @@ export function TitleBar() {
 
       <div className="flex-1" />
 
-      {/* Run controls */}
-      {activeProject && (
-        <>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="default"
-              size="sm"
-              className="h-6 px-2.5 text-xs gap-1 bg-[hsl(var(--run-success))] hover:bg-[hsl(142,72%,36%)] text-white"
-            >
-              <Play className="w-3 h-3 fill-white" />
-              Run
-            </Button>
+{/* Actions */}
+      <div className="flex items-center gap-0.5">
+        <Tooltip>
+          <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 text-muted-foreground hover:text-foreground"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              onClick={() => setShowNew(true)}
             >
-              <Square className="w-3.5 h-3.5" />
+              <FolderPlus className="w-4 h-4" />
             </Button>
-          </div>
-          <div className="w-px h-4 bg-border" />
-        </>
-      )}
+          </TooltipTrigger>
+          <TooltipContent>New Project<Kbd>{M}+N</Kbd></TooltipContent>
+        </Tooltip>
 
-      {/* Actions */}
-      <div className="flex items-center gap-0.5">
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -110,7 +98,7 @@ export function TitleBar() {
               <FolderOpen className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Open Project</TooltipContent>
+          <TooltipContent>Open Project<Kbd>{M}+O</Kbd></TooltipContent>
         </Tooltip>
 
         {activeProject && (
@@ -140,7 +128,7 @@ export function TitleBar() {
               <SlidersHorizontal className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>App Settings<Kbd>Ctrl+,</Kbd></TooltipContent>
+          <TooltipContent>App Settings<Kbd>{M}+,</Kbd></TooltipContent>
         </Tooltip>
       </div>
 

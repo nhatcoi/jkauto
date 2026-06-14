@@ -77,7 +77,13 @@ export const REQUEST_EDITOR_KEYMAPS = {
 export const EXPLORER_KEYMAPS = {
   rename:     { keys: ['f2'],      label: 'Rename',                hint: 'F2'      },
   delete:     { keys: ['delete'],  label: 'Delete',                hint: 'Del'     },
-  newItem:    { keys: ['mod+n'],   label: 'New Item',              hint: `${M}+N`  },
+  newItem:    { keys: [],          label: 'New Item',              hint: ''        },
   copy:       { keys: [],          label: 'Copy',                  hint: ''        },
   openFolder: { keys: [],          label: 'Open Containing Folder', hint: ''       },
+} satisfies Record<string, KeyBinding>
+
+export const APP_KEYMAPS = {
+  newProject:   { keys: ['mod+n'], label: 'New Project',  hint: `${M}+N` },
+  openProject:  { keys: ['mod+o'], label: 'Open Project', hint: `${M}+O` },
+  openSettings: { keys: ['mod+,'], label: 'App Settings', hint: `${M}+,` },
 } satisfies Record<string, KeyBinding>
