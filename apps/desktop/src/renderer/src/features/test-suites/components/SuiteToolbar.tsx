@@ -7,6 +7,8 @@ import {
   Play,
   Save,
   Square,
+  Undo2,
+  Redo2,
 } from 'lucide-react'
 import type { TestSuite } from '@jkauto/core'
 import type { TestCaseOption } from '../hooks/useSuite'
@@ -20,6 +22,8 @@ interface SuiteToolbarProps {
   selectedIdx: number | null
   totalItems: number
   projectPath: string | undefined
+  canUndo: boolean
+  canRedo: boolean
   onMutate: (fn: (prev: TestSuite) => TestSuite) => void
   onAddCase: (option: TestCaseOption) => void
   onMoveUp: () => void
@@ -27,13 +31,17 @@ interface SuiteToolbarProps {
   onRunSuite: () => void
   onStopSuite: () => void
   onSave: () => void
+  onUndo: () => void
+  onRedo: () => void
 }
 
 export function SuiteToolbar({
   suite, testCases, saving, runStatus,
   selectedIdx, totalItems, projectPath,
+  canUndo, canRedo,
   onMutate, onAddCase, onMoveUp, onMoveDown,
   onRunSuite, onStopSuite, onSave,
+  onUndo, onRedo,
 }: SuiteToolbarProps) {
   const [profiles, setProfiles] = useState<string[]>([])
   const [selectedPath, setSelectedPath] = useState('')
@@ -109,6 +117,25 @@ export function SuiteToolbar({
         />
         Shared browser
       </label>
+
+      <button
+        type="button"
+        disabled={!canUndo}
+        onClick={onUndo}
+        className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground disabled:opacity-30"
+        title="Undo (⌘Z)"
+      >
+        <Undo2 className="w-3.5 h-3.5" />
+      </button>
+      <button
+        type="button"
+        disabled={!canRedo}
+        onClick={onRedo}
+        className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground disabled:opacity-30"
+        title="Redo (⌘⇧Z)"
+      >
+        <Redo2 className="w-3.5 h-3.5" />
+      </button>
 
       <div className="flex-1" />
 

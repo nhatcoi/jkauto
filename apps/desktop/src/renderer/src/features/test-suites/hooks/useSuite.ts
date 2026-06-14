@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useHistory } from '@/hooks/useHistory'
 import { IpcChannels } from '@jkauto/core'
 import type { FsTreeNode, TestCase, TestSuite } from '@jkauto/core'
 import { parse as yamlParse, stringify as yamlStringify } from 'yaml'
@@ -75,7 +76,8 @@ async function readTestCaseOption(path: string): Promise<TestCaseOption> {
 
 export function useSuite(filePath: string) {
   const { activeProject, markTabDirty } = useProjectStore()
-  const [suite, setSuite] = useState<TestSuite | null>(null)
+  const suiteHistory = useHistory<TestSuite>()
+  const suite = suiteHistory.state
   const [testCases, setTestCases] = useState<TestCaseOption[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -105,11 +107,11 @@ export function useSuite(filePath: string) {
       setError('')
       const raw = await invoke<string>(IpcChannels.FS_READ_FILE, filePath)
       const parsed = normalizeSuite(isYaml ? yamlParse(raw) : JSON.parse(raw), filePath)
-      setSuite(parsed)
+      suiteHistory.setInitial(parsed)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load suite')
     }
-  }, [filePath, isYaml])
+  }, [filePath, isYaml, suiteHistory.setInitial])
 
   const loadTestCases = useCallback(async () => {
     if (!activeProject) return
@@ -123,13 +125,9 @@ export function useSuite(filePath: string) {
   useEffect(() => { loadTestCases().catch(() => setTestCases([])) }, [loadTestCases])
 
   const mutate = useCallback((fn: (prev: TestSuite) => TestSuite) => {
-    setSuite((prev) => {
-      if (!prev) return prev
-      const next = { ...fn(prev), updatedAt: new Date().toISOString() }
-      markTabDirty(filePath, true)
-      return next
-    })
-  }, [filePath, markTabDirty])
+    suiteHistory.update((prev) => ({ ...fn(prev), updatedAt: new Date().toISOString() }))
+    markTabDirty(filePath, true)
+  }, [filePath, markTabDirty, suiteHistory.update])
 
   const saveSuiteToFile = useCallback(async (current: TestSuite): Promise<TestSuite> => {
     const normalized = {
@@ -141,10 +139,10 @@ export function useSuite(filePath: string) {
     }
     const content = isYaml ? yamlStringify(normalized) : JSON.stringify(normalized, null, 2)
     await invoke(IpcChannels.FS_WRITE_FILE, filePath, content)
-    setSuite(normalized)
+    suiteHistory.setInitial(normalized)
     markTabDirty(filePath, false)
     return normalized
-  }, [filePath, isYaml, markTabDirty])
+  }, [filePath, isYaml, markTabDirty, suiteHistory.setInitial])
 
   const save = useCallback(async () => {
     const current = suiteRef.current
@@ -213,5 +211,9 @@ export function useSuite(filePath: string) {
     suiteRef, activeProject,
     mutate, save, saveSuiteToFile,
     addTestCase, removeItem, updateItem, moveItem,
+    undo: suiteHistory.undo,
+    redo: suiteHistory.redo,
+    canUndo: suiteHistory.canUndo,
+    canRedo: suiteHistory.canRedo,
   }
 }

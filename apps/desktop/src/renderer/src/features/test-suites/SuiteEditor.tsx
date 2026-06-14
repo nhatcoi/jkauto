@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AlertCircle } from 'lucide-react'
 import type { TestSuite } from '@jkauto/core'
 import { useProjectStore } from '@/store/project.store'
@@ -17,7 +17,28 @@ export function SuiteEditor({ filePath }: { filePath: string }) {
     suiteRef, activeProject,
     mutate, save, saveSuiteToFile,
     addTestCase, removeItem, updateItem, moveItem,
+    undo, redo, canUndo, canRedo,
   } = useSuite(filePath)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const inEditable =
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement).isContentEditable
+      if (inEditable) return
+      const mod = e.metaKey || e.ctrlKey
+      if (mod && !e.shiftKey && e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        undo()
+      } else if (mod && e.shiftKey && e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        redo()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [undo, redo])
 
   const {
     caseStatuses, caseMessages, runSummary,
@@ -73,6 +94,8 @@ export function SuiteEditor({ filePath }: { filePath: string }) {
         selectedIdx={selectedIdx}
         totalItems={sortedItems.length}
         projectPath={activeProject?.path}
+        canUndo={canUndo}
+        canRedo={canRedo}
         onMutate={mutate}
         onAddCase={handleAddCase}
         onMoveUp={handleMoveUp}
@@ -80,6 +103,8 @@ export function SuiteEditor({ filePath }: { filePath: string }) {
         onRunSuite={runSuite}
         onStopSuite={stopSuite}
         onSave={save}
+        onUndo={undo}
+        onRedo={redo}
       />
 
       <div className="px-3 py-2 border-b border-border bg-muted/10 shrink-0">

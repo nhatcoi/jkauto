@@ -14,7 +14,10 @@ import {
   Upload,
   AlertCircle,
   StepForward,
+  Undo2,
+  Redo2,
 } from "lucide-react";
+import { useHistory } from "@/hooks/useHistory";
 import { cn } from "@/lib/utils";
 import { invoke } from "@/lib/utils";
 import {
@@ -23,8 +26,8 @@ import {
   TooltipContent,
 } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/kbd";
-import { useGlobalKeymap } from "@/hooks/useGlobalKeymap";
-import { TEST_CASE_KEYMAPS } from "@/shared/keymaps";
+import { useSettingsKeymap } from "@/hooks/useSettingsKeymap";
+import { TEST_CASE_KEYMAPS, KEYMAP_SCOPES } from "@/shared/keymaps";
 import { parse as yamlParse, stringify as yamlStringify } from "yaml";
 import { IpcChannels } from "@jkauto/core";
 import type { RunRecord, Platform } from "@jkauto/core";
@@ -72,7 +75,8 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
     isDebugPaused,
   } = useRunStore();
 
-  const [tc, setTc] = useState<TestCase | null>(null);
+  const tcHistory = useHistory<TestCase>();
+  const tc = tcHistory.state;
   const platform = tc?.platform ?? activeProject?.project.type;
   const keywords = useKeywords(platform);
   const objectItems = useObjectItems(activeProject?.path);
@@ -109,12 +113,12 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
       setError("");
       const raw = await invoke<string>(IpcChannels.FS_READ_FILE, filePath);
       const parsed = (isYaml ? yamlParse(raw) : JSON.parse(raw)) as TestCase;
-      setTc(parsed);
+      tcHistory.setInitial(parsed);
       setSelectedIdx(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
     }
-  }, [filePath, isYaml]);
+  }, [filePath, isYaml, tcHistory.setInitial]);
 
   // Load run history whenever the file changes
   useEffect(() => {
@@ -166,6 +170,29 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
       offComplete();
     };
   }, [filePath, handleStepEvent, handleRunComplete, appendRunRecord]);
+
+  // Undo / Redo — skip when focus is inside a text field (let browser handle native undo there)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const inEditable =
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement).isContentEditable
+      if (inEditable) return
+      const mod = e.metaKey || e.ctrlKey
+      if (mod && !e.shiftKey && e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        tcHistory.undo()
+        markTabDirty(filePath, true)
+      } else if (mod && e.shiftKey && e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        tcHistory.redo()
+        markTabDirty(filePath, true)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [tcHistory.undo, tcHistory.redo, filePath, markTabDirty])
 
   const handleRun = useCallback(
     async (debugMode = false) => {
@@ -232,12 +259,8 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
   }, [filePath, markTabDirty, isYaml]);
 
   const mutate = (fn: (prev: TestCase) => TestCase) => {
-    setTc((prev) => {
-      if (!prev) return prev;
-      const next = fn(prev);
-      markTabDirty(filePath, true);
-      return next;
-    });
+    tcHistory.update(fn);
+    markTabDirty(filePath, true);
   };
 
   const updateStep = (idx: number, patch: Partial<TestStep>) => {
@@ -289,7 +312,7 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
     setSelectedIdx(idx + 1);
   };
 
-  useGlobalKeymap(TEST_CASE_KEYMAPS, {
+  const km = useSettingsKeymap(TEST_CASE_KEYMAPS, KEYMAP_SCOPES.TEST_CASE, {
     save,
     addStep,
     deleteStep: () => {
@@ -587,6 +610,36 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
           <TooltipTrigger asChild>
             <button
               type="button"
+              disabled={!tcHistory.canUndo}
+              onClick={() => { tcHistory.undo(); markTabDirty(filePath, true) }}
+              className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground disabled:opacity-30"
+            >
+              <Undo2 className="w-3.5 h-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Undo<Kbd>⌘+Z</Kbd></TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              disabled={!tcHistory.canRedo}
+              onClick={() => { tcHistory.redo(); markTabDirty(filePath, true) }}
+              className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground disabled:opacity-30"
+            >
+              <Redo2 className="w-3.5 h-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Redo<Kbd>⌘+⇧+Z</Kbd></TooltipContent>
+        </Tooltip>
+
+        <div className="w-px h-4 bg-border mx-0.5" />
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
               disabled={selectedIdx === null || selectedIdx === 0}
               onClick={() => selectedIdx !== null && moveStep(selectedIdx, -1)}
               className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground disabled:opacity-30"
@@ -791,7 +844,7 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
             </button>
           </TooltipTrigger>
           <TooltipContent>
-            Save<Kbd>{TEST_CASE_KEYMAPS.save.hint}</Kbd>
+            Save<Kbd>{km.save.hint}</Kbd>
           </TooltipContent>
         </Tooltip>
       </div>
