@@ -1,14 +1,28 @@
 <p align="center">
-  <img src="apps/desktop/src/renderer/src/assets/logo.png" alt="JKAuto Logo" width="88" />
-  <br/><br/>
-  <h1>JKAuto</h1>
-  <strong>The test automation IDE that thinks with you.</strong><br/>
-  Visual. Multi-platform. AI-native. Git-friendly.
-  <br/><br/>
-  <img src="https://img.shields.io/badge/version-0.0.1-blue?style=flat-square" />
-  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey?style=flat-square" />
-  <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" />
-  <img src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square" />
+  <img src="apps/desktop/src/renderer/src/assets/logo.png" alt="JKAuto Logo" width="120" />
+</p>
+
+<h1 align="center">JKAuto</h1>
+
+<p align="center">
+  <strong>The test automation IDE that thinks with you.</strong>
+</p>
+
+<p align="center">
+  <em>Write, run, and iterate on test cases across Web, Mobile, Desktop, and API — visually, with AI assist, no code required.</em>
+</p>
+
+<p align="center">
+  <a href="https://github.com/nhatcoi/jkauto/releases/latest"><img src="https://img.shields.io/badge/-Download%20Latest-blue?style=for-the-badge&logo=electron&logoColor=white" alt="Download" /></a>
+  <a href="#core-features"><img src="https://img.shields.io/badge/-Features-6366f1?style=for-the-badge" alt="Features" /></a>
+  <a href="#how-jkauto-compares"><img src="https://img.shields.io/badge/-Compare-orange?style=for-the-badge" alt="Compare" /></a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-brightgreen?style=flat-square" />
+  <img src="https://img.shields.io/badge/built%20with-Electron%20%2B%20Playwright-47848f?style=flat-square&logo=electron" />
+  <img src="https://img.shields.io/badge/AI-native-blueviolet?style=flat-square" />
+  <img src="https://img.shields.io/badge/license-MIT-purple?style=flat-square" />
 </p>
 
 ---
@@ -42,14 +56,7 @@ Group test cases into suites and define execution order, retry policy, and paral
 
 ### Multi-Platform Execution
 
-JKAuto's engine is adapter-based. One IDE, multiple runtimes:
-
-| Platform | Engine | Status |
-|---|---|---|
-| Web | Playwright | ✅ M4 |
-| Desktop (Electron, .NET, Java) | WebdriverIO / Appium | 🗓 M10+ |
-| Mobile (iOS / Android) | Appium | 🗓 M10+ |
-| API | Built-in HTTP client | ✅ M4 |
+JKAuto's engine is adapter-based. One IDE, multiple runtimes.
 
 Switch platform per project. Engine interface is designed for third-party adapters.
 
@@ -132,7 +139,7 @@ Diff test changes in PR review. Resolve conflicts in any editor. No binary forma
 | **API testing** | ✅ | ✅ | ✅ | ⚠️ basic | ❌ |
 | **Mobile testing** |✅ | ✅ (paid) | ❌ | ❌ | ❌ |
 | **Desktop app testing** | ✅ | ❌ | ❌ | ✅ Electron | ❌ |
-| **AI test generation** | ✅ | ⚠️ (paid add-on) | ❌ | ❌ | ❌ |
+| **AI test generation** | ✅ Trial | ⚠️ (paid add-on) | ❌ | ❌ | ❌ |
 | **Git-native file format** | ✅ JSON/YAML | ⚠️ XML | ❌ | ✅ | ✅ |
 | **Open source** | ✅ MIT | ❌ | ❌ | ✅ | ✅ |
 | **No install / lightweight** | ✅ | ❌ heavy JVM | ✅ | CLI only | CLI only |
@@ -174,4 +181,4 @@ This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md).
 
 ## License
 
-[MIT](LICENSE) © 2024 nhatcoi
+[MIT](LICENSE) © 2026 nhatcoi
