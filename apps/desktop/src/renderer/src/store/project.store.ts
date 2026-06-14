@@ -41,6 +41,10 @@ interface ProjectStore {
   setActiveTab: (path: string) => void
   markTabDirty: (path: string, dirty: boolean) => void
   reorderTab: (from: number, to: number) => void
+  reopenLastTab: () => void
+  moveTabLeft: () => void
+  moveTabRight: () => void
+  closedTabHistory: Tab[]
 
   // compat (single-project patterns still used in some dialogs)
   setProject: (path: string, project: Project) => void
@@ -72,6 +76,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   activeTabPath: null,
   activeProjectPath: null,
   activeProject: null,
+  closedTabHistory: [],
 
   addProject: (path, project, activeProfile = 'default') => {
     set((state) => {
@@ -150,6 +155,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   closeTab: (path) => {
     set((state) => {
+      const closingTab = state.openTabs.find((t) => t.path === path)
       const tabs = state.openTabs.filter((t) => t.path !== path)
       const activeTabPath =
         state.activeTabPath === path
@@ -157,7 +163,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           : state.activeTabPath
       const activeProjectPath = deriveActiveProjectPath(tabs, activeTabPath, state.projects)
       const activeProject = state.projects.find((p) => p.path === activeProjectPath) ?? null
-      return { openTabs: tabs, activeTabPath, activeProjectPath, activeProject }
+      const closedTabHistory = closingTab
+        ? [...state.closedTabHistory.slice(-19), closingTab]
+        : state.closedTabHistory
+      return { openTabs: tabs, activeTabPath, activeProjectPath, activeProject, closedTabHistory }
     })
   },
 
@@ -220,6 +229,44 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const openTabs = state.openTabs.slice()
       const [moved] = openTabs.splice(from, 1)
       openTabs.splice(to, 0, moved)
+      return { openTabs }
+    })
+  },
+
+  reopenLastTab: () => {
+    set((state) => {
+      if (!state.closedTabHistory.length) return {}
+      const closedTabHistory = state.closedTabHistory.slice()
+      const tab = closedTabHistory.pop()!
+      if (!state.projects.find((p) => p.path === tab.projectPath)) return { closedTabHistory }
+      if (state.openTabs.find((t) => t.path === tab.path)) {
+        return { closedTabHistory, activeTabPath: tab.path }
+      }
+      const openTabs = [...state.openTabs, { ...tab, isDirty: false }]
+      const activeProjectPath = deriveActiveProjectPath(openTabs, tab.path, state.projects)
+      const activeProject = state.projects.find((p) => p.path === activeProjectPath) ?? null
+      return { closedTabHistory, openTabs, activeTabPath: tab.path, activeProjectPath, activeProject }
+    })
+  },
+
+  moveTabLeft: () => {
+    set((state) => {
+      const idx = state.openTabs.findIndex((t) => t.path === state.activeTabPath)
+      if (idx <= 0) return {}
+      const openTabs = state.openTabs.slice()
+      const [moved] = openTabs.splice(idx, 1)
+      openTabs.splice(idx - 1, 0, moved)
+      return { openTabs }
+    })
+  },
+
+  moveTabRight: () => {
+    set((state) => {
+      const idx = state.openTabs.findIndex((t) => t.path === state.activeTabPath)
+      if (idx < 0 || idx >= state.openTabs.length - 1) return {}
+      const openTabs = state.openTabs.slice()
+      const [moved] = openTabs.splice(idx, 1)
+      openTabs.splice(idx + 1, 0, moved)
       return { openTabs }
     })
   },

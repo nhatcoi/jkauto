@@ -83,9 +83,13 @@ export const EXPLORER_KEYMAPS = {
 } satisfies Record<string, KeyBinding>
 
 export const APP_KEYMAPS = {
-  newProject:   { keys: ['mod+n'], label: 'New Project',  hint: `${M}+N` },
-  openProject:  { keys: ['mod+o'], label: 'Open Project', hint: `${M}+O` },
-  openSettings: { keys: ['mod+,'], label: 'App Settings', hint: `${M}+,` },
+  newProject:   { keys: ['mod+n'],             label: 'New Project',    hint: `${M}+N`      },
+  openProject:  { keys: ['mod+o'],             label: 'Open Project',   hint: `${M}+O`      },
+  openSettings: { keys: ['mod+,'],             label: 'App Settings',   hint: `${M}+,`      },
+  closeTab:     { keys: ['mod+w'],             label: 'Close Tab',      hint: `${M}+W`      },
+  reopenTab:    { keys: ['mod+shift+t'],       label: 'Reopen Tab',     hint: `${M}+⇧+T`   },
+  moveTabLeft:  { keys: ['mod+alt+arrowleft'],  label: 'Move Tab Left',  hint: `${M}+Alt+←` },
+  moveTabRight: { keys: ['mod+alt+arrowright'], label: 'Move Tab Right', hint: `${M}+Alt+→` },
 } satisfies Record<string, KeyBinding>
 
 export const KEYMAP_SCOPES = {

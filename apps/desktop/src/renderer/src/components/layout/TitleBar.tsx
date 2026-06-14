@@ -15,8 +15,12 @@ import { useSettingsKeymap } from '@/hooks/useSettingsKeymap'
 import { APP_KEYMAPS, KEYMAP_SCOPES } from '@/shared/keymaps'
 
 export function TitleBar() {
-  const { activeProject, activeProjectPath, projects } = useProjectStore()
+  const { activeProject, activeProjectPath, projects, activeTabPath } = useProjectStore()
   const addProject = useProjectStore((s) => s.addProject)
+  const closeTab = useProjectStore((s) => s.closeTab)
+  const reopenLastTab = useProjectStore((s) => s.reopenLastTab)
+  const moveTabLeft = useProjectStore((s) => s.moveTabLeft)
+  const moveTabRight = useProjectStore((s) => s.moveTabRight)
   const [showAppSettings, setShowAppSettings] = useState(false)
   const [showNew, setShowNew] = useState(false)
 
@@ -31,6 +35,10 @@ export function TitleBar() {
     newProject:   () => setShowNew(true),
     openProject:  () => handleOpenProject(),
     openSettings: () => setShowAppSettings((v) => !v),
+    closeTab:     () => { if (activeTabPath) closeTab(activeTabPath) },
+    reopenTab:    () => reopenLastTab(),
+    moveTabLeft:  () => moveTabLeft(),
+    moveTabRight: () => moveTabRight(),
   })
 
   return (
