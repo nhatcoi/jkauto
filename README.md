@@ -1,15 +1,10 @@
 <p align="center">
   <img src="apps/desktop/src/renderer/src/assets/logo.png" alt="JKAuto Logo" width="88" />
-</p>
-
-<h1 align="center">JKAuto</h1>
-
-<p align="center">
-  <strong>The open-source test automation IDE that thinks with you.</strong><br/>
+  <br/><br/>
+  <h1>JKAuto</h1>
+  <strong>The test automation IDE that thinks with you.</strong><br/>
   Visual. Multi-platform. AI-native. Git-friendly.
-</p>
-
-<p align="center">
+  <br/><br/>
   <img src="https://img.shields.io/badge/version-0.0.1-blue?style=flat-square" />
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey?style=flat-square" />
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" />
@@ -135,8 +130,8 @@ Diff test changes in PR review. Resolve conflicts in any editor. No binary forma
 | **Visual no-code editor** | ✅ | ✅ | ✅ | ❌ | ❌ |
 | **Web UI testing** | ✅ | ✅ | ❌ | ✅ | ✅ |
 | **API testing** | ✅ | ✅ | ✅ | ⚠️ basic | ❌ |
-| **Mobile testing** | 🗓 | ✅ (paid) | ❌ | ❌ | ❌ |
-| **Desktop app testing** | 🗓 | ❌ | ❌ | ✅ Electron | ❌ |
+| **Mobile testing** |✅ | ✅ (paid) | ❌ | ❌ | ❌ |
+| **Desktop app testing** | ✅ | ❌ | ❌ | ✅ Electron | ❌ |
 | **AI test generation** | ✅ | ⚠️ (paid add-on) | ❌ | ❌ | ❌ |
 | **Git-native file format** | ✅ JSON/YAML | ⚠️ XML | ❌ | ✅ | ✅ |
 | **Open source** | ✅ MIT | ❌ | ❌ | ✅ | ✅ |
@@ -145,18 +140,16 @@ Diff test changes in PR review. Resolve conflicts in any editor. No binary forma
 | **Custom keywords / plugins** | ✅ | ✅ (paid) | ✅ scripts | ✅ | ✅ |
 | **Environment profiles** | ✅ | ✅ | ✅ | manual | manual |
 | **Realtime execution log** | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Run without IDE** | 🗓 CLI | ✅ | ✅ Newman | ✅ | ✅ |
-| **Price** | **Free** | Freemium / $$$  | Freemium / $$$ | Free | Free |
+| **Run without IDE** | ✅ CLI | ✅ | ✅ Newman | ✅ | ✅ |
+| **Price** | **Free/Pro** | Freemium / $$$  | Freemium / $$$ | Free | Free |
 
-> ✅ Supported · ⚠️ Partial / limited · ❌ Not supported · 🗓 Planned
+> ✅ Supported · ⚠️ Partial / limited · ❌ Not supported
 
 **Bottom line:**
 - Katalon gives you a lot but it's Java-heavy, slow to start, and locks key features behind a paywall.
 - Postman is great for APIs but stops there.
 - Playwright and Cypress are powerful but code-first — no IDE, no visual editor, no path for non-developers.
 - JKAuto aims to be the tool where a QA engineer and a developer can both feel at home.
-
----
 
 ## Quick Start
 
