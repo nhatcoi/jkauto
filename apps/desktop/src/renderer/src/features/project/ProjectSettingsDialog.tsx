@@ -22,11 +22,19 @@ import { invoke } from '@/lib/utils'
 import { useProjectStore, selectProject } from '@/store/project.store'
 import { cn } from '@/lib/utils'
 import { Trash2, AlertTriangle } from 'lucide-react'
+import { PROJECT_ICON_OPTIONS } from '@/features/project/NewProjectDialog'
+
+const TYPE_DEFAULT_ICONS: Record<string, string> = {
+  web: 'Globe',
+  mobile: 'Smartphone',
+  desktop: 'Monitor',
+  api: 'Zap',
+}
 
 interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
-  projectPath?: string   // when provided, operates on that project; otherwise uses activeProjectPath
+  projectPath?: string
 }
 
 export function ProjectSettingsDialog({ open, onOpenChange, projectPath: propPath }: Props) {
@@ -39,6 +47,7 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectPath: propPat
   const [form, setForm] = useState({
     name: '',
     type: 'web' as 'web' | 'mobile' | 'desktop' | 'api',
+    icon: '',
     description: '',
     repoUrl: '',
   })
@@ -52,6 +61,7 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectPath: propPat
       setForm({
         name: entry.project.name ?? '',
         type: entry.project.type ?? 'web',
+        icon: entry.project.icon ?? '',
         description: entry.project.description ?? '',
         repoUrl: entry.project.repoUrl ?? '',
       })
@@ -73,6 +83,7 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectPath: propPat
         projectPath: resolvedPath,
         name: form.name.trim(),
         type: form.type,
+        icon: form.icon,
         description: form.description.trim(),
         repoUrl: form.repoUrl.trim(),
       }
@@ -98,6 +109,8 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectPath: propPat
       setDeleting(false)
     }
   }
+
+  const effectiveIcon = form.icon || TYPE_DEFAULT_ICONS[form.type] || 'Globe'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -129,6 +142,31 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectPath: propPat
                 <SelectItem value="api">API</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label>Icon</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {PROJECT_ICON_OPTIONS.map(({ name, component: Icon }) => {
+                const selected = effectiveIcon === name
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => set('icon', name)}
+                    className={cn(
+                      'w-8 h-8 flex items-center justify-center rounded border transition-colors',
+                      selected
+                        ? 'border-violet-500 bg-violet-500/15 text-violet-400'
+                        : 'border-border/50 bg-muted/30 text-muted-foreground hover:border-border hover:text-foreground',
+                    )}
+                    title={name}
+                  >
+                    <Icon className="w-4 h-4" />
+                  </button>
+                )
+              })}
+            </div>
           </div>
 
           <div className="grid gap-1.5">

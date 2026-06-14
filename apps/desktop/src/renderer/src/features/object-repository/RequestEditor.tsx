@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { AlertCircle, Terminal, Clipboard, Check, Database } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { AlertCircle, Terminal, Clipboard, Check, Database, Undo2, Redo2 } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { useProjectStore } from '@/store/project.store'
 import { useRequestEditor } from './hooks/useRequestEditor'
@@ -15,8 +15,8 @@ import { toCurl } from './utils/curl'
 import type { ApiRequest } from './types'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Kbd } from '@/components/ui/kbd'
-import { useGlobalKeymap } from '@/hooks/useGlobalKeymap'
-import { REQUEST_EDITOR_KEYMAPS } from '@/shared/keymaps'
+import { useSettingsKeymap } from '@/hooks/useSettingsKeymap'
+import { REQUEST_EDITOR_KEYMAPS, KEYMAP_SCOPES } from '@/shared/keymaps'
 
 export function RequestEditor({ filePath }: { filePath: string }) {
   const { markTabDirty, activeProject } = useProjectStore()
@@ -32,7 +32,33 @@ export function RequestEditor({ filePath }: { filePath: string }) {
     mutate,
     save,
     send,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   } = useRequestEditor(filePath)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const inEditable =
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement).isContentEditable
+      if (inEditable) return
+      const mod = e.metaKey || e.ctrlKey
+      if (mod && !e.shiftKey && e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        undo()
+        markTabDirty(filePath, true)
+      } else if (mod && e.shiftKey && e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        redo()
+        markTabDirty(filePath, true)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [undo, redo, filePath, markTabDirty])
 
   const [curlImportOpen, setCurlImportOpen] = useState(false)
   const [importDataOpen, setImportDataOpen] = useState(false)
@@ -69,7 +95,7 @@ export function RequestEditor({ filePath }: { filePath: string }) {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  useGlobalKeymap(REQUEST_EDITOR_KEYMAPS, {
+  const km = useSettingsKeymap(REQUEST_EDITOR_KEYMAPS, KEYMAP_SCOPES.REQUEST_EDITOR, {
     save,
     send,
     importCurl: () => setCurlImportOpen(true),
@@ -133,7 +159,7 @@ export function RequestEditor({ filePath }: { filePath: string }) {
               Import cURL
             </button>
           </TooltipTrigger>
-          <TooltipContent>Import from cURL<Kbd>{REQUEST_EDITOR_KEYMAPS.importCurl.hint}</Kbd></TooltipContent>
+          <TooltipContent>Import from cURL<Kbd>{km.importCurl.hint}</Kbd></TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -147,7 +173,7 @@ export function RequestEditor({ filePath }: { filePath: string }) {
               {copied ? 'Copied!' : 'Copy cURL'}
             </button>
           </TooltipTrigger>
-          <TooltipContent>Copy as cURL<Kbd>{REQUEST_EDITOR_KEYMAPS.copyCurl.hint}</Kbd></TooltipContent>
+          <TooltipContent>Copy as cURL<Kbd>{km.copyCurl.hint}</Kbd></TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -161,6 +187,35 @@ export function RequestEditor({ filePath }: { filePath: string }) {
             </button>
           </TooltipTrigger>
           <TooltipContent>Import from data file</TooltipContent>
+        </Tooltip>
+
+        <div className="w-px h-4 bg-border mx-0.5" />
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              disabled={!canUndo}
+              onClick={() => { undo(); markTabDirty(filePath, true) }}
+              className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground disabled:opacity-30"
+            >
+              <Undo2 className="w-3.5 h-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Undo<Kbd>⌘+Z</Kbd></TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              disabled={!canRedo}
+              onClick={() => { redo(); markTabDirty(filePath, true) }}
+              className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground disabled:opacity-30"
+            >
+              <Redo2 className="w-3.5 h-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Redo<Kbd>⌘+⇧+Z</Kbd></TooltipContent>
         </Tooltip>
       </div>
 

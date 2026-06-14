@@ -3,7 +3,7 @@ import type { IpcMain } from 'electron'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { IpcChannels } from '@jkauto/core'
-import type { CreateProjectPayload, UpdateProjectPayload, RecentProject } from '@jkauto/core'
+import type { CreateProjectPayload, UpdateProjectPayload, DuplicateProjectPayload, RecentProject } from '@jkauto/core'
 import { randomUUID } from 'node:crypto'
 import { writeExplorerMetadata } from '../services/explorer-metadata'
 
@@ -106,6 +106,7 @@ export function registerProjectHandlers(ipcMain: IpcMain): void {
       ...existing,
       name: payload.name,
       type: payload.type,
+      icon: payload.icon ?? existing.icon ?? '',
       description: payload.description,
       repoUrl: payload.repoUrl,
       updatedAt: new Date().toISOString(),
@@ -123,6 +124,43 @@ export function registerProjectHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(IpcChannels.PROJECT_DELETE, async (_, projectPath: string) => {
     await fs.rm(projectPath, { recursive: true, force: true })
     recentProjects = recentProjects.filter((r) => r.path !== projectPath)
+  })
+
+  ipcMain.handle(IpcChannels.PROJECT_DUPLICATE, async (_, payload: DuplicateProjectPayload) => {
+    const srcPath = payload.sourcePath
+    const parentDir = path.dirname(srcPath)
+    const srcName = path.basename(srcPath)
+
+    let destName = `${srcName}-copy`
+    let destPath = path.join(parentDir, destName)
+    let counter = 2
+    while (true) {
+      try {
+        await fs.access(destPath)
+        destName = `${srcName}-copy-${counter++}`
+        destPath = path.join(parentDir, destName)
+      } catch {
+        break
+      }
+    }
+
+    await fs.cp(srcPath, destPath, { recursive: true })
+
+    const projectFile = path.join(destPath, 'project.json')
+    const raw = await fs.readFile(projectFile, 'utf-8')
+    const existing = JSON.parse(raw)
+    const now = new Date().toISOString()
+    const duplicated = {
+      ...existing,
+      id: randomUUID(),
+      name: `${existing.name} Copy`,
+      updatedAt: now,
+      createdAt: now,
+    }
+    await fs.writeFile(projectFile, JSON.stringify(duplicated, null, 2), 'utf-8')
+
+    addRecent({ name: duplicated.name, path: destPath, type: duplicated.type, openedAt: now })
+    return { projectPath: destPath, project: duplicated }
   })
 }
 

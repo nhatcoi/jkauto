@@ -29,6 +29,7 @@ interface ProjectStore {
   addProject: (path: string, project: Project, activeProfile?: string) => void
   removeProject: (path: string) => void
   updateProject: (path: string, project: Project) => void
+  setActiveProject: (path: string) => void
   setActiveProfile: (projectPath: string, profile: string) => void
 
   // tab ops
@@ -111,6 +112,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const updated = state.projects.map((p) => (p.path === path ? { ...p, project } : p))
       const activeProject = updated.find((p) => p.path === get().activeProjectPath) ?? null
       return { projects: updated, activeProject }
+    })
+  },
+
+  setActiveProject: (path) => {
+    set((state) => {
+      const activeProject = state.projects.find((p) => p.path === path) ?? null
+      return { activeProjectPath: path, activeProject }
     })
   },
 

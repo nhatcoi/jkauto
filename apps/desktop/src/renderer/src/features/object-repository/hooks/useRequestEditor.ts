@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { useHistory } from '@/hooks/useHistory'
 import { useProjectStore } from '@/store/project.store'
 import { loadRequest, saveRequest, sendRequest, getRequestHistory, saveRequestHistory } from '../api'
 import { readEnv } from '@/features/env/api'
@@ -55,43 +56,40 @@ function evaluateAssertions(request: ApiRequest, resp: HttpResponse): AssertionR
 
 export function useRequestEditor(filePath: string) {
   const { markTabDirty } = useProjectStore()
-  const [request, setRequest] = useState<ApiRequest | null>(null)
+  const reqHistory = useHistory<ApiRequest>()
+  const request = reqHistory.state
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [sending, setSending] = useState(false)
   const [response, setResponse] = useState<HttpResponse | null>(null)
   const [assertionResults, setAssertionResults] = useState<AssertionResult[]>([])
   const [sendError, setSendError] = useState('')
-  const [history, setHistory] = useState<RequestHistoryRecord[]>([])
+  const [requestLog, setRequestLog] = useState<RequestHistoryRecord[]>([])
 
   const requestRef = useRef<ApiRequest | null>(null)
   requestRef.current = request
 
   useEffect(() => {
-    setRequest(null)
+    reqHistory.clear()
     setError('')
     setResponse(null)
     setAssertionResults([])
     setSendError('')
-    setHistory([])
+    setRequestLog([])
     loadRequest(filePath)
-      .then(setRequest)
+      .then((r) => reqHistory.setInitial(r))
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load'))
     getRequestHistory(filePath)
-      .then(setHistory)
+      .then(setRequestLog)
       .catch(() => {})
   }, [filePath])
 
   const mutate = useCallback(
     (fn: (prev: ApiRequest) => ApiRequest) => {
-      setRequest((prev) => {
-        if (!prev) return prev
-        const next = fn(prev)
-        markTabDirty(filePath, true)
-        return next
-      })
+      reqHistory.update(fn)
+      markTabDirty(filePath, true)
     },
-    [filePath, markTabDirty],
+    [filePath, markTabDirty, reqHistory.update],
   )
 
   const save = useCallback(async () => {
@@ -139,7 +137,7 @@ export function useRequestEditor(filePath: string) {
         headers: resp.headers,
         body: resp.body,
       }
-      setHistory((prev) => [record, ...prev].slice(0, 30))
+      setRequestLog((prev) => [record, ...prev].slice(0, 30))
       saveRequestHistory(filePath, record).catch(() => {})
     } catch (e) {
       setSendError(e instanceof Error ? e.message : 'Request failed')
@@ -156,9 +154,13 @@ export function useRequestEditor(filePath: string) {
     response,
     assertionResults,
     sendError,
-    history,
+    history: requestLog,
     mutate,
     save,
     send,
+    undo: reqHistory.undo,
+    redo: reqHistory.redo,
+    canUndo: reqHistory.canUndo,
+    canRedo: reqHistory.canRedo,
   }
 }

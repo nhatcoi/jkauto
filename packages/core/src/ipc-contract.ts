@@ -8,6 +8,7 @@ export const IpcChannels = {
   PROJECT_GET_INFO: 'project:get-info',
   PROJECT_UPDATE: 'project:update',
   PROJECT_DELETE: 'project:delete',
+  PROJECT_DUPLICATE: 'project:duplicate',
 
   FS_READ_FILE: 'fs:read-file',
   FS_WRITE_FILE: 'fs:write-file',
@@ -83,8 +84,13 @@ export interface UpdateProjectPayload {
   projectPath: string
   name: string
   type: 'web' | 'mobile' | 'desktop' | 'api'
+  icon?: string
   description: string
   repoUrl: string
+}
+
+export interface DuplicateProjectPayload {
+  sourcePath: string
 }
 
 export interface RecentProject {
