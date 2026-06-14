@@ -17,6 +17,7 @@ export const IpcChannels = {
   FS_CREATE_DIR: 'fs:create-dir',
   FS_DELETE: 'fs:delete',
   FS_RENAME: 'fs:rename',
+  FS_RENAME_DISPLAY: 'fs:rename-display',
   FS_COPY: 'fs:copy',
   FS_OPEN_CONTAINING_FOLDER: 'fs:open-containing-folder',
   FS_WATCH_START: 'fs:watch-start',
@@ -60,6 +61,10 @@ export const IpcChannels = {
 
   APP_SETTINGS_GET: 'app-settings:get',
   APP_SETTINGS_SET: 'app-settings:set',
+
+  APP_ZOOM_GET: 'app:zoom:get',
+  APP_ZOOM_SET: 'app:zoom:set',
+  APP_ZOOM_CHANGED: 'app:zoom:changed',
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -67,6 +72,7 @@ export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
 export interface CreateProjectPayload {
   name: string
   type: 'web' | 'mobile' | 'desktop' | 'api'
+  icon?: string
   description: string
   repoUrl: string
   location: string

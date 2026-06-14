@@ -40,6 +40,7 @@ export function registerProjectHandlers(ipcMain: IpcMain): void {
       id: randomUUID(),
       name: payload.name,
       type: payload.type,
+      icon: payload.icon ?? '',
       description: payload.description,
       repoUrl: payload.repoUrl,
       format: payload.format,

@@ -3,10 +3,20 @@ import {
   ChevronDown,
   ChevronRight,
   FolderOpenDot,
+  Boxes,
   Settings,
   X,
 } from 'lucide-react'
-import { ProjectIcon } from '@/components/file-icons'
+import { PROJECT_ICON_OPTIONS } from '@/features/project/NewProjectDialog'
+
+const ICON_MAP = new Map(PROJECT_ICON_OPTIONS.map(({ name, component }) => [name, component]))
+
+const TYPE_DEFAULT_ICONS: Record<string, string> = {
+  web: 'Globe',
+  mobile: 'Smartphone',
+  desktop: 'Monitor',
+  api: 'Zap',
+}
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,7 +64,11 @@ export function ProjectSection({ entry }: Props) {
           ) : (
             <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />
           )}
-          <ProjectIcon className="w-3.5 h-3.5" />
+          {(() => {
+            const iconName = entry.project.icon || TYPE_DEFAULT_ICONS[entry.project.type] || ''
+            const ProjectIcon = ICON_MAP.get(iconName) ?? Boxes
+            return <ProjectIcon className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+          })()}
           <span className="text-[11px] font-semibold text-foreground/80 truncate uppercase tracking-wide">
             {entry.project.name}
           </span>

@@ -16,20 +16,72 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { FolderOpen } from 'lucide-react'
+import {
+  FolderOpen,
+  Globe,
+  Smartphone,
+  Monitor,
+  Zap,
+  Rocket,
+  Shield,
+  Bug,
+  TestTube2,
+  FlaskConical,
+  Code2,
+  Database,
+  Cloud,
+  Server,
+  Cpu,
+  Target,
+  Layers,
+  Box,
+  Braces,
+  Activity,
+} from 'lucide-react'
 import { IpcChannels } from '@jkauto/core'
 import type { CreateProjectPayload, Project } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
 import { useProjectStore } from '@/store/project.store'
+import { cn } from '@/lib/utils'
 
 interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
+export const PROJECT_ICON_OPTIONS: Array<{ name: string; component: React.ElementType }> = [
+  { name: 'Globe', component: Globe },
+  { name: 'Smartphone', component: Smartphone },
+  { name: 'Monitor', component: Monitor },
+  { name: 'Zap', component: Zap },
+  { name: 'Rocket', component: Rocket },
+  { name: 'Shield', component: Shield },
+  { name: 'Bug', component: Bug },
+  { name: 'TestTube2', component: TestTube2 },
+  { name: 'FlaskConical', component: FlaskConical },
+  { name: 'Code2', component: Code2 },
+  { name: 'Database', component: Database },
+  { name: 'Cloud', component: Cloud },
+  { name: 'Server', component: Server },
+  { name: 'Cpu', component: Cpu },
+  { name: 'Target', component: Target },
+  { name: 'Layers', component: Layers },
+  { name: 'Box', component: Box },
+  { name: 'Braces', component: Braces },
+  { name: 'Activity', component: Activity },
+]
+
+const TYPE_DEFAULT_ICONS: Record<string, string> = {
+  web: 'Globe',
+  mobile: 'Smartphone',
+  desktop: 'Monitor',
+  api: 'Zap',
+}
+
 const INITIAL: CreateProjectPayload = {
   name: '',
   type: 'web',
+  icon: '',
   description: '',
   repoUrl: '',
   location: '',
@@ -69,6 +121,8 @@ export function NewProjectDialog({ open, onOpenChange }: Props) {
       setLoading(false)
     }
   }
+
+  const effectiveIcon = form.icon || TYPE_DEFAULT_ICONS[form.type] || 'Globe'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -115,6 +169,31 @@ export function NewProjectDialog({ open, onOpenChange }: Props) {
                   <SelectItem value="yaml">YAML</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label>Icon</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {PROJECT_ICON_OPTIONS.map(({ name, component: Icon }) => {
+                const selected = effectiveIcon === name
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => set('icon', name === TYPE_DEFAULT_ICONS[form.type] && form.icon === '' ? '' : name)}
+                    className={cn(
+                      'w-8 h-8 flex items-center justify-center rounded border transition-colors',
+                      selected
+                        ? 'border-violet-500 bg-violet-500/15 text-violet-400'
+                        : 'border-border/50 bg-muted/30 text-muted-foreground hover:border-border hover:text-foreground',
+                    )}
+                    title={name}
+                  >
+                    <Icon className="w-4 h-4" />
+                  </button>
+                )
+              })}
             </div>
           </div>
 

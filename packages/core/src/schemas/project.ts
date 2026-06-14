@@ -16,6 +16,7 @@ export const ProjectSchema = z.object({
   id: z.string(),
   name: z.string().min(1),
   type: ProjectTypeSchema,
+  icon: z.string().default(''),
   description: z.string().default(''),
   repoUrl: z.string().default(''),
   format: ProjectFormatSchema.default('json'),

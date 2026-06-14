@@ -166,6 +166,29 @@ export function registerFsHandlers(ipcMain: IpcMain): void {
   )
 
   ipcMain.handle(
+    IpcChannels.FS_RENAME_DISPLAY,
+    async (_, oldPath: string, newPath: string, displayName: string, isDir: boolean) => {
+      await fs.rename(oldPath, newPath)
+      if (isDir) {
+        await writeExplorerMetadata(newPath, displayName)
+      } else if (isMetadataFile(path.basename(newPath))) {
+        try {
+          const raw = await fs.readFile(newPath, 'utf-8')
+          const fileName = path.basename(newPath)
+          const parsed = parseMetadata(raw, fileName) as Record<string, unknown>
+          parsed.name = displayName
+          const content = fileName.endsWith('.json')
+            ? JSON.stringify(parsed, null, 2)
+            : (await import('yaml')).stringify(parsed)
+          await fs.writeFile(newPath, content, 'utf-8')
+        } catch {
+          // non-critical: file renamed, metadata update failed silently
+        }
+      }
+    },
+  )
+
+  ipcMain.handle(
     IpcChannels.FS_COPY,
     async (_, srcPath: string, destPath: string) => {
       await fs.cp(srcPath, destPath, { recursive: true })

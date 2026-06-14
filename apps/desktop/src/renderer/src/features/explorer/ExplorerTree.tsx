@@ -11,8 +11,19 @@ import {
   Database,
   Code2,
   Globe,
+  FlaskConical,
+  ListChecks,
+  TestTube2,
+  Layers,
+  Box,
+  Activity,
+  CircleUserRound,
+  Milestone,
+  FileSpreadsheet,
+  Braces,
+  Puzzle,
+  BarChart2,
 } from 'lucide-react'
-import { TestCaseIcon, TestSuiteIcon } from '@/components/file-icons'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -67,6 +78,24 @@ function toExplorerKey(value: string, fallback = 'item'): string {
   return key || fallback
 }
 
+const KNOWN_SUFFIXES = [
+  '.test.json', '.test.yaml',
+  '.suite.json', '.suite.yaml',
+  '.objects.json', '.objects.yaml',
+  '.keywords.json', '.keywords.yaml',
+  '.request.json', '.request.yaml',
+  '.env.json', '.env.yaml',
+]
+
+function getFileSuffix(filename: string): string {
+  const lower = filename.toLowerCase()
+  for (const suffix of KNOWN_SUFFIXES) {
+    if (lower.endsWith(suffix)) return suffix
+  }
+  const i = filename.lastIndexOf('.')
+  return i >= 0 ? filename.slice(i) : ''
+}
+
 function stripKnownExtension(name: string, type: NewItemType): string {
   if (type === 'test-case') return name.replace(/\.test\.(json|ya?ml)$/i, '')
   if (type === 'suite') return name.replace(/\.suite\.(json|ya?ml)$/i, '')
@@ -76,13 +105,30 @@ function stripKnownExtension(name: string, type: NewItemType): string {
 
 function getFileIcon(node: FsTreeNode): React.ElementType {
   const name = node.name.toLowerCase()
-  if (name.endsWith('.test.json') || name.endsWith('.test.yaml')) return TestCaseIcon
-  if (name.endsWith('.suite.json') || name.endsWith('.suite.yaml')) return TestSuiteIcon
+  if (name.endsWith('.test.json') || name.endsWith('.test.yaml')) return FlaskConical
+  if (name.endsWith('.suite.json') || name.endsWith('.suite.yaml')) return ListChecks
   if (name.endsWith('.objects.json') || name.endsWith('.objects.yaml')) return Database
   if (name.endsWith('.keywords.json') || name.endsWith('.keywords.yaml')) return Code2
   if (name.endsWith('.request.json')) return Globe
   if (node.ext === '.json') return FileJson
   return FileText
+}
+
+const FEATURE_FOLDER_ICONS: Record<string, React.ElementType> = {
+  'test-cases': TestTube2,
+  'test-suites': Layers,
+  'object-repository': Box,
+  'api-requests': Activity,
+  'profiles': CircleUserRound,
+  'checkpoints': Milestone,
+  'data-files': FileSpreadsheet,
+  'keywords': Braces,
+  'plugins': Puzzle,
+  'reports': BarChart2,
+}
+
+function getTopLevelFolderIcon(id: string): React.ElementType | null {
+  return FEATURE_FOLDER_ICONS[id] ?? null
 }
 
 function findNodeById(nodes: FsTreeNode[], id: string): FsTreeNode | undefined {
@@ -386,6 +432,7 @@ function NodeRow({
   const isFolder = node.isInternal
   const FolderIcon = node.isOpen ? FolderOpen : Folder
   const FileIcon = getFileIcon(node.data)
+  const TopLevelIcon = isFolder && isTopLevel(node.id) ? getTopLevelFolderIcon(node.id) : null
 
   return (
     <ContextMenu>
@@ -410,7 +457,9 @@ function NodeRow({
           </span>
 
           {isFolder ? (
-            <FolderIcon className="w-3.5 h-3.5 text-yellow-400/80 shrink-0" />
+            TopLevelIcon
+              ? <TopLevelIcon className="w-3.5 h-3.5 text-yellow-400 shrink-0" />
+              : <FolderIcon className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400 shrink-0" />
           ) : (
             <FileIcon className="w-3.5 h-3.5 text-blue-400/80 shrink-0" />
           )}
@@ -418,7 +467,7 @@ function NodeRow({
           {node.isEditing ? (
             <input
               autoFocus
-              defaultValue={node.data.name}
+              defaultValue={node.data.displayName ?? node.data.name}
               className="flex-1 bg-input text-foreground text-xs px-1 rounded outline-none border border-primary min-w-0"
               onBlur={(e) => node.submit(e.target.value)}
               onKeyDown={(e) => {
@@ -485,13 +534,18 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
   }, [explorerSettings, reload])
 
   const handleRename = useCallback(
-    async ({ id, name }: { id: string; name: string }) => {
+    async ({ id, name: displayName }: { id: string; name: string }) => {
       const node = findNodeById(tree, id)
-      if (!node || name === node.name) return
+      if (!node) return
+      const isDir = node.type === 'directory'
+      const physicalName = isDir
+        ? toExplorerKey(displayName, node.name)
+        : toExplorerKey(displayName, 'item') + getFileSuffix(node.name)
+      if (physicalName === node.name) return
       const dir = pathDirname(node.path)
-      const newPath = pathJoin(dir, name)
-      await invoke(IpcChannels.FS_RENAME, node.path, newPath)
-      if (node.type === 'directory') {
+      const newPath = pathJoin(dir, physicalName)
+      await invoke(IpcChannels.FS_RENAME_DISPLAY, node.path, newPath, displayName, isDir)
+      if (isDir) {
         renameTabsUnderPath(node.path, newPath)
       } else {
         renameTab(node.path, newPath)
