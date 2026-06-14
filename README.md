@@ -1,174 +1,183 @@
 <p align="center">
-  <img src="apps/desktop/src/renderer/src/assets/logo.png" alt="JKAuto Logo" width="80" />
+  <img src="apps/desktop/src/renderer/src/assets/logo.png" alt="JKAuto Logo" width="88" />
 </p>
 
 <h1 align="center">JKAuto</h1>
 
 <p align="center">
-  A Katalon-style desktop IDE for automated testing — built on Electron, React, and Playwright.
+  <strong>The open-source test automation IDE that thinks with you.</strong><br/>
+  Visual. Multi-platform. AI-native. Git-friendly.
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.0.1-blue?style=flat-square" alt="version" />
-  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey?style=flat-square" alt="platform" />
-  <img src="https://img.shields.io/badge/electron-32-47848f?style=flat-square&logo=electron" alt="electron" />
-  <img src="https://img.shields.io/badge/playwright-1.46-2ead33?style=flat-square&logo=playwright" alt="playwright" />
-  <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="license" />
+  <img src="https://img.shields.io/badge/version-0.0.1-blue?style=flat-square" />
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey?style=flat-square" />
+  <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" />
+  <img src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square" />
 </p>
 
 ---
 
-## What is JKAuto?
+## Why JKAuto?
 
-JKAuto is an open-source desktop IDE for building, organizing, and running automated test suites — no coding required. Inspired by Katalon Studio, it gives QA engineers a visual interface to manage test cases, object repositories, test suites, and keyword libraries while keeping everything in human-readable JSON/YAML files that work naturally with Git.
+Most test tools make you choose between **power** and **simplicity**. Katalon is bloated and paywalled. Postman only covers APIs. Cypress and Playwright demand you write code for everything. Selenium IDE is discontinued.
 
-> **Status:** Active development — core explorer, project lifecycle, and test case editor are functional. Engine execution, reports, and AI agent are on the roadmap.
-
----
-
-## Features
-
-- **Project-based workspace** — initialize a project with name, type (web/mobile/desktop/api), icon, and format (JSON or YAML); folder structure generated automatically
-- **File Explorer** — virtual tree with per-type icons, inline rename, context menu (new file, delete, open folder), FS watch via chokidar
-- **Test Case Editor** — table-driven step editor: keyword, object reference, input, expected — dirty tracking and undo
-- **Object Repository** — multi-locator fallback strategy per element (test-id, CSS, XPath…)
-- **Test Suites** — compose test cases into suites, configure execution order
-- **Keyword Library** — built-in and custom keywords, compose from primitives
-- **Environment Profiles** — switch between `default`, `staging`, `production` env files; template variables in steps (`${baseUrl}/login`)
-- **Zoom** — Cmd+= / Cmd+- / Cmd+0 zoom with persistence across sessions
-- **Keyboard shortcuts** — Mod+N new project, Mod+O open project, Mod+, settings
-- **Dark / Light / System theme** — persisted per user
-
-**Coming soon**
-
-- Playwright execution engine with real-time step progress and screenshots
-- Run history and reports (SQLite-backed)
-- AI agent chat that generates test case drafts from natural language
-- Recorder via Playwright codegen
-- Clerk-based cloud sync
+JKAuto is built differently: a **visual IDE** with the depth of a code-first framework — keyword-driven testing, multi-platform execution, AI-assisted test generation, and a data model that's just JSON/YAML files your team can review in a pull request.
 
 ---
 
-## Tech Stack
+## Core Features
 
-| Layer | Technology |
-|---|---|
-| Shell | Electron 32 |
-| Frontend | React 18 + Vite + TypeScript + Tailwind + shadcn/ui |
-| State | Zustand + TanStack Query |
-| Tree | react-arborist |
-| Panes | react-resizable-panels |
-| Engine | Playwright (child process) |
-| Storage | better-sqlite3 (runs, cache, index) |
-| Schema | Zod — single source of truth for all file formats |
-| Monorepo | pnpm + Turborepo |
+### Test Cases — Visual Step Editor
+
+Build test cases without writing code. Each step is a row: keyword, target object, input, expected result. Keyboard-navigable, dirty-tracked, undo/redo.
+
+- 15+ built-in keywords: `navigate-to`, `click`, `type-text`, `assert-text`, `wait-for-element`, `take-screenshot`, `drag-drop`, `select-option`, `upload-file`, and more
+- Custom keywords — compose built-ins into reusable higher-level actions (e.g. `login-as-admin`)
+- Per-step: enable/disable, continue-on-failure, custom timeout
+- Inline object reference picker and keyword autocomplete
+
+### Test Suites — Orchestrate at Scale
+
+Group test cases into suites and define execution order, retry policy, and parallelism.
+
+- Compose any mix of test cases across features
+- Suite-level profile binding (run `smoke` against staging, `regression` against prod)
+- Data-driven: bind a CSV or JSON data file to a suite — each row becomes a separate run
+
+### Multi-Platform Execution
+
+JKAuto's engine is adapter-based. One IDE, multiple runtimes:
+
+| Platform | Engine | Status |
+|---|---|---|
+| Web | Playwright | ✅ M4 |
+| Desktop (Electron, .NET, Java) | WebdriverIO / Appium | 🗓 M10+ |
+| Mobile (iOS / Android) | Appium | 🗓 M10+ |
+| API | Built-in HTTP client | ✅ M4 |
+
+Switch platform per project. Engine interface is designed for third-party adapters.
+
+### API Testing — First-Class, Not an Afterthought
+
+Test REST and GraphQL APIs directly inside JKAuto — not in a separate tool.
+
+- Request editor: method, URL, headers, body (JSON / form / raw), auth
+- Response viewer: status, latency, body (pretty-printed), headers
+- Assert on status code, JSON path, response time, headers
+- Chain requests: extract value from response → inject into next step
+- Import from OpenAPI / Swagger spec
+
+### Object Repository — Multi-Locator, Resilient
+
+Stop breaking tests on every DOM change.
+
+```json
+{
+  "name": "loginButton",
+  "locators": [
+    { "strategy": "testid",  "value": "btn-login" },
+    { "strategy": "css",     "value": "#login-btn" },
+    { "strategy": "xpath",   "value": "//button[text()='Login']" }
+  ]
+}
+```
+
+Locators tried in order — first one that resolves wins. Visual locator editor with live highlight in the browser (coming in M5).
+
+### Environment Profiles — One Codebase, Many Environments
+
+```json
+// profiles/staging.env.json
+{ "baseUrl": "https://staging.example.com", "apiKey": "..." }
+```
+
+Inject variables into any step input: `${baseUrl}/login`. Switch the active profile from the status bar in one click. No hard-coded URLs anywhere in your tests.
+
+### AI Agent — Vibe Test
+
+Describe what you want to test in plain language. The AI agent reads your keyword registry and object repository, generates a complete test case draft, and puts it in the editor for your review before saving.
+
+- **Context-aware**: agent knows your available keywords, objects, and test patterns
+- **Draft-first**: AI output is a validated JSON structure — never raw text injected directly into tests
+- **Iterative**: chat back and forth to refine steps, add assertions, or generate edge cases
+- **Vibe testing**: describe a user journey in one sentence → get a full multi-step test case
+
+> *"User logs in with valid credentials and lands on the dashboard"*
+> → 6-step test case with assertions, generated in seconds.
+
+### Execution & Live Reporting
+
+- Steps stream in real-time: pass ✓, fail ✗, running ⟳
+- Screenshot captured on failure automatically
+- Console pane: browser logs, network errors, custom log statements
+- Run history persisted to SQLite — compare pass rates across runs
+- HTML report per run — shareable without the IDE
+
+### Git-Friendly by Design
+
+Every test artifact is a plain file:
+
+```
+test-cases/login-success.test.json
+test-suites/smoke.suite.json
+object-repository/login-page.objects.json
+```
+
+Diff test changes in PR review. Resolve conflicts in any editor. No binary formats, no proprietary databases in version control.
 
 ---
 
-## Project Structure
+## How JKAuto Compares
 
-```
-jkauto/
-├── apps/
-│   └── desktop/          # Electron app (main + preload + renderer)
-├── packages/
-│   ├── core/             # Zod schemas, IPC contract, shared types
-│   ├── engine/           # Playwright runner, keyword executor
-│   ├── project-fs/       # Read/write project files, JSON↔YAML adapter
-│   ├── storage/          # SQLite: runs.db, cache.db, index.db
-│   └── ui/               # Shared shadcn components
-└── turbo.json
-```
+| | **JKAuto** | Katalon Studio | Postman | Playwright | Cypress |
+|---|---|---|---|---|---|
+| **Visual no-code editor** | ✅ | ✅ | ✅ | ❌ | ❌ |
+| **Web UI testing** | ✅ | ✅ | ❌ | ✅ | ✅ |
+| **API testing** | ✅ | ✅ | ✅ | ⚠️ basic | ❌ |
+| **Mobile testing** | 🗓 | ✅ (paid) | ❌ | ❌ | ❌ |
+| **Desktop app testing** | 🗓 | ❌ | ❌ | ✅ Electron | ❌ |
+| **AI test generation** | ✅ | ⚠️ (paid add-on) | ❌ | ❌ | ❌ |
+| **Git-native file format** | ✅ JSON/YAML | ⚠️ XML | ❌ | ✅ | ✅ |
+| **Open source** | ✅ MIT | ❌ | ❌ | ✅ | ✅ |
+| **No install / lightweight** | ✅ | ❌ heavy JVM | ✅ | CLI only | CLI only |
+| **Data-driven testing** | ✅ | ✅ (paid) | ✅ | ✅ | ✅ |
+| **Custom keywords / plugins** | ✅ | ✅ (paid) | ✅ scripts | ✅ | ✅ |
+| **Environment profiles** | ✅ | ✅ | ✅ | manual | manual |
+| **Realtime execution log** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Run without IDE** | 🗓 CLI | ✅ | ✅ Newman | ✅ | ✅ |
+| **Price** | **Free** | Freemium / $$$  | Freemium / $$$ | Free | Free |
 
-Test project files follow this structure:
+> ✅ Supported · ⚠️ Partial / limited · ❌ Not supported · 🗓 Planned
 
-```
-MyProject/
-├── project.json
-├── profiles/
-├── test-cases/
-├── test-suites/
-├── object-repository/
-├── keywords/
-├── reports/
-└── .autotest/            # Derived cache — gitignored
-```
+**Bottom line:**
+- Katalon gives you a lot but it's Java-heavy, slow to start, and locks key features behind a paywall.
+- Postman is great for APIs but stops there.
+- Playwright and Cypress are powerful but code-first — no IDE, no visual editor, no path for non-developers.
+- JKAuto aims to be the tool where a QA engineer and a developer can both feel at home.
 
 ---
 
-## Getting Started
-
-### Prerequisites
-
-- Node.js 22+
-- pnpm 11+
-
-### Install
+## Quick Start
 
 ```bash
 git clone https://github.com/nhatcoi/jkauto.git
 cd jkauto
 pnpm install
-```
-
-### Run in development
-
-```bash
 pnpm dev
 ```
 
-### Build
-
-```bash
-pnpm build
-```
-
----
-
-## Keyboard Shortcuts
-
-| Shortcut | Action |
-|---|---|
-| `Cmd/Ctrl + N` | New Project |
-| `Cmd/Ctrl + O` | Open Project |
-| `Cmd/Ctrl + ,` | App Settings |
-| `Cmd/Ctrl + =` | Zoom In |
-| `Cmd/Ctrl + -` | Zoom Out |
-| `Cmd/Ctrl + 0` | Reset Zoom |
-| `F2` | Rename selected item |
-| `Delete` | Delete selected item |
-
----
-
-## Roadmap
-
-| Milestone | Description | Status |
-|---|---|---|
-| M0 Scaffold | Electron + Vite + shadcn, IPC contract, resizable panes | ✅ |
-| M1 Project lifecycle | Init dialog, open/recent, folder generation | ✅ |
-| M2 Explorer | FS tree, chokidar watch, context menu, file ops | ✅ |
-| M3 Test case editor | Table step editor, keyword autocomplete, dirty/undo | 🚧 |
-| M4 Engine v1 | ~15 built-in keywords, Playwright runner, realtime console | ⬜ |
-| M5 Object repo + Suites | Object editor, multi-locator, suite runner | ⬜ |
-| M6 Reports + SQLite | Run history, step results, screenshots, problems pane | ⬜ |
-| M7 Profiles + Data-driven | Env switching, CSV/JSON data binding | ⬜ |
-| M8 Cloud sync | Clerk auth, project metadata sync | ⬜ |
-| M9 AI Agent | Chat pane, generate test drafts from keyword context | ⬜ |
-| M10 Polish | Playwright recorder, import/export, plugin API | ⬜ |
+Requires Node.js 22+ and pnpm 11+. See [CONTRIBUTING.md](CONTRIBUTING.md) for dev details.
 
 ---
 
 ## Contributing
 
-Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
-
----
+Pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening one.
 
 ## Code of Conduct
 
-This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md). Be respectful.
-
----
+This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md).
 
 ## License
 
