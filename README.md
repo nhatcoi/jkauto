@@ -158,16 +158,6 @@ Diff test changes in PR review. Resolve conflicts in any editor. No binary forma
 - Playwright and Cypress are powerful but code-first — no IDE, no visual editor, no path for non-developers.
 - JKAuto aims to be the tool where a QA engineer and a developer can both feel at home.
 
-## Quick Start
-
-```bash
-git clone https://github.com/nhatcoi/jkauto.git
-cd jkauto
-pnpm install
-pnpm dev
-```
-
-Requires Node.js 22+ and pnpm 11+. See [CONTRIBUTING.md](CONTRIBUTING.md) for dev details.
 
 ---
 
