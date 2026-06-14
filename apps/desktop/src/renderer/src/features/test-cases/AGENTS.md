@@ -178,3 +178,6 @@ Clipboard = local state; UUIDs regenerated on paste.
 - Device picker = datalist (free text + suggestions) — not a fixed enum, new devices need no code change.
 - `useKeywords(platform)` filters so dropdown shows only relevant keywords for current platform.
 - `keywords.ts` only exports `fallbackKeyword()` — no longer hardcodes the list.
+
+## Recent changes
+- **Undo/Redo:** `tc` state migrated to `useHistory<TestCase>` hook. `mutate()` calls `history.update(fn)`. `setInitial()` resets stack on file load/save. `Cmd+Z` / `Cmd+Shift+Z` via `window` keydown listener (skips when focus in input). Undo/Redo buttons added to toolbar. Key files: `hooks/useHistory.ts`, `TestCaseEditor.tsx`.

@@ -173,6 +173,9 @@ Operators: `eq`, `ne`, `contains`, `not-contains`, `exists`, `not-exists`, `lt`,
 - AssertionResults computed **client-side** in renderer (no IPC round-trip needed)
 - cURL tokenizer custom-written (no dependencies) to handle edge cases from browser DevTools copy (ANSI-C quoting)
 
+## Recent changes
+- **Undo/Redo:** `request` state in `useRequestEditor` migrated to `useHistory<ApiRequest>`. Old `history` (request log) renamed to `requestLog` internally, still exported as `history`. Hook exports `undo/redo/canUndo/canRedo`. `RequestEditor` adds `window` keydown listener + Undo/Redo buttons in cURL toolbar row.
+
 ---
 
 ## ObjectEditor — `.objects.json` files

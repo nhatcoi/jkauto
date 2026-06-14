@@ -118,3 +118,6 @@ Auto-generates missing `id`, `name`, `description`, `profile`, `createdAt`, `upd
 - Profile input is a dropdown (populated from `listEnvs`) with fallback to text input if no profiles found.
 - Path column shows relative path (stripped of project root prefix) for readability.
 - Run summary badge in footer shows `N/M cases passed (Xs)` after suite run completes.
+
+## Recent changes
+- **Undo/Redo:** `suite` state in `useSuite` migrated to `useHistory<TestSuite>`. `mutate()` uses `history.update()`. `saveSuiteToFile()` calls `setInitial()` (resets history after disk save). Hook exports `undo/redo/canUndo/canRedo`. `SuiteToolbar` receives `onUndo/onRedo/canUndo/canRedo` props + shows buttons. `SuiteEditor` adds `window` keydown listener for `Cmd+Z`/`Cmd+Shift+Z`.

@@ -17,3 +17,17 @@
 
 ## Commits & Git
 - **Commit Granularity:** Separate refactorings, feature implementations, and test template updates into clean, structured commits.
+
+## Feature Documentation (AGENTS.md)
+After completing a feature or significant change, append a short note to the nearest relevant `AGENTS.md` file. One bullet per feature, format: `- **<Feature>:** <what it does, key files/hooks/IPC>`.
+
+Scope rules:
+- Change inside a single feature folder → update that folder's `AGENTS.md`  
+  e.g. `apps/desktop/src/renderer/src/features/test-cases/AGENTS.md`
+- Change spans multiple features or shared hooks/stores → update  
+  `apps/desktop/src/renderer/src/features/AGENTS.md` (create if missing)
+- Change touches main process, IPC, packages/core, or app-wide architecture → update  
+  `apps/desktop/AGENTS.md` (create if missing)
+- Cross-package or platform-level change → update root `AGENTS.md`
+
+Keep notes concise (1–2 lines). No need to document trivial fixes or style tweaks.
