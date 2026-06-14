@@ -21,6 +21,7 @@ export const AppSettingsSchema = z.object({
     .object({
       theme: z.enum(['dark', 'light', 'system']).default('dark'),
       tableDensity: z.enum(['compact', 'normal', 'relaxed']).default('normal'),
+      zoomFactor: z.number().min(0.5).max(3).default(1),
     })
     .default({}),
   explorer: z

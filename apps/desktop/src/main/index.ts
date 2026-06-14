@@ -12,6 +12,7 @@ import { registerEnvHandlers } from './handlers/env.handler'
 import { registerHistoryHandlers } from './handlers/history.handler'
 import { registerAgentHandlers } from './handlers/agent.handler'
 import { registerSettingsHandlers } from './handlers/settings.handler'
+import { setupMenu } from './menu'
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -61,10 +62,14 @@ app.whenReady().then(() => {
   registerAgentHandlers(ipcMain)
   registerSettingsHandlers(ipcMain)
 
-  createWindow()
+  const win = createWindow()
+  setupMenu(win)
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    if (BrowserWindow.getAllWindows().length === 0) {
+      const w = createWindow()
+      setupMenu(w)
+    }
   })
 })
 

@@ -7,6 +7,7 @@ interface AppSettingsStore {
   settings: AppSettings | null
   load: () => Promise<void>
   update: (patch: Partial<AppSettings>) => Promise<void>
+  syncZoom: (factor: number) => Promise<void>
 }
 
 export const useAppSettingsStore = create<AppSettingsStore>((set, get) => ({
@@ -16,6 +17,7 @@ export const useAppSettingsStore = create<AppSettingsStore>((set, get) => ({
     const settings = await invoke<AppSettings>(IpcChannels.APP_SETTINGS_GET)
     set({ settings })
     applyTheme(settings.appearance.theme)
+    invoke(IpcChannels.APP_ZOOM_SET, settings.appearance.zoomFactor)
   },
 
   update: async (patch) => {
@@ -32,6 +34,20 @@ export const useAppSettingsStore = create<AppSettingsStore>((set, get) => ({
     const saved = await invoke<AppSettings>(IpcChannels.APP_SETTINGS_SET, merged)
     set({ settings: saved })
     if (patch.appearance?.theme) applyTheme(saved.appearance.theme)
+    if (patch.appearance?.zoomFactor !== undefined) {
+      invoke(IpcChannels.APP_ZOOM_SET, saved.appearance.zoomFactor)
+    }
+  },
+
+  syncZoom: async (factor: number) => {
+    const current = get().settings
+    if (!current) return
+    const merged: AppSettings = {
+      ...current,
+      appearance: { ...current.appearance, zoomFactor: factor },
+    }
+    const saved = await invoke<AppSettings>(IpcChannels.APP_SETTINGS_SET, merged)
+    set({ settings: saved })
   },
 }))
 

@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { GitBranch, CloudOff, Activity, ChevronDown } from 'lucide-react'
 import { useProjectStore } from '@/store/project.store'
 import { EnvManagerDialog } from '@/features/env/EnvManagerDialog'
+import { useZoom } from '@/hooks/useZoom'
 
 export function StatusBar() {
   const { activeProject } = useProjectStore()
   const [envOpen, setEnvOpen] = useState(false)
+  const { zoomPercent, zoomIn, zoomOut, canZoomIn, canZoomOut } = useZoom()
 
   return (
     <>
@@ -42,6 +44,30 @@ export function StatusBar() {
         <div className="flex items-center gap-1.5 opacity-70">
           <CloudOff className="w-3 h-3" />
           <span>Not synced</span>
+        </div>
+
+        <div className="w-px h-3 bg-white/20" />
+
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={zoomOut}
+            disabled={!canZoomOut}
+            title="Zoom out (⌘-)"
+            className="w-4 h-4 flex items-center justify-center rounded hover:bg-white/10 disabled:opacity-30 transition-colors text-[11px] leading-none"
+          >
+            −
+          </button>
+          <span className="w-8 text-center tabular-nums">{zoomPercent}%</span>
+          <button
+            type="button"
+            onClick={zoomIn}
+            disabled={!canZoomIn}
+            title="Zoom in (⌘=)"
+            className="w-4 h-4 flex items-center justify-center rounded hover:bg-white/10 disabled:opacity-30 transition-colors text-[11px] leading-none"
+          >
+            +
+          </button>
         </div>
       </div>
 

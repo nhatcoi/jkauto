@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils'
 import { Label } from '@/components/ui/label'
+import { useZoom } from '@/hooks/useZoom'
 import type { AppSettings } from '@jkauto/core'
 
 interface Props {
@@ -21,6 +22,7 @@ const DENSITIES: { value: AppSettings['appearance']['tableDensity']; label: stri
 
 export function AppearanceSection({ settings, onChange }: Props) {
   const { appearance } = settings
+  const { zoomPercent, zoomIn, zoomOut, reset, canZoomIn, canZoomOut } = useZoom()
 
   return (
     <div className="space-y-5">
@@ -49,6 +51,41 @@ export function AppearanceSection({ settings, onChange }: Props) {
               <span className="text-[11px] text-foreground/80">{t.label}</span>
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Zoom */}
+      <div className="space-y-2">
+        <Label>Zoom</Label>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={zoomOut}
+            disabled={!canZoomOut}
+            className="w-7 h-7 flex items-center justify-center rounded border border-border hover:bg-secondary disabled:opacity-30 transition-colors text-sm"
+            title="Zoom out (⌘-)"
+          >
+            −
+          </button>
+          <span className="w-12 text-center text-sm tabular-nums font-medium">{zoomPercent}%</span>
+          <button
+            type="button"
+            onClick={zoomIn}
+            disabled={!canZoomIn}
+            className="w-7 h-7 flex items-center justify-center rounded border border-border hover:bg-secondary disabled:opacity-30 transition-colors text-sm"
+            title="Zoom in (⌘=)"
+          >
+            +
+          </button>
+          {zoomPercent !== 100 && (
+            <button
+              type="button"
+              onClick={reset}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors px-1"
+            >
+              Reset
+            </button>
+          )}
         </div>
       </div>
 
