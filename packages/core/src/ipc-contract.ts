@@ -82,7 +82,15 @@ export const IpcChannels = {
   APPIUM_SESSION_TAP: 'appium:session:tap',
   APPIUM_SESSION_SWIPE: 'appium:session:swipe',
   APPIUM_SESSION_DEVICES: 'appium:session:devices',
+  APPIUM_SESSION_BUTTON: 'appium:session:button',
+  APPIUM_SESSION_SCREENSHOT: 'appium:session:screenshot',
+  APPIUM_ENV_CHECK: 'appium:env:check',
   APPIUM_INSPECTOR_OPEN: 'appium:inspector:open',
+
+  // Android scrcpy mirror — H.264 stream (push events from main → renderer)
+  SCRCPY_START: 'scrcpy:start',
+  SCRCPY_STOP: 'scrcpy:stop',
+  SCRCPY_VIDEO_PACKET: 'scrcpy:video-packet',
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -340,6 +348,8 @@ export interface AppiumDriverMap {
 export interface AppiumSessionStartPayload {
   platform: 'ios' | 'android'
   deviceName: string
+  /** adb serial (e.g. emulator-5554) — required for Android mirror polling */
+  udid?: string
   platformVersion?: string
   bundleId?: string
   appPath?: string
@@ -350,10 +360,25 @@ export interface AppiumSessionInfo {
   sessionId: string
   platform: 'ios' | 'android'
   deviceName: string
+  /** adb serial, present for android sessions */
+  udid?: string
   /** Device logical size (points) for normalized → absolute coord mapping. */
   width: number
   height: number
   mjpegPort: number
+}
+
+export interface ScrcpyStartPayload {
+  serial: string
+}
+
+export interface ScrcpyVideoPacket {
+  type: 'configuration' | 'data'
+  /** H.264 codec string (e.g. "avc1.640028"), only set on configuration packets */
+  codec?: string
+  /** true = keyframe, false = delta frame, only set on data packets */
+  keyframe?: boolean
+  data: Uint8Array
 }
 
 export interface AppiumSessionStartResult {
@@ -388,6 +413,37 @@ export interface AppiumSwipePayload {
 export interface AppiumLogEvent {
   level: 'info' | 'error'
   message: string
+}
+
+/** Hardware / navigation buttons exposed in the device toolbar. */
+export type AppiumButton =
+  | 'home'
+  | 'back'
+  | 'appswitch'
+  | 'lock'
+  | 'volup'
+  | 'voldown'
+
+export interface AppiumButtonPayload {
+  button: AppiumButton
+}
+
+export interface AppiumScreenshotResult {
+  ok: boolean
+  /** base64 PNG (no data: prefix) */
+  data?: string
+  error?: string
+}
+
+/** Result of probing the host for required mobile-automation tooling. */
+export interface AppiumEnvStatus {
+  /** appium CLI resolvable on PATH */
+  appiumInstalled: boolean
+  appiumPath?: string
+  /** adb present → Android SDK platform-tools available */
+  androidSdk: boolean
+  /** xcrun present → Xcode command-line tools (iOS, macOS only) */
+  xcode: boolean
 }
 
 export interface AgentChatResult {

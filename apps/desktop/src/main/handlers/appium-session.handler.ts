@@ -1,5 +1,8 @@
 import type { IpcMain } from 'electron'
 import { execSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 import { IpcChannels } from '@jkauto/core'
 import type {
   AppiumSessionStartPayload,
@@ -8,6 +11,8 @@ import type {
   AppiumDeviceEntry,
   AppiumTapPayload,
   AppiumSwipePayload,
+  AppiumButtonPayload,
+  AppiumScreenshotResult,
 } from '@jkauto/core'
 import { getSettings } from '../services/settings.service'
 
@@ -55,6 +60,46 @@ function pointerActions(
   return [{ type: 'pointer', id: 'finger1', parameters: { pointerType: 'touch' }, actions }]
 }
 
+// Android keyevent codes for the toolbar hardware buttons.
+const ANDROID_KEYCODES: Record<string, number> = {
+  home: 3,
+  back: 4,
+  appswitch: 187,
+  lock: 26, // power
+  volup: 24,
+  voldown: 25,
+}
+
+// iOS `mobile: pressButton` names. back/appswitch have no iOS equivalent.
+const IOS_BUTTONS: Record<string, string | undefined> = {
+  home: 'home',
+  lock: 'lock',
+  volup: 'volumeUp',
+  voldown: 'volumeDown',
+  back: undefined,
+  appswitch: undefined,
+}
+
+async function pressButton(button: string): Promise<void> {
+  if (!session) throw new Error('No active session')
+  const id = session.sessionId
+  if (session.platform === 'android') {
+    const keycode = ANDROID_KEYCODES[button]
+    if (keycode == null) throw new Error(`Unsupported button: ${button}`)
+    await appiumFetch(`/session/${id}/appium/device/press_keycode`, {
+      method: 'POST',
+      body: JSON.stringify({ keycode }),
+    })
+  } else {
+    const name = IOS_BUTTONS[button]
+    if (!name) throw new Error(`Button "${button}" not available on iOS`)
+    await appiumFetch(`/session/${id}/execute/sync`, {
+      method: 'POST',
+      body: JSON.stringify({ script: 'mobile: pressButton', args: [{ name }] }),
+    })
+  }
+}
+
 function listSimulators(): AppiumDeviceEntry[] {
   try {
     const raw = execSync('xcrun simctl list devices available --json', {
@@ -85,9 +130,54 @@ function listSimulators(): AppiumDeviceEntry[] {
   }
 }
 
+// Electron GUI apps don't inherit the user's shell PATH, so a bare `adb` often
+// fails. Resolve the binary from the SDK roots; fall back to PATH lookup.
+let cachedAdb: string | null = null
+function resolveAdb(): string {
+  if (cachedAdb) return cachedAdb
+  const home = homedir()
+  const exe = process.platform === 'win32' ? 'adb.exe' : 'adb'
+  const sdkRoots = [
+    process.env['ANDROID_HOME'],
+    process.env['ANDROID_SDK_ROOT'],
+    join(home, 'Android', 'Sdk'),
+    join(home, 'Library', 'Android', 'sdk'),
+    join(home, 'AppData', 'Local', 'Android', 'Sdk'),
+  ].filter((p): p is string => !!p)
+
+  for (const root of sdkRoots) {
+    const p = join(root, 'platform-tools', exe)
+    if (existsSync(p)) return (cachedAdb = p)
+  }
+
+  for (const shell of [process.env['SHELL'] ?? '/bin/zsh', '/bin/zsh', '/bin/bash']) {
+    try {
+      const bin = execSync(`${shell} -lc "which adb"`, { encoding: 'utf-8', timeout: 3000 }).trim()
+      if (bin) return (cachedAdb = bin)
+    } catch { /* try next */ }
+  }
+  return (cachedAdb = exe) // last resort: hope it's on PATH
+}
+
+function resolveAvdName(serial: string): string {
+  // emulator-XXXX serials can report their AVD name via the emulator console protocol.
+  if (!serial.startsWith('emulator-')) return serial
+  try {
+    const raw = execSync(`"${resolveAdb()}" -s ${serial} emu avd name`, {
+      encoding: 'utf-8',
+      timeout: 3000,
+    })
+    // Output is "AVD_NAME\r\nOK\r\n" — take the first non-empty line.
+    const name = raw.split(/\r?\n/).map((s) => s.trim()).find(Boolean)
+    return name && name !== 'OK' ? name : serial
+  } catch {
+    return serial
+  }
+}
+
 function listAndroidDevices(): AppiumDeviceEntry[] {
   try {
-    const raw = execSync('adb devices', { encoding: 'utf-8', timeout: 5000 })
+    const raw = execSync(`"${resolveAdb()}" devices`, { encoding: 'utf-8', timeout: 5000 })
     return raw
       .split('\n')
       .slice(1)
@@ -95,7 +185,7 @@ function listAndroidDevices(): AppiumDeviceEntry[] {
       .filter((l) => l && l.includes('\t'))
       .map((l) => {
         const [udid, state] = l.split('\t')
-        return { udid, name: udid, platform: 'android' as const, state }
+        return { udid, name: resolveAvdName(udid), platform: 'android' as const, state }
       })
   } catch {
     return []
@@ -152,6 +242,7 @@ export function registerAppiumSessionHandlers(ipcMain: IpcMain): void {
           sessionId,
           platform: payload.platform,
           deviceName: payload.deviceName,
+          udid: payload.udid,
           width,
           height,
           mjpegPort,
@@ -205,6 +296,25 @@ export function registerAppiumSessionHandlers(ipcMain: IpcMain): void {
     })
     return { ok: true }
   })
+
+  ipcMain.handle(IpcChannels.APPIUM_SESSION_BUTTON, async (_e, payload: AppiumButtonPayload) => {
+    await pressButton(payload.button)
+    return { ok: true }
+  })
+
+  ipcMain.handle(
+    IpcChannels.APPIUM_SESSION_SCREENSHOT,
+    async (): Promise<AppiumScreenshotResult> => {
+      if (!session) return { ok: false, error: 'No active session' }
+      try {
+        const data = (await appiumFetch(`/session/${session.sessionId}/screenshot`)) as string
+        return { ok: true, data }
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) }
+      }
+    },
+  )
+
 }
 
 /** Tear down the inspector session on app quit. */

@@ -1,32 +1,65 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { IpcChannels } from '@jkauto/core'
-import type { AppiumStatus, AppiumDriverMap } from '@jkauto/core'
+import type { AppiumStatus, AppiumDriverMap, AppiumEnvStatus } from '@jkauto/core'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { useRunStore } from '@/store/run.store'
 import { useAppSettingsStore } from '@/store/app-settings.store'
 import { cn } from '@/lib/utils'
-import { CheckCircle2, AlertCircle, Download, RefreshCw, MonitorSmartphone } from 'lucide-react'
+import { AlertCircle, Smartphone, BookOpen } from 'lucide-react'
+import { DeviceMirror } from './DeviceMirror'
+import { DeviceToolbar } from './DeviceToolbar'
+import { AppiumGuideDialog } from './AppiumGuideDialog'
+import { useAppiumSession } from './useAppiumSession'
 
-const KNOWN_DRIVERS: { name: string; label: string; platform: string }[] = [
-  { name: 'uiautomator2', label: 'UiAutomator2', platform: 'Android' },
-  { name: 'xcuitest',     label: 'XCUITest',     platform: 'iOS / tvOS' },
-  { name: 'espresso',     label: 'Espresso',     platform: 'Android (alt)' },
-]
+function Banner({ children, onGuide }: { children: React.ReactNode; onGuide: () => void }) {
+  return (
+    <div className="mx-3 mt-2 rounded border border-yellow-500/30 bg-yellow-500/5 px-2.5 py-2 text-[11px] text-yellow-200/90 leading-relaxed shrink-0">
+      <div className="flex gap-1.5">
+        <AlertCircle className="w-3.5 h-3.5 text-yellow-500 shrink-0 mt-0.5" />
+        <div>
+          {children}{' '}
+          <button onClick={onGuide} className="underline text-yellow-300 hover:text-yellow-200">
+            Open guide
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function AppiumPanel() {
-  const [status, setStatus] = useState<AppiumStatus>({ running: false })
+  // --- server + env state ---
+  const [serverStatus, setServerStatus] = useState<AppiumStatus>({ running: false })
+  const [env, setEnv] = useState<AppiumEnvStatus | null>(null)
   const [busy, setBusy] = useState(false)
+  const [guideOpen, setGuideOpen] = useState(false)
   const [drivers, setDrivers] = useState<AppiumDriverMap>({})
   const [loadingDrivers, setLoadingDrivers] = useState(false)
   const [installingDriver, setInstallingDriver] = useState<string | null>(null)
-  const appiumLogs = useRunStore((s) => s.appiumLogs)
-  const addAppiumLog = useRunStore((s) => s.addAppiumLog)
   const settings = useAppSettingsStore((s) => s.settings)
+  const addAppiumLog = useRunStore((s) => s.addAppiumLog)
+
+  // --- session / mirror state ---
+  const {
+    session, devices, connecting, log,
+    connect, disconnect, tap, swipe, pressButton, screenshot, refreshDevices,
+  } = useAppiumSession()
+  const [selectedUdid, setSelectedUdid] = useState('')
+  const [bundleId, setBundleId] = useState('')
   const logRef = useRef<HTMLDivElement>(null)
+
+  const selectedDevice = devices.find((d) => d.udid === selectedUdid)
 
   const refreshStatus = useCallback(async () => {
     const s = (await window.api.invoke(IpcChannels.APPIUM_STATUS)) as AppiumStatus
-    setStatus(s)
+    setServerStatus(s)
+  }, [])
+
+  const refreshEnv = useCallback(async () => {
+    const e = (await window.api.invoke(IpcChannels.APPIUM_ENV_CHECK)) as AppiumEnvStatus
+    setEnv(e)
   }, [])
 
   const refreshDrivers = useCallback(async () => {
@@ -41,25 +74,24 @@ export function AppiumPanel() {
 
   useEffect(() => {
     void refreshStatus()
+    void refreshEnv()
     void refreshDrivers()
     const interval = setInterval(refreshStatus, 3000)
     return () => clearInterval(interval)
-  }, [refreshStatus, refreshDrivers])
+  }, [refreshStatus, refreshEnv, refreshDrivers])
 
   useEffect(() => {
-    const el = logRef.current
-    if (el) el.scrollTop = el.scrollHeight
-  }, [appiumLogs])
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
+  }, [log])
 
-  async function handleToggle() {
+  async function handleToggleServer() {
     setBusy(true)
     try {
-      if (status.running) {
-        await window.api.invoke(IpcChannels.APPIUM_STOP)
-      } else {
-        await window.api.invoke(IpcChannels.APPIUM_START)
-      }
+      await window.api.invoke(
+        serverStatus.running ? IpcChannels.APPIUM_STOP : IpcChannels.APPIUM_START,
+      )
       await refreshStatus()
+      await refreshEnv()
     } finally {
       setBusy(false)
     }
@@ -72,159 +104,175 @@ export function AppiumPanel() {
         IpcChannels.APPIUM_DRIVER_INSTALL,
         driverName,
       )) as { ok: boolean; error?: string }
-      if (!res?.ok && res?.error) {
-        addAppiumLog(`Driver install failed: ${res.error}`, 'error')
-      }
+      if (!res?.ok && res?.error) addAppiumLog(`Driver install failed: ${res.error}`, 'error')
       await refreshDrivers()
     } catch (err) {
-      addAppiumLog(
-        `Driver install error: ${err instanceof Error ? err.message : String(err)}`,
-        'error',
-      )
+      addAppiumLog(`Driver install error: ${err instanceof Error ? err.message : String(err)}`, 'error')
     } finally {
       setInstallingDriver(null)
     }
   }
 
-  const tail = appiumLogs.slice(-100)
-  const missingDrivers = KNOWN_DRIVERS.filter((d) => !drivers[d.name])
+  async function handleConnect() {
+    if (!selectedDevice) return
+    await connect({
+      platform: selectedDevice.platform,
+      deviceName: selectedDevice.name,
+      udid: selectedDevice.udid,
+      platformVersion: selectedDevice.platformVersion,
+      bundleId: bundleId.trim() || undefined,
+    })
+  }
+
+  const appiumMissing = env != null && !env.appiumInstalled
+  const noMobileSdk = env != null && !env.androidSdk && !env.xcode
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      {/* Status + toggle */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
-        <div className="flex items-center gap-2">
-          <span
-            className={cn(
-              'w-2 h-2 rounded-full shrink-0',
-              status.running ? 'bg-green-500' : 'bg-muted-foreground/40',
+    <TooltipProvider delayDuration={300}>
+      <div className="flex flex-col h-full min-h-0 overflow-hidden">
+        {/* Server status bar */}
+        <div className="flex items-center justify-between px-3 py-1.5 border-b border-border shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span
+              className={cn(
+                'w-2 h-2 rounded-full shrink-0',
+                serverStatus.running ? 'bg-green-500' : 'bg-muted-foreground/40',
+              )}
+            />
+            <span className="text-xs text-muted-foreground truncate">
+              {serverStatus.running ? `Server · PID ${serverStatus.pid ?? '?'}` : 'Server stopped'}
+            </span>
+            {settings && (
+              <span className="text-[10px] text-muted-foreground/50 font-mono truncate">
+                {settings.appium.host}:{settings.appium.port}
+              </span>
             )}
-          />
-          <span className="text-xs text-muted-foreground">
-            {status.running ? `Running · PID ${status.pid ?? '?'}` : 'Stopped'}
-          </span>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 text-xs px-2 gap-1"
+              onClick={() => setGuideOpen(true)}
+              title="Setup guide"
+            >
+              <BookOpen className="w-3 h-3" />
+              Guide
+            </Button>
+            <Button
+              size="sm"
+              variant={serverStatus.running ? 'destructive' : 'default'}
+              className="h-6 text-xs px-2"
+              disabled={busy || appiumMissing}
+              onClick={handleToggleServer}
+            >
+              {busy ? '…' : serverStatus.running ? 'Stop' : 'Start'}
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-6 text-xs px-2 gap-1"
-            disabled={!status.running}
-            onClick={() => window.api.invoke(IpcChannels.APPIUM_INSPECTOR_OPEN)}
-            title="Open device mirror & inspector"
-          >
-            <MonitorSmartphone className="w-3 h-3" />
-            Inspect
-          </Button>
-          <Button
-            size="sm"
-            variant={status.running ? 'destructive' : 'default'}
-            className="h-6 text-xs px-2"
-            disabled={busy}
-            onClick={handleToggle}
-          >
-            {busy ? '…' : status.running ? 'Stop' : 'Start'}
-          </Button>
-        </div>
-      </div>
 
-      {/* Quick config */}
-      {settings && (
-        <div className="flex gap-2 px-3 py-1.5 border-b border-border shrink-0 text-[11px] text-muted-foreground">
-          <span className="font-mono">{settings.appium.host}:{settings.appium.port}</span>
-          <span className="text-border">·</span>
-          <span>{settings.appium.logLevel}</span>
-          {settings.appium.autoStart && (
-            <>
-              <span className="text-border">·</span>
-              <span className="text-primary/70">auto-start</span>
-            </>
+        {/* Env banners */}
+        {appiumMissing && (
+          <Banner onGuide={() => setGuideOpen(true)}>
+            Appium not found. Install it with{' '}
+            <span className="font-mono">npm install -g appium</span>. Then restart the IDE so the
+            updated PATH is picked up.
+          </Banner>
+        )}
+        {!appiumMissing && noMobileSdk && (
+          <Banner onGuide={() => setGuideOpen(true)}>
+            Android SDK with emulator is required. Install Android Studio or the command-line tools.
+          </Banner>
+        )}
+
+        {/* Device mirror: in-flow toolbar bar + stream area */}
+        <div className="flex-1 min-h-0 flex flex-col bg-black/40">
+          <div className="shrink-0 flex justify-center px-2 pt-2 pb-1 overflow-x-auto">
+            <DeviceToolbar
+              session={session}
+              devices={devices}
+              selectedUdid={selectedUdid}
+              onSelectUdid={setSelectedUdid}
+              onRefreshDevices={refreshDevices}
+              onPressButton={pressButton}
+              onScreenshot={screenshot}
+            />
+          </div>
+          <div className="flex-1 min-h-0">
+            {session ? (
+              <DeviceMirror session={session} onTap={tap} onSwipe={swipe} />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground/25 select-none">
+                <Smartphone className="w-14 h-14" strokeWidth={1} />
+                <span className="text-xs">Connect device to mirror</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Connect row */}
+        <div className="px-3 py-2 border-t border-border shrink-0 flex gap-1.5">
+          <Input
+            value={bundleId}
+            onChange={(e) => setBundleId(e.target.value)}
+            placeholder="Bundle ID / package (optional)"
+            className="h-7 text-xs flex-1 min-w-0"
+            disabled={!!session}
+          />
+          {session ? (
+            <Button size="sm" variant="destructive" className="h-7 text-xs px-3" onClick={disconnect}>
+              Disconnect
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              className="h-7 text-xs px-3"
+              disabled={!selectedDevice || connecting || !serverStatus.running}
+              onClick={handleConnect}
+            >
+              {connecting ? 'Connecting…' : 'Connect'}
+            </Button>
           )}
         </div>
-      )}
 
-      {/* Drivers */}
-      <div className="border-b border-border shrink-0 px-3 py-2">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">
-            Drivers
-          </span>
-          <button
-            onClick={refreshDrivers}
-            disabled={loadingDrivers}
-            className="text-muted-foreground/50 hover:text-muted-foreground disabled:opacity-30 transition-colors"
-            title="Refresh driver list"
-          >
-            <RefreshCw className={cn('w-3 h-3', loadingDrivers && 'animate-spin')} />
-          </button>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          {KNOWN_DRIVERS.map((d) => {
-            const info = drivers[d.name]
-            const installed = !!info?.installed
-            const installing = installingDriver === d.name
-            return (
-              <div key={d.name} className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  {installed ? (
-                    <CheckCircle2 className="w-3.5 h-3.5 text-green-500 shrink-0" />
-                  ) : (
-                    <AlertCircle className="w-3.5 h-3.5 text-yellow-500 shrink-0" />
+        {/* Interaction log */}
+        <div
+          ref={logRef}
+          className="h-20 overflow-auto border-t border-border p-2 font-mono text-[10px] bg-background/20 shrink-0"
+        >
+          {log.length === 0 ? (
+            <div className="text-muted-foreground/40 italic text-center mt-2">Ready. Connect to start.</div>
+          ) : (
+            <div className="flex flex-col gap-0.5 select-text">
+              {log.slice(-60).map((l) => (
+                <div
+                  key={l.id}
+                  className={cn(
+                    'whitespace-pre-wrap leading-relaxed',
+                    l.kind === 'action' && 'text-green-400',
+                    l.kind === 'error' && 'text-red-400',
+                    l.kind === 'info' && 'text-foreground/60',
                   )}
-                  <div className="min-w-0">
-                    <span className="text-[11px] font-medium text-foreground/90">{d.label}</span>
-                    <span className="text-[10px] text-muted-foreground ml-1.5">{d.platform}</span>
-                    {info?.version && (
-                      <span className="text-[10px] text-muted-foreground/60 ml-1">v{info.version}</span>
-                    )}
-                  </div>
+                >
+                  <span className="text-muted-foreground/40 select-none">{l.time} </span>
+                  {l.message}
                 </div>
-                {!installed && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-5 text-[10px] px-1.5 gap-1 shrink-0"
-                    disabled={installing || installingDriver !== null}
-                    onClick={() => handleInstall(d.name)}
-                  >
-                    <Download className="w-2.5 h-2.5" />
-                    {installing ? 'Installing…' : 'Install'}
-                  </Button>
-                )}
-              </div>
-            )
-          })}
+              ))}
+            </div>
+          )}
         </div>
 
-        {missingDrivers.length > 0 && (
-          <p className="text-[10px] text-muted-foreground/50 mt-2 leading-relaxed">
-            Install progress streams to the Appium tab below.
-          </p>
-        )}
+        <AppiumGuideDialog
+          open={guideOpen}
+          onOpenChange={setGuideOpen}
+          env={env}
+          drivers={drivers}
+          loadingDrivers={loadingDrivers}
+          installingDriver={installingDriver}
+          onInstall={handleInstall}
+          onRefreshDrivers={refreshDrivers}
+        />
       </div>
-
-      {/* Log tail */}
-      <div ref={logRef} className="flex-1 min-h-0 overflow-auto p-2 font-mono text-[11px] bg-background/20">
-        {tail.length === 0 ? (
-          <div className="text-muted-foreground/40 italic text-center mt-8">No logs yet</div>
-        ) : (
-          <div className="flex flex-col gap-0.5 select-text">
-            {tail.map((log) => (
-              <div
-                key={log.id}
-                className={cn(
-                  'whitespace-pre-wrap leading-relaxed',
-                  log.level === 'error' ? 'text-red-400' : 'text-foreground/70',
-                )}
-              >
-                <span className="text-muted-foreground/50 select-none">[{log.time}] </span>
-                {log.message}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+    </TooltipProvider>
   )
 }

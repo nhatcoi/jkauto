@@ -48,11 +48,17 @@ export function RightPanel() {
         <div className="text-xs text-muted-foreground text-center mt-8 opacity-50">No jobs running</div>
       </TabsPrimitive.Content>
 
-      <TabsPrimitive.Content value="agent" className="flex flex-col flex-1 overflow-hidden">
+      <TabsPrimitive.Content
+        value="agent"
+        className="data-[state=active]:flex flex-col flex-1 min-h-0 overflow-hidden"
+      >
         <AgentPanel />
       </TabsPrimitive.Content>
 
-      <TabsPrimitive.Content value="appium" className="flex flex-col flex-1 overflow-hidden">
+      <TabsPrimitive.Content
+        value="appium"
+        className="data-[state=active]:flex flex-col flex-1 min-h-0 overflow-hidden"
+      >
         <AppiumPanel />
       </TabsPrimitive.Content>
     </TabsPrimitive.Root>

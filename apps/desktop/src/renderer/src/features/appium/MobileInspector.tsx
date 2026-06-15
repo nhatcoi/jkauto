@@ -58,7 +58,7 @@ export function MobileInspector() {
         </div>
         <div className="flex-1 min-h-0">
           {session ? (
-            <DeviceMirror mjpegPort={session.mjpegPort} onTap={tap} onSwipe={swipe} />
+            <DeviceMirror session={session} onTap={tap} onSwipe={swipe} />
           ) : (
             <div className="flex items-center justify-center h-full text-xs text-muted-foreground/50">
               Connect a device to start mirroring

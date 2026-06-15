@@ -5,6 +5,8 @@ import type {
   AppiumSessionStartPayload,
   AppiumSessionStartResult,
   AppiumDeviceEntry,
+  AppiumButton,
+  AppiumScreenshotResult,
 } from '@jkauto/core'
 
 export interface InteractionLogEntry {
@@ -50,7 +52,8 @@ export function useAppiumSession() {
   const connect = useCallback(
     async (payload: AppiumSessionStartPayload) => {
       setConnecting(true)
-      addLog(`Connecting to ${payload.deviceName} via WebDriverAgent…`)
+      const protocol = payload.platform === 'android' ? 'UiAutomator2' : 'WebDriverAgent'
+      addLog(`Connecting to ${payload.deviceName} via ${protocol}…`)
       try {
         const res = (await window.api.invoke(
           IpcChannels.APPIUM_SESSION_START,
@@ -59,7 +62,8 @@ export function useAppiumSession() {
         if (res.ok && res.session) {
           setSession(res.session)
           addLog('Connected', 'action')
-          addLog('Streaming through local mirror', 'action')
+          const mirrorMode = res.session.platform === 'android' ? 'adb screencap' : 'WDA MJPEG'
+          addLog(`Mirror: ${mirrorMode}`, 'action')
         } else {
           addLog(`Connect failed: ${res.error ?? 'unknown error'}`, 'error')
         }
@@ -107,6 +111,33 @@ export function useAppiumSession() {
     [addLog],
   )
 
+  const pressButton = useCallback(
+    async (button: AppiumButton) => {
+      try {
+        await window.api.invoke(IpcChannels.APPIUM_SESSION_BUTTON, { button })
+        addLog(`press ${button}`, 'action')
+      } catch (err) {
+        addLog(`press ${button} failed: ${err instanceof Error ? err.message : String(err)}`, 'error')
+      }
+    },
+    [addLog],
+  )
+
+  const screenshot = useCallback(async () => {
+    const res = (await window.api.invoke(
+      IpcChannels.APPIUM_SESSION_SCREENSHOT,
+    )) as AppiumScreenshotResult
+    if (res.ok && res.data) {
+      const a = document.createElement('a')
+      a.href = `data:image/png;base64,${res.data}`
+      a.download = `screenshot-${Date.now()}.png`
+      a.click()
+      addLog('screenshot saved', 'action')
+    } else {
+      addLog(`screenshot failed: ${res.error ?? 'unknown'}`, 'error')
+    }
+  }, [addLog])
+
   const getSource = useCallback(async () => {
     return (await window.api.invoke(IpcChannels.APPIUM_SESSION_SOURCE)) as string
   }, [])
@@ -122,6 +153,8 @@ export function useAppiumSession() {
     disconnect,
     tap,
     swipe,
+    pressButton,
+    screenshot,
     getSource,
     refreshDevices,
     clearLog,

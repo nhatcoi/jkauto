@@ -1,6 +1,10 @@
 import type { IpcMain, WebContents } from 'electron'
 import { spawn, execSync, type ChildProcess } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 import { IpcChannels } from '@jkauto/core'
+import type { AppiumEnvStatus } from '@jkauto/core'
 import { getSettings } from '../services/settings.service'
 
 let appiumProcess: ChildProcess | null = null
@@ -36,6 +40,64 @@ function getAppiumBin(): string {
   return appiumBin
 }
 
+/** Probe host for appium + Android SDK + Xcode. Non-throwing — every field is best-effort. */
+function checkEnv(): AppiumEnvStatus {
+  let appiumInstalled = false
+  let appiumPath: string | undefined
+  try {
+    appiumPath = getAppiumBin()
+    appiumInstalled = !!appiumPath
+  } catch { /* not installed */ }
+
+  const has = (cmd: string): boolean => {
+    const shells = [process.env['SHELL'] ?? '/bin/zsh', '/bin/zsh', '/bin/bash']
+    for (const shell of shells) {
+      try {
+        const out = execSync(`${shell} -lc "which ${cmd}"`, { encoding: 'utf-8', timeout: 3000 }).trim()
+        if (out) return true
+      } catch { /* try next */ }
+    }
+    return false
+  }
+
+  return {
+    appiumInstalled,
+    appiumPath,
+    androidSdk: detectAndroidSdk(has),
+    xcode: process.platform === 'darwin' ? has('xcrun') : false,
+  }
+}
+
+/**
+ * Android SDK detection. Electron GUI apps don't inherit the user's shell PATH,
+ * so `which adb` alone is unreliable. Probe, in order:
+ *  1. ANDROID_HOME / ANDROID_SDK_ROOT env vars → verify platform-tools/emulator exists
+ *  2. Standard SDK install dirs per platform
+ *  3. `adb` or `emulator` resolvable on the login-shell PATH
+ */
+function detectAndroidSdk(has: (cmd: string) => boolean): boolean {
+  const home = homedir()
+  const sdkRoots = [
+    process.env['ANDROID_HOME'],
+    process.env['ANDROID_SDK_ROOT'],
+    join(home, 'Android', 'Sdk'),              // Linux default (Android Studio)
+    join(home, 'Library', 'Android', 'sdk'),   // macOS default
+    join(home, 'AppData', 'Local', 'Android', 'Sdk'), // Windows default
+  ].filter((p): p is string => !!p)
+
+  for (const root of sdkRoots) {
+    if (
+      existsSync(join(root, 'platform-tools')) ||
+      existsSync(join(root, 'emulator')) ||
+      existsSync(join(root, 'cmdline-tools'))
+    ) {
+      return true
+    }
+  }
+
+  return has('adb') || has('emulator')
+}
+
 // The appium binary is a Node script (#!/usr/bin/env node). Electron GUI apps on
 // macOS don't inherit the shell PATH, so `env node` fails. Build an env that
 // prepends the node binary's directory so spawned appium processes can find it.
@@ -51,8 +113,31 @@ function getAppiumEnv(): NodeJS.ProcessEnv {
     } catch { /* try next */ }
   }
   const extra = ['/opt/homebrew/bin', '/usr/local/bin', nodeDir].filter(Boolean).join(':')
-  appiumEnv = { ...process.env, PATH: `${extra}:${process.env['PATH'] ?? ''}` }
+  const sdkRoot = resolveAndroidSdkRoot()
+  const sdkEnv = sdkRoot
+    ? {
+        ANDROID_HOME: sdkRoot,
+        ANDROID_SDK_ROOT: sdkRoot,
+        PATH: `${extra}:${join(sdkRoot, 'platform-tools')}:${join(sdkRoot, 'emulator')}:${process.env['PATH'] ?? ''}`,
+      }
+    : { PATH: `${extra}:${process.env['PATH'] ?? ''}` }
+  appiumEnv = { ...process.env, ...sdkEnv }
   return appiumEnv
+}
+
+/** Find the Android SDK root dir (for ANDROID_HOME export to spawned appium). */
+function resolveAndroidSdkRoot(): string | undefined {
+  const home = homedir()
+  const roots = [
+    process.env['ANDROID_HOME'],
+    process.env['ANDROID_SDK_ROOT'],
+    join(home, 'Android', 'Sdk'),
+    join(home, 'Library', 'Android', 'sdk'),
+    join(home, 'AppData', 'Local', 'Android', 'Sdk'),
+  ].filter((p): p is string => !!p)
+  return roots.find(
+    (r) => existsSync(join(r, 'platform-tools')) || existsSync(join(r, 'emulator')),
+  )
 }
 
 // eslint-disable-next-line no-control-regex
@@ -135,6 +220,8 @@ export function registerAppiumHandlers(ipcMain: IpcMain): void {
     running: appiumProcess != null,
     pid: appiumProcess?.pid,
   }))
+
+  ipcMain.handle(IpcChannels.APPIUM_ENV_CHECK, (): AppiumEnvStatus => checkEnv())
 
   ipcMain.handle(IpcChannels.APPIUM_DRIVERS_GET, () => {
     try {
