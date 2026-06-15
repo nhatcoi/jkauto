@@ -1,5 +1,5 @@
 import type { IpcMain } from 'electron'
-import { execSync } from 'node:child_process'
+import { execSync, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -13,6 +13,8 @@ import type {
   AppiumSwipePayload,
   AppiumButtonPayload,
   AppiumScreenshotResult,
+  AvdEntry,
+  AvdStartPayload,
 } from '@jkauto/core'
 import { getSettings } from '../services/settings.service'
 
@@ -159,20 +161,89 @@ function resolveAdb(): string {
   return (cachedAdb = exe) // last resort: hope it's on PATH
 }
 
-function resolveAvdName(serial: string): string {
-  // emulator-XXXX serials can report their AVD name via the emulator console protocol.
+let cachedEmulator: string | null = null
+function resolveEmulatorBin(): string {
+  if (cachedEmulator) return cachedEmulator
+  const home = homedir()
+  const exe = process.platform === 'win32' ? 'emulator.exe' : 'emulator'
+  const sdkRoots = [
+    process.env['ANDROID_HOME'],
+    process.env['ANDROID_SDK_ROOT'],
+    join(home, 'Android', 'Sdk'),
+    join(home, 'Library', 'Android', 'sdk'),
+    join(home, 'AppData', 'Local', 'Android', 'Sdk'),
+  ].filter((p): p is string => !!p)
+  for (const root of sdkRoots) {
+    const p = join(root, 'emulator', exe)
+    if (existsSync(p)) return (cachedEmulator = p)
+  }
+  for (const shell of [process.env['SHELL'] ?? '/bin/zsh', '/bin/zsh', '/bin/bash']) {
+    try {
+      const bin = execSync(`${shell} -lc "which emulator"`, { encoding: 'utf-8', timeout: 3000 }).trim()
+      if (bin) return (cachedEmulator = bin)
+    } catch { /* try next */ }
+  }
+  return (cachedEmulator = exe)
+}
+
+function listAvdNames(): string[] {
+  try {
+    const raw = execSync(`"${resolveEmulatorBin()}" -list-avds`, { encoding: 'utf-8', timeout: 5000 })
+    return raw.split('\n').map((s) => s.trim()).filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
+function getAvdNameRaw(serial: string): string {
   if (!serial.startsWith('emulator-')) return serial
   try {
-    const raw = execSync(`"${resolveAdb()}" -s ${serial} emu avd name`, {
-      encoding: 'utf-8',
-      timeout: 3000,
-    })
-    // Output is "AVD_NAME\r\nOK\r\n" — take the first non-empty line.
+    const raw = execSync(`"${resolveAdb()}" -s ${serial} emu avd name`, { encoding: 'utf-8', timeout: 3000 })
     const name = raw.split(/\r?\n/).map((s) => s.trim()).find(Boolean)
     return name && name !== 'OK' ? name : serial
   } catch {
     return serial
   }
+}
+
+function getAvdEntries(): AvdEntry[] {
+  const avdNames = listAvdNames()
+
+  const runningByAvd = new Map<string, { udid: string; state: string }>()
+  try {
+    const raw = execSync(`"${resolveAdb()}" devices`, { encoding: 'utf-8', timeout: 5000 })
+    raw
+      .split('\n')
+      .slice(1)
+      .map((l) => l.trim())
+      .filter((l) => l && l.includes('\t') && l.split('\t')[0].startsWith('emulator-'))
+      .forEach((l) => {
+        const [udid, stateStr] = l.split('\t')
+        const avdName = getAvdNameRaw(udid)
+        runningByAvd.set(avdName, { udid, state: stateStr?.trim() ?? 'offline' })
+      })
+  } catch { /* ignore */ }
+
+  return avdNames.map((avdName) => {
+    const running = runningByAvd.get(avdName)
+    if (running) {
+      const port = running.udid.split('-')[1] ?? ''
+      return {
+        avdName,
+        displayName: port ? `${avdName} (:${port})` : avdName,
+        udid: running.udid,
+        state: running.state === 'device' ? 'device' : 'offline',
+      } satisfies AvdEntry
+    }
+    return { avdName, displayName: avdName, state: 'stopped' } satisfies AvdEntry
+  })
+}
+
+function resolveAvdName(serial: string): string {
+  if (!serial.startsWith('emulator-')) return serial
+  const port = serial.split('-')[1] ?? ''
+  const baseName = getAvdNameRaw(serial)
+  return port && baseName !== serial ? `${baseName} (:${port})` : baseName
 }
 
 function listAndroidDevices(): AppiumDeviceEntry[] {
@@ -197,6 +268,17 @@ export function registerAppiumSessionHandlers(ipcMain: IpcMain): void {
     return [...listSimulators(), ...listAndroidDevices()]
   })
 
+  ipcMain.handle(IpcChannels.APPIUM_AVD_LIST, () => getAvdEntries())
+
+  ipcMain.handle(IpcChannels.APPIUM_AVD_START, (_e, payload: AvdStartPayload) => {
+    try {
+      spawn(resolveEmulatorBin(), [`@${payload.avdName}`], { detached: true, stdio: 'ignore' }).unref()
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
   ipcMain.handle(IpcChannels.APPIUM_SESSION_STATUS, () => session)
 
   ipcMain.handle(
@@ -211,6 +293,7 @@ export function registerAppiumSessionHandlers(ipcMain: IpcMain): void {
           'appium:automationName': isIos ? 'XCUITest' : 'UiAutomator2',
           'appium:deviceName': payload.deviceName,
           'appium:mjpegServerPort': mjpegPort,
+          ...(payload.udid ? { 'appium:udid': payload.udid } : {}),
           ...(payload.platformVersion ? { 'appium:platformVersion': payload.platformVersion } : {}),
           ...(payload.bundleId ? { 'appium:bundleId': payload.bundleId } : {}),
           ...(payload.appPath ? { 'appium:app': payload.appPath } : {}),

@@ -7,6 +7,8 @@ import type {
   AppiumDeviceEntry,
   AppiumButton,
   AppiumScreenshotResult,
+  AvdEntry,
+  AvdStartPayload,
 } from '@jkauto/core'
 
 export interface InteractionLogEntry {
@@ -23,6 +25,8 @@ function now() {
 export function useAppiumSession() {
   const [session, setSession] = useState<AppiumSessionInfo | null>(null)
   const [devices, setDevices] = useState<AppiumDeviceEntry[]>([])
+  const [avdEntries, setAvdEntries] = useState<AvdEntry[]>([])
+  const [bootingAvd, setBootingAvd] = useState<string | null>(null)
   const [connecting, setConnecting] = useState(false)
   const [log, setLog] = useState<InteractionLogEntry[]>([])
 
@@ -39,6 +43,27 @@ export function useAppiumSession() {
     return d
   }, [])
 
+  const refreshAvds = useCallback(async () => {
+    const entries = (await window.api.invoke(IpcChannels.APPIUM_AVD_LIST)) as AvdEntry[]
+    setAvdEntries(entries)
+    return entries
+  }, [])
+
+  const startAvd = useCallback(
+    async (avdName: string) => {
+      addLog(`Launching emulator: ${avdName}…`)
+      const res = (await window.api.invoke(IpcChannels.APPIUM_AVD_START, {
+        avdName,
+      } as AvdStartPayload)) as { ok: boolean; error?: string }
+      if (!res.ok) {
+        addLog(`Launch failed: ${res.error ?? 'unknown'}`, 'error')
+        return
+      }
+      setBootingAvd(avdName)
+    },
+    [addLog],
+  )
+
   const refreshStatus = useCallback(async () => {
     const s = (await window.api.invoke(IpcChannels.APPIUM_SESSION_STATUS)) as AppiumSessionInfo | null
     setSession(s)
@@ -47,7 +72,23 @@ export function useAppiumSession() {
   useEffect(() => {
     void refreshStatus()
     void refreshDevices()
-  }, [refreshStatus, refreshDevices])
+    void refreshAvds()
+  }, [refreshStatus, refreshDevices, refreshAvds])
+
+  // Poll adb every 3s while an emulator is booting
+  useEffect(() => {
+    if (!bootingAvd) return
+    const poll = setInterval(async () => {
+      const entries = (await window.api.invoke(IpcChannels.APPIUM_AVD_LIST)) as AvdEntry[]
+      setAvdEntries(entries)
+      const entry = entries.find((e) => e.avdName === bootingAvd)
+      if (entry?.state === 'device') {
+        addLog(`${bootingAvd} ready`, 'action')
+        setBootingAvd(null)
+      }
+    }, 3000)
+    return () => clearInterval(poll)
+  }, [bootingAvd, addLog])
 
   const connect = useCallback(
     async (payload: AppiumSessionStartPayload) => {
@@ -62,7 +103,7 @@ export function useAppiumSession() {
         if (res.ok && res.session) {
           setSession(res.session)
           addLog('Connected', 'action')
-          const mirrorMode = res.session.platform === 'android' ? 'adb screencap' : 'WDA MJPEG'
+          const mirrorMode = res.session.platform === 'android' ? 'scrcpy H.264' : 'WDA MJPEG'
           addLog(`Mirror: ${mirrorMode}`, 'action')
         } else {
           addLog(`Connect failed: ${res.error ?? 'unknown error'}`, 'error')
@@ -147,6 +188,8 @@ export function useAppiumSession() {
   return {
     session,
     devices,
+    avdEntries,
+    bootingAvd,
     connecting,
     log,
     connect,
@@ -157,6 +200,8 @@ export function useAppiumSession() {
     screenshot,
     getSource,
     refreshDevices,
+    refreshAvds,
+    startAvd,
     clearLog,
   }
 }

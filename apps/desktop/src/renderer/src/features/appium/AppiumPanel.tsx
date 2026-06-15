@@ -9,6 +9,7 @@ import { useAppSettingsStore } from '@/store/app-settings.store'
 import { cn } from '@/lib/utils'
 import { AlertCircle, Smartphone, BookOpen } from 'lucide-react'
 import { DeviceMirror } from './DeviceMirror'
+import { AndroidMirror } from './AndroidMirror'
 import { DeviceToolbar } from './DeviceToolbar'
 import { AppiumGuideDialog } from './AppiumGuideDialog'
 import { useAppiumSession } from './useAppiumSession'
@@ -43,14 +44,38 @@ export function AppiumPanel() {
 
   // --- session / mirror state ---
   const {
-    session, devices, connecting, log,
-    connect, disconnect, tap, swipe, pressButton, screenshot, refreshDevices,
+    session, devices, avdEntries, bootingAvd,
+    connecting, log,
+    connect, disconnect, tap, swipe, pressButton, screenshot,
+    refreshDevices, refreshAvds, startAvd,
   } = useAppiumSession()
-  const [selectedUdid, setSelectedUdid] = useState('')
+
+  // selectedId: "avd:<avdName>" for android, "ios:<udid>" for iOS
+  const [selectedId, setSelectedId] = useState('')
   const [bundleId, setBundleId] = useState('')
   const logRef = useRef<HTMLDivElement>(null)
+  const prevBootingRef = useRef<string | null>(null)
 
-  const selectedDevice = devices.find((d) => d.udid === selectedUdid)
+  const iosDevices = devices.filter((d) => d.platform === 'ios')
+
+  // Derived selection
+  const selectedAvd = avdEntries.find((e) => `avd:${e.avdName}` === selectedId)
+  const selectedIos = iosDevices.find((d) => `ios:${d.udid}` === selectedId)
+  const isStopped = selectedAvd?.state === 'stopped'
+  const isBooting = bootingAvd != null && selectedAvd?.avdName === bootingAvd
+  const canConnect =
+    (selectedAvd?.state === 'device') ||
+    (selectedIos?.state === 'Booted' || selectedIos?.state === 'device')
+
+  // Auto-select newly booted device
+  useEffect(() => {
+    const prev = prevBootingRef.current
+    prevBootingRef.current = bootingAvd
+    if (prev && !bootingAvd) {
+      const booted = avdEntries.find((e) => e.avdName === prev && e.state === 'device')
+      if (booted) setSelectedId(`avd:${booted.avdName}`)
+    }
+  }, [bootingAvd, avdEntries])
 
   const refreshStatus = useCallback(async () => {
     const s = (await window.api.invoke(IpcChannels.APPIUM_STATUS)) as AppiumStatus
@@ -71,6 +96,10 @@ export function AppiumPanel() {
       setLoadingDrivers(false)
     }
   }, [])
+
+  const handleRefreshDevices = useCallback(async () => {
+    await Promise.all([refreshDevices(), refreshAvds()])
+  }, [refreshDevices, refreshAvds])
 
   useEffect(() => {
     void refreshStatus()
@@ -114,14 +143,22 @@ export function AppiumPanel() {
   }
 
   async function handleConnect() {
-    if (!selectedDevice) return
-    await connect({
-      platform: selectedDevice.platform,
-      deviceName: selectedDevice.name,
-      udid: selectedDevice.udid,
-      platformVersion: selectedDevice.platformVersion,
-      bundleId: bundleId.trim() || undefined,
-    })
+    if (selectedAvd?.udid && selectedAvd.state === 'device') {
+      await connect({
+        platform: 'android',
+        deviceName: selectedAvd.avdName,
+        udid: selectedAvd.udid,
+        bundleId: bundleId.trim() || undefined,
+      })
+    } else if (selectedIos) {
+      await connect({
+        platform: 'ios',
+        deviceName: selectedIos.name,
+        udid: selectedIos.udid,
+        platformVersion: selectedIos.platformVersion,
+        bundleId: bundleId.trim() || undefined,
+      })
+    }
   }
 
   const appiumMissing = env != null && !env.appiumInstalled
@@ -185,15 +222,17 @@ export function AppiumPanel() {
           </Banner>
         )}
 
-        {/* Device mirror: in-flow toolbar bar + stream area */}
+        {/* Device mirror: toolbar + stream */}
         <div className="flex-1 min-h-0 flex flex-col bg-black/40">
           <div className="shrink-0 flex justify-center px-2 pt-2 pb-1 overflow-x-auto">
             <DeviceToolbar
               session={session}
-              devices={devices}
-              selectedUdid={selectedUdid}
-              onSelectUdid={setSelectedUdid}
-              onRefreshDevices={refreshDevices}
+              avdEntries={avdEntries}
+              iosDevices={iosDevices}
+              selectedId={selectedId}
+              onSelectId={setSelectedId}
+              bootingAvd={bootingAvd}
+              onRefreshDevices={handleRefreshDevices}
               onPressButton={pressButton}
               onScreenshot={screenshot}
             />
@@ -201,10 +240,19 @@ export function AppiumPanel() {
           <div className="flex-1 min-h-0">
             {session ? (
               <DeviceMirror session={session} onTap={tap} onSwipe={swipe} />
+            ) : selectedAvd?.state === 'device' && selectedAvd.udid ? (
+              // Mirror starts as soon as AVD is running — no Appium session needed
+              <AndroidMirror
+                serial={selectedAvd.udid}
+                onTap={session ? tap : () => {}}
+                onSwipe={session ? swipe : () => {}}
+              />
             ) : (
               <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground/25 select-none">
                 <Smartphone className="w-14 h-14" strokeWidth={1} />
-                <span className="text-xs">Connect device to mirror</span>
+                <span className="text-xs">
+                  {isBooting ? 'Booting emulator…' : 'Select a running device'}
+                </span>
               </div>
             )}
           </div>
@@ -223,11 +271,25 @@ export function AppiumPanel() {
             <Button size="sm" variant="destructive" className="h-7 text-xs px-3" onClick={disconnect}>
               Disconnect
             </Button>
+          ) : isBooting ? (
+            <Button size="sm" className="h-7 text-xs px-3" disabled>
+              Booting…
+            </Button>
+          ) : isStopped ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs px-3"
+              disabled={!!bootingAvd}
+              onClick={() => selectedAvd && startAvd(selectedAvd.avdName)}
+            >
+              Launch
+            </Button>
           ) : (
             <Button
               size="sm"
               className="h-7 text-xs px-3"
-              disabled={!selectedDevice || connecting || !serverStatus.running}
+              disabled={!canConnect || connecting || !serverStatus.running}
               onClick={handleConnect}
             >
               {connecting ? 'Connecting…' : 'Connect'}

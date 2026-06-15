@@ -86,6 +86,8 @@ export const IpcChannels = {
   APPIUM_SESSION_SCREENSHOT: 'appium:session:screenshot',
   APPIUM_ENV_CHECK: 'appium:env:check',
   APPIUM_INSPECTOR_OPEN: 'appium:inspector:open',
+  APPIUM_AVD_LIST: 'appium:avd:list',
+  APPIUM_AVD_START: 'appium:avd:start',
 
   // Android scrcpy mirror — H.264 stream (push events from main → renderer)
   SCRCPY_START: 'scrcpy:start',
@@ -334,6 +336,17 @@ export interface AgentContextSnapshot {
 export interface AgentChatPayload {
   messages: AgentMessage[]
   context?: AgentContextSnapshot
+}
+
+export interface AvdEntry {
+  avdName: string
+  displayName: string
+  udid?: string
+  state: 'stopped' | 'device' | 'offline'
+}
+
+export interface AvdStartPayload {
+  avdName: string
 }
 
 export interface AppiumStatus {
