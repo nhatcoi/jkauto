@@ -401,12 +401,13 @@ export interface AppiumSessionStartResult {
 }
 
 export interface AppiumDeviceEntry {
-  /** udid for android (adb) or iOS simulator udid */
   udid: string
   name: string
   platform: 'ios' | 'android'
   platformVersion?: string
   state?: string
+  /** iOS only: 'simulator' | 'device' */
+  kind?: 'simulator' | 'device'
 }
 
 export interface AppiumTapPayload {

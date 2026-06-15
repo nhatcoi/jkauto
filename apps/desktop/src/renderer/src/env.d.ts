@@ -3,6 +3,7 @@
 import type { IpcChannel } from '@jkauto/core'
 
 interface ElectronApi {
+  platform: string
   invoke: (channel: IpcChannel, ...args: unknown[]) => Promise<unknown>
   on: (channel: IpcChannel, callback: (...args: unknown[]) => void) => () => void
   off: (channel: IpcChannel, callback: (...args: unknown[]) => void) => void

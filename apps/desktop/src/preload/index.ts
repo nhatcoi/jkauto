@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { IpcChannel } from '@jkauto/core'
 
 const api = {
+  platform: process.platform,
   invoke: (channel: IpcChannel, ...args: unknown[]) =>
     ipcRenderer.invoke(channel, ...args),
   on: (channel: IpcChannel, callback: (...args: unknown[]) => void) => {

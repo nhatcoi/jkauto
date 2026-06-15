@@ -102,34 +102,76 @@ async function pressButton(button: string): Promise<void> {
   }
 }
 
-function listSimulators(): AppiumDeviceEntry[] {
+// Simulator UDIDs are standard UUID format; real device UDIDs are not.
+const SIM_UDID_RE = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i
+
+function isSimulatorUdid(udid: string): boolean {
+  return SIM_UDID_RE.test(udid)
+}
+
+/**
+ * List all iOS devices (simulators + real) via `xcrun xctrace list devices`.
+ * No filtering by state — every device is selectable; we auto-boot on connect.
+ */
+function listIosDevices(): AppiumDeviceEntry[] {
   try {
-    const raw = execSync('xcrun simctl list devices available --json', {
+    const raw = execSync('xcrun xctrace list devices 2>/dev/null', {
       encoding: 'utf-8',
       timeout: 8000,
+      shell: '/bin/zsh',
     })
-    const data = JSON.parse(raw) as {
-      devices: Record<string, Array<{ udid: string; name: string; state: string }>>
-    }
     const out: AppiumDeviceEntry[] = []
-    for (const [runtime, devices] of Object.entries(data.devices)) {
-      // runtime key e.g. "com.apple.CoreSimulator.SimRuntime.iOS-18-6"
-      const ver = runtime.match(/iOS-([\d-]+)/)?.[1]?.replace(/-/g, '.')
-      for (const d of devices) {
-        out.push({
-          udid: d.udid,
-          name: d.name,
-          platform: 'ios',
-          platformVersion: ver,
-          state: d.state,
-        })
-      }
+    let section: 'devices' | 'simulators' | null = null
+
+    for (const line of raw.split('\n')) {
+      const trimmed = line.trim()
+      if (trimmed === '== Devices ==') { section = 'devices'; continue }
+      if (trimmed === '== Simulators ==') { section = 'simulators'; continue }
+      if (!section || !trimmed) continue
+
+      // Format: "Name (version) [- State] (udid)".
+      // Parse from the right because names can contain parentheses.
+      const m = trimmed.match(/^(.+)\s+\(([^)]+)\)(?:\s+-\s+(.+?))?\s+\(([^)]+)\)\s*$/)
+      if (!m) continue
+      const [, name, ver, state, udid] = m
+      if (!name || !udid) continue
+      if (udid === 'host') continue  // skip Mac host entry
+
+      out.push({
+        udid,
+        name,
+        platform: 'ios',
+        platformVersion: ver,
+        state,
+        kind: section === 'simulators' ? 'simulator' : 'device',
+      })
     }
-    // Booted first
-    return out.sort((a, b) => (a.state === 'Booted' ? -1 : 0) - (b.state === 'Booted' ? -1 : 0))
+
+    // Booted simulators first, then by name
+    return out.sort((a, b) => {
+      const aBooted = a.state === 'Booted' ? -1 : 0
+      const bBooted = b.state === 'Booted' ? -1 : 0
+      return aBooted - bBooted || a.name.localeCompare(b.name)
+    })
   } catch {
     return []
   }
+}
+
+/**
+ * Boot a simulator by UDID (no-op if already booted).
+ * xcrun simctl boot exits 149 when already booted — treat that as success.
+ */
+async function ensureSimulatorBooted(udid: string): Promise<void> {
+  try {
+    execSync(`xcrun simctl boot "${udid}"`, { timeout: 60000 })
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    // exit 149 = "Unable to boot device in current state: Booted" → already booted
+    if (!msg.includes('149') && !msg.toLowerCase().includes('booted')) throw e
+  }
+  // Open Simulator.app so the user sees the screen
+  try { execSync('open -a Simulator', { timeout: 5000 }) } catch { /* non-fatal */ }
 }
 
 // Electron GUI apps don't inherit the user's shell PATH, so a bare `adb` often
@@ -265,7 +307,7 @@ function listAndroidDevices(): AppiumDeviceEntry[] {
 
 export function registerAppiumSessionHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(IpcChannels.APPIUM_SESSION_DEVICES, () => {
-    return [...listSimulators(), ...listAndroidDevices()]
+    return [...listIosDevices(), ...listAndroidDevices()]
   })
 
   ipcMain.handle(IpcChannels.APPIUM_AVD_LIST, () => getAvdEntries())
@@ -285,6 +327,16 @@ export function registerAppiumSessionHandlers(ipcMain: IpcMain): void {
     IpcChannels.APPIUM_SESSION_START,
     async (_e, payload: AppiumSessionStartPayload): Promise<AppiumSessionStartResult> => {
       if (session) return { ok: true, session }
+
+      // Auto-boot iOS simulator before connecting — no-op for real devices or already-booted sims.
+      if (payload.platform === 'ios' && payload.udid && isSimulatorUdid(payload.udid)) {
+        try {
+          await ensureSimulatorBooted(payload.udid)
+        } catch (err) {
+          return { ok: false, error: `Boot failed: ${err instanceof Error ? err.message : String(err)}` }
+        }
+      }
+
       const mjpegPort = payload.mjpegPort ?? 9100
       const isIos = payload.platform === 'ios'
       const capabilities = {

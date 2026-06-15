@@ -65,7 +65,7 @@ export function AppiumPanel() {
   const isBooting = bootingAvd != null && selectedAvd?.avdName === bootingAvd
   const canConnect =
     (selectedAvd?.state === 'device') ||
-    (selectedIos?.state === 'Booted' || selectedIos?.state === 'device')
+    selectedIos != null  // any iOS device selectable; simulator auto-boots on connect
 
   // Auto-select newly booted device
   useEffect(() => {
@@ -232,6 +232,7 @@ export function AppiumPanel() {
               selectedId={selectedId}
               onSelectId={setSelectedId}
               bootingAvd={bootingAvd}
+              showIos={window.api.platform === 'darwin'}
               onRefreshDevices={handleRefreshDevices}
               onPressButton={pressButton}
               onScreenshot={screenshot}
