@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "id": "tc-mobile-task-delete",
+  "name": "Task - Delete task",
+  "description": "Login, create a task, then delete it, verify list updates",
+  "platform": "appium",
+  "tags": ["task", "crud"],
+  "stepDelayMs": null,
+  "steps": [
+    {
+      "id": "s01",
+      "keyword": "call-test-case",
+      "description": "Login as tester",
+      "objectRef": "",
+      "input": "test-cases/login-success.test.json",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s02",
+      "keyword": "clear-text",
+      "description": "Clear task title input",
+      "objectRef": "~task-title-input",
+      "input": "",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s03",
+      "keyword": "type-text",
+      "description": "Enter task to delete",
+      "objectRef": "~task-title-input",
+      "input": "Task to be deleted",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s04",
+      "keyword": "tap",
+      "description": "Create the task",
+      "objectRef": "~task-save-button",
+      "input": "",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s05",
+      "keyword": "wait-for-element",
+      "description": "Wait for new task card at top",
+      "objectRef": "~task-card-0",
+      "input": "10000",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s06",
+      "keyword": "assert-text",
+      "description": "Confirm task exists before delete",
+      "objectRef": "~task-title-0",
+      "input": "",
+      "expected": "Task to be deleted",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s07",
+      "keyword": "tap",
+      "description": "Tap Delete on task",
+      "objectRef": "~task-delete-button-0",
+      "input": "",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s08",
+      "keyword": "wait-ms",
+      "description": "Wait for list update",
+      "objectRef": "",
+      "input": "800",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s09",
+      "keyword": "assert-hidden",
+      "description": "Verify deleted task title no longer at index 0",
+      "objectRef": "~task-title-0",
+      "input": "",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    }
+  ],
+  "createdAt": "2026-06-15T00:00:00.000Z",
+  "updatedAt": "2026-06-15T00:00:00.000Z"
+}

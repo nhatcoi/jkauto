@@ -12,7 +12,48 @@ import { registerEnvHandlers } from './handlers/env.handler'
 import { registerHistoryHandlers } from './handlers/history.handler'
 import { registerAgentHandlers } from './handlers/agent.handler'
 import { registerSettingsHandlers } from './handlers/settings.handler'
+import { registerAppiumHandlers, killAppiumOnQuit } from './handlers/appium.handler'
+import {
+  registerAppiumSessionHandlers,
+  stopAppiumSessionOnQuit,
+} from './handlers/appium-session.handler'
+import { IpcChannels } from '@jkauto/core'
 import { setupMenu } from './menu'
+
+let inspectorWindow: BrowserWindow | null = null
+
+// Detached inspector window — loads the same renderer bundle with #inspector so
+// the device mirror runs alongside the IDE instead of as a blocking modal.
+function openInspectorWindow(): void {
+  if (inspectorWindow && !inspectorWindow.isDestroyed()) {
+    inspectorWindow.focus()
+    return
+  }
+  inspectorWindow = new BrowserWindow({
+    width: 1000,
+    height: 820,
+    minWidth: 700,
+    minHeight: 500,
+    title: 'Mobile Inspector',
+    backgroundColor: '#1a1d23',
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  })
+
+  inspectorWindow.on('closed', () => {
+    inspectorWindow = null
+  })
+
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    inspectorWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}#inspector`)
+  } else {
+    inspectorWindow.loadFile(join(__dirname, '../renderer/index.html'), { hash: 'inspector' })
+  }
+}
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -61,6 +102,12 @@ app.whenReady().then(() => {
   registerHistoryHandlers(ipcMain)
   registerAgentHandlers(ipcMain)
   registerSettingsHandlers(ipcMain)
+  registerAppiumHandlers(ipcMain)
+  registerAppiumSessionHandlers(ipcMain)
+  ipcMain.handle(IpcChannels.APPIUM_INSPECTOR_OPEN, () => {
+    openInspectorWindow()
+    return { ok: true }
+  })
 
   const win = createWindow()
   setupMenu(win)
@@ -75,4 +122,9 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
+})
+
+app.on('before-quit', () => {
+  stopAppiumSessionOnQuit()
+  killAppiumOnQuit()
 })

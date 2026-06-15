@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { Bot, Play, Palette, Keyboard, X } from 'lucide-react'
+import { Bot, Play, Palette, Keyboard, Smartphone, X } from 'lucide-react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { useAppSettingsStore } from '@/store/app-settings.store'
@@ -7,15 +7,17 @@ import { AgentSection } from './sections/AgentSection'
 import { ExecutionSection } from './sections/ExecutionSection'
 import { AppearanceSection } from './sections/AppearanceSection'
 import { KeyboardSection } from './sections/KeyboardSection'
+import { AppiumSection } from './sections/AppiumSection'
 import type { AppSettings } from '@jkauto/core'
 
-type SectionId = 'agent' | 'execution' | 'appearance' | 'keyboard'
+type SectionId = 'agent' | 'execution' | 'appearance' | 'keyboard' | 'appium'
 
 const NAV: { id: SectionId; label: string; icon: React.ElementType }[] = [
   { id: 'agent',      label: 'AI Agent',    icon: Bot },
   { id: 'execution',  label: 'Execution',   icon: Play },
   { id: 'appearance', label: 'Appearance',  icon: Palette },
   { id: 'keyboard',   label: 'Shortcuts',   icon: Keyboard },
+  { id: 'appium',     label: 'Appium',      icon: Smartphone },
 ]
 
 interface Props {
@@ -44,6 +46,13 @@ export function SettingsDialog({ open, onOpenChange }: Props) {
   const handleAppearanceChange = useCallback(
     (patch: Partial<AppSettings['appearance']>) => {
       update({ appearance: { ...settings!.appearance, ...patch } })
+    },
+    [settings, update],
+  )
+
+  const handleAppiumChange = useCallback(
+    (patch: Partial<AppSettings['appium']>) => {
+      update({ appium: { ...settings!.appium, ...patch } })
     },
     [settings, update],
   )
@@ -101,6 +110,9 @@ export function SettingsDialog({ open, onOpenChange }: Props) {
               <AppearanceSection settings={settings} onChange={handleAppearanceChange} />
             )}
             {activeSection === 'keyboard' && <KeyboardSection />}
+            {activeSection === 'appium' && (
+              <AppiumSection settings={settings} onChange={handleAppiumChange} />
+            )}
           </main>
         </div>
       </DialogContent>

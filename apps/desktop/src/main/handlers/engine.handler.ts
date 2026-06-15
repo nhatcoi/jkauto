@@ -6,6 +6,7 @@ import { IpcChannels } from '@jkauto/core'
 import type { TestCase, TestSuite, Profile, RunCompleteEvent, SuiteEvent, ObjectRepository } from '@jkauto/core'
 import { runTestCase, getKeywordMeta, getAdapter } from '@jkauto/engine'
 import { getSettings } from '../services/settings.service'
+import { ensureAppiumRunning } from './appium.handler'
 import { parse as yamlParse } from 'yaml'
 
 interface ActiveRun {
@@ -106,10 +107,18 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
     const testCase = await readTestCase(filePath)
     const objectRepositories = projectPath ? await loadObjectRepositories(projectPath) : []
 
+    const resolvedVars = { ...profileVariables }
+    const platform = testCase.platform ?? 'web'
+    if (platform === 'appium') {
+      if (!resolvedVars['APPIUM_HOST']) resolvedVars['APPIUM_HOST'] = settings.appium.host
+      if (!resolvedVars['APPIUM_PORT']) resolvedVars['APPIUM_PORT'] = String(settings.appium.port)
+      if (settings.appium.autoStart) await ensureAppiumRunning(event.sender)
+    }
+
     const profile: Profile = {
       schemaVersion: 1,
       name: 'default',
-      variables: profileVariables,
+      variables: resolvedVars,
     }
 
     const runId = randomUUID()

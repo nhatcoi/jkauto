@@ -14,7 +14,12 @@ export interface TestStep {
 
 function parseJsonYaml(text: string): Partial<TestStep>[] {
   const parsed = parseYaml(text)
-  const items = Array.isArray(parsed) ? parsed : [parsed]
+  // Support full TestCase object { steps: [...] } or raw step array
+  const items: unknown[] = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray((parsed as any)?.steps)
+      ? (parsed as any).steps
+      : [parsed]
   return items.map((item: any) => ({
     keyword: item.keyword || 'click',
     description: item.description || '',

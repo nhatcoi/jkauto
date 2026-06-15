@@ -1,19 +1,21 @@
 import { useState } from 'react'
 import * as TabsPrimitive from '@radix-ui/react-tabs'
-import { BrainCircuit, ListTodo } from 'lucide-react'
+import { BrainCircuit, ListTodo, Smartphone } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTabDnd, moveItem } from '@/hooks/useTabDnd'
 import { AgentPanel } from '@/features/agent/AgentPanel'
+import { AppiumPanel } from '@/features/appium/AppiumPanel'
 
-type TabId = 'jobs' | 'agent'
+type TabId = 'jobs' | 'agent' | 'appium'
 
 const TAB_META: Record<TabId, { label: string; icon: typeof ListTodo }> = {
   jobs: { label: 'Jobs', icon: ListTodo },
   agent: { label: 'AI Agent', icon: BrainCircuit },
+  appium: { label: 'Appium', icon: Smartphone },
 }
 
 export function RightPanel() {
-  const [order, setOrder] = useState<TabId[]>(['jobs', 'agent'])
+  const [order, setOrder] = useState<TabId[]>(['jobs', 'agent', 'appium'])
   const { getTabProps, overIndex } = useTabDnd((from, to) =>
     setOrder((prev) => moveItem(prev, from, to)),
   )
@@ -48,6 +50,10 @@ export function RightPanel() {
 
       <TabsPrimitive.Content value="agent" className="flex flex-col flex-1 overflow-hidden">
         <AgentPanel />
+      </TabsPrimitive.Content>
+
+      <TabsPrimitive.Content value="appium" className="flex flex-col flex-1 overflow-hidden">
+        <AppiumPanel />
       </TabsPrimitive.Content>
     </TabsPrimitive.Root>
   )

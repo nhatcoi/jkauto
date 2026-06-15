@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "id": "tc-mobile-logout",
+  "name": "Logout - Returns to login screen",
+  "description": "Login then logout, verify login screen reappears",
+  "platform": "appium",
+  "tags": ["login", "logout", "smoke"],
+  "stepDelayMs": null,
+  "steps": [
+    {
+      "id": "s01",
+      "keyword": "call-test-case",
+      "description": "Login as tester",
+      "objectRef": "",
+      "input": "test-cases/login-success.test.json",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s02",
+      "keyword": "tap",
+      "description": "Tap Logout button",
+      "objectRef": "~logout-button",
+      "input": "",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s03",
+      "keyword": "wait-for-element",
+      "description": "Wait for login screen",
+      "objectRef": "~login-submit-button",
+      "input": "10000",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s04",
+      "keyword": "assert-visible",
+      "description": "Verify login screen visible",
+      "objectRef": "~login-submit-button",
+      "input": "",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s05",
+      "keyword": "assert-hidden",
+      "description": "Verify tasks screen no longer visible",
+      "objectRef": "~tasks-screen",
+      "input": "",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    }
+  ],
+  "createdAt": "2026-06-15T00:00:00.000Z",
+  "updatedAt": "2026-06-15T00:00:00.000Z"
+}

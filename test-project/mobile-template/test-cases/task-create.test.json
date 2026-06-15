@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "id": "tc-mobile-task-create",
+  "name": "Task - Create new task",
+  "description": "Login, create a task, verify it appears at top of list",
+  "platform": "appium",
+  "tags": ["task", "crud", "smoke"],
+  "stepDelayMs": null,
+  "steps": [
+    {
+      "id": "s01",
+      "keyword": "call-test-case",
+      "description": "Login as tester",
+      "objectRef": "",
+      "input": "test-cases/login-success.test.json",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s02",
+      "keyword": "clear-text",
+      "description": "Clear task title input",
+      "objectRef": "~task-title-input",
+      "input": "",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s03",
+      "keyword": "type-text",
+      "description": "Enter task title",
+      "objectRef": "~task-title-input",
+      "input": "Buy groceries",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s04",
+      "keyword": "clear-text",
+      "description": "Clear task note input",
+      "objectRef": "~task-note-input",
+      "input": "",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s05",
+      "keyword": "type-text",
+      "description": "Enter task note",
+      "objectRef": "~task-note-input",
+      "input": "Milk, eggs, bread",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s06",
+      "keyword": "tap",
+      "description": "Tap Create button",
+      "objectRef": "~task-save-button",
+      "input": "",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s07",
+      "keyword": "wait-for-element",
+      "description": "Wait for new task card at index 0",
+      "objectRef": "~task-card-0",
+      "input": "10000",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s08",
+      "keyword": "assert-text",
+      "description": "Verify task title in list",
+      "objectRef": "~task-title-0",
+      "input": "",
+      "expected": "Buy groceries",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s09",
+      "keyword": "assert-text",
+      "description": "Verify task note in list",
+      "objectRef": "~task-note-0",
+      "input": "",
+      "expected": "Milk, eggs, bread",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s10",
+      "keyword": "assert-text",
+      "description": "Verify form title resets to Create task",
+      "objectRef": "~task-form-title",
+      "input": "",
+      "expected": "Create task",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    }
+  ],
+  "createdAt": "2026-06-15T00:00:00.000Z",
+  "updatedAt": "2026-06-15T00:00:00.000Z"
+}

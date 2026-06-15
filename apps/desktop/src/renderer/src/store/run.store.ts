@@ -17,6 +17,13 @@ export interface EventEntry {
   message: string
 }
 
+export interface AppiumLogEntry {
+  id: string
+  time: string
+  level: 'info' | 'error'
+  message: string
+}
+
 interface RunStore {
   runId: string | null
   filePath: string | null
@@ -26,6 +33,7 @@ interface RunStore {
   stepDurations: Record<number, number>
   logs: LogEntry[]
   events: EventEntry[]
+  appiumLogs: AppiumLogEntry[]
   runHistory: RunRecord[]
   isDebugMode: boolean
   isDebugPaused: boolean
@@ -41,6 +49,9 @@ interface RunStore {
   reset: () => void
   setRunHistory: (records: RunRecord[]) => void
   appendRunRecord: (record: RunRecord) => void
+  addLog: (message: string, level?: LogEntry['level']) => void
+  addAppiumLog: (message: string, level?: AppiumLogEntry['level']) => void
+  clearAppiumLogs: () => void
 }
 
 function ts() {
@@ -60,6 +71,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
   stepDurations: {},
   logs: [],
   events: [],
+  appiumLogs: [],
   runHistory: [],
   isDebugMode: false,
   isDebugPaused: false,
@@ -225,4 +237,16 @@ export const useRunStore = create<RunStore>((set, get) => ({
 
   appendRunRecord: (record) =>
     set((state) => ({ runHistory: [record, ...state.runHistory].slice(0, 50) })),
+
+  addLog: (message, level = 'info') =>
+    set((state) => ({
+      logs: [...state.logs, { id: uid(), time: ts(), level, message }],
+    })),
+
+  addAppiumLog: (message, level = 'info') =>
+    set((state) => ({
+      appiumLogs: [...state.appiumLogs, { id: uid(), time: ts(), level, message }].slice(-500),
+    })),
+
+  clearAppiumLogs: () => set({ appiumLogs: [] }),
 }))

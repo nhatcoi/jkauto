@@ -690,6 +690,7 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
             <option value="mobile">Mobile</option>
             <option value="desktop">Desktop</option>
             <option value="api">API</option>
+            <option value="appium">Appium</option>
           </select>
         </div>
 

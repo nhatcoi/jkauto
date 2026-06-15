@@ -1,0 +1,6 @@
+# apps/desktop — main process / IPC notes
+
+- **Appium server lifecycle:** `main/handlers/appium.handler.ts` spawns/kills the Appium CLI (`appium --port`). Resolves the bin + a Node-aware PATH via login shell (Electron GUI apps don't inherit shell PATH). `freePort()` kills orphans on the port before spawn; `killAppiumOnQuit()` runs on `before-quit`. IPC: `APPIUM_START/STOP/STATUS/LOG`, `APPIUM_DRIVERS_GET`, `APPIUM_DRIVER_INSTALL`. Logs streamed to renderer (ANSI-stripped) via `APPIUM_LOG`.
+- **Appium live inspector session:** `main/handlers/appium-session.handler.ts` holds one live WDA session (independent of test runs) via raw `fetch` to the Appium server. IPC: `APPIUM_SESSION_START/STOP/STATUS/SOURCE/TAP/SWIPE/DEVICES`. Tap/swipe take normalized 0–1 coords → multiplied by device `window/rect`, sent as W3C pointer actions. Devices listed via `xcrun simctl` (iOS) + `adb devices` (Android). Session torn down on quit.
+- **Detached inspector window:** `index.ts` `openInspectorWindow()` opens a second `BrowserWindow` loading the renderer with `#inspector` hash (see `main.tsx` routing). Shares the main-process session singleton. IPC: `APPIUM_INSPECTOR_OPEN`.
+- **Engine Appium platform:** `engine.handler.ts` injects `APPIUM_HOST/PORT` into profile vars for `platform: 'appium'` test cases and calls `ensureAppiumRunning()` when `appium.autoStart` is set.

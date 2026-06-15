@@ -66,6 +66,23 @@ export const IpcChannels = {
   APP_ZOOM_GET: 'app:zoom:get',
   APP_ZOOM_SET: 'app:zoom:set',
   APP_ZOOM_CHANGED: 'app:zoom:changed',
+
+  APPIUM_START: 'appium:start',
+  APPIUM_STOP: 'appium:stop',
+  APPIUM_STATUS: 'appium:status',
+  APPIUM_LOG: 'appium:log',
+  APPIUM_DRIVERS_GET: 'appium:drivers:get',
+  APPIUM_DRIVER_INSTALL: 'appium:driver:install',
+
+  // Live inspector session (mirror + interactions), independent of test runs.
+  APPIUM_SESSION_START: 'appium:session:start',
+  APPIUM_SESSION_STOP: 'appium:session:stop',
+  APPIUM_SESSION_STATUS: 'appium:session:status',
+  APPIUM_SESSION_SOURCE: 'appium:session:source',
+  APPIUM_SESSION_TAP: 'appium:session:tap',
+  APPIUM_SESSION_SWIPE: 'appium:session:swipe',
+  APPIUM_SESSION_DEVICES: 'appium:session:devices',
+  APPIUM_INSPECTOR_OPEN: 'appium:inspector:open',
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -309,6 +326,68 @@ export interface AgentContextSnapshot {
 export interface AgentChatPayload {
   messages: AgentMessage[]
   context?: AgentContextSnapshot
+}
+
+export interface AppiumStatus {
+  running: boolean
+  pid?: number
+}
+
+export interface AppiumDriverMap {
+  [driverName: string]: { installed: boolean; version?: string }
+}
+
+export interface AppiumSessionStartPayload {
+  platform: 'ios' | 'android'
+  deviceName: string
+  platformVersion?: string
+  bundleId?: string
+  appPath?: string
+  mjpegPort?: number
+}
+
+export interface AppiumSessionInfo {
+  sessionId: string
+  platform: 'ios' | 'android'
+  deviceName: string
+  /** Device logical size (points) for normalized → absolute coord mapping. */
+  width: number
+  height: number
+  mjpegPort: number
+}
+
+export interface AppiumSessionStartResult {
+  ok: boolean
+  session?: AppiumSessionInfo
+  error?: string
+}
+
+export interface AppiumDeviceEntry {
+  /** udid for android (adb) or iOS simulator udid */
+  udid: string
+  name: string
+  platform: 'ios' | 'android'
+  platformVersion?: string
+  state?: string
+}
+
+export interface AppiumTapPayload {
+  /** normalized 0..1 coordinates relative to device screen */
+  x: number
+  y: number
+}
+
+export interface AppiumSwipePayload {
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+  durationMs?: number
+}
+
+export interface AppiumLogEvent {
+  level: 'info' | 'error'
+  message: string
 }
 
 export interface AgentChatResult {

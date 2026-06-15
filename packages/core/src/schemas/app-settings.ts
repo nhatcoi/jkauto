@@ -42,6 +42,14 @@ export const AppSettingsSchema = z.object({
       openApiImportNameSource: z.enum(['summary', 'operationId', 'methodPath']).default('summary'),
     })
     .default({}),
+  appium: z
+    .object({
+      host: z.string().default('localhost'),
+      port: z.number().int().min(1).max(65535).default(4723),
+      autoStart: z.boolean().default(false),
+      logLevel: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
+    })
+    .default({}),
   keymaps: z.record(z.array(z.string())).default({}),
 })
 

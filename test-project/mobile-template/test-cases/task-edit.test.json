@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "id": "tc-mobile-task-edit",
+  "name": "Task - Edit existing task",
+  "description": "Login, tap Edit on first task, update title/note, verify changes saved",
+  "platform": "appium",
+  "tags": ["task", "crud"],
+  "stepDelayMs": null,
+  "steps": [
+    {
+      "id": "s01",
+      "keyword": "call-test-case",
+      "description": "Login as tester",
+      "objectRef": "",
+      "input": "test-cases/login-success.test.json",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s02",
+      "keyword": "wait-for-element",
+      "description": "Wait for first task card",
+      "objectRef": "~task-card-0",
+      "input": "10000",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s03",
+      "keyword": "tap",
+      "description": "Tap Edit on first task",
+      "objectRef": "~task-edit-button-0",
+      "input": "",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s04",
+      "keyword": "wait-for-element",
+      "description": "Wait for Cancel button (confirms edit mode active)",
+      "objectRef": "~task-cancel-edit-button",
+      "input": "5000",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s05",
+      "keyword": "assert-text",
+      "description": "Verify form title shows Edit task",
+      "objectRef": "~task-form-title",
+      "input": "",
+      "expected": "Edit task",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s06",
+      "keyword": "clear-text",
+      "description": "Clear title field",
+      "objectRef": "~task-title-input",
+      "input": "",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s07",
+      "keyword": "type-text",
+      "description": "Enter updated title",
+      "objectRef": "~task-title-input",
+      "input": "Prepare mobile testcase (updated)",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s08",
+      "keyword": "clear-text",
+      "description": "Clear note field",
+      "objectRef": "~task-note-input",
+      "input": "",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s09",
+      "keyword": "type-text",
+      "description": "Enter updated note",
+      "objectRef": "~task-note-input",
+      "input": "Updated via Appium",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s10",
+      "keyword": "tap",
+      "description": "Tap Update button",
+      "objectRef": "~task-save-button",
+      "input": "",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s11",
+      "keyword": "wait-ms",
+      "description": "Wait for list re-render",
+      "objectRef": "",
+      "input": "500",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s12",
+      "keyword": "assert-text",
+      "description": "Verify updated title in list",
+      "objectRef": "~task-title-0",
+      "input": "",
+      "expected": "Prepare mobile testcase (updated)",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s13",
+      "keyword": "assert-text",
+      "description": "Verify updated note in list",
+      "objectRef": "~task-note-0",
+      "input": "",
+      "expected": "Updated via Appium",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "s14",
+      "keyword": "assert-text",
+      "description": "Verify form resets to Create task",
+      "objectRef": "~task-form-title",
+      "input": "",
+      "expected": "Create task",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    }
+  ],
+  "createdAt": "2026-06-15T00:00:00.000Z",
+  "updatedAt": "2026-06-15T00:00:00.000Z"
+}
