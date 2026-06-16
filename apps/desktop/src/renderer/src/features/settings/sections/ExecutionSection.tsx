@@ -72,6 +72,24 @@ export function ExecutionSection({ settings, onChange }: Props) {
           </p>
         </div>
 
+        {/* Browsers path */}
+        <div className="space-y-1.5">
+          <Label htmlFor="exec-browsers-path">Playwright browsers path</Label>
+          <Input
+            id="exec-browsers-path"
+            type="text"
+            spellCheck={false}
+            placeholder="Default (~/Library/Caches/ms-playwright)"
+            value={execution.browsersPath}
+            onChange={(e) => onChange({ browsersPath: e.target.value })}
+            className="w-full text-xs h-8 font-mono"
+          />
+          <p className="text-[11px] text-muted-foreground/70">
+            Custom install dir (PLAYWRIGHT_BROWSERS_PATH). Set this if browsers live
+            outside the default cache — e.g. an external drive. Leave empty to use the default.
+          </p>
+        </div>
+
         {/* Default timeout */}
         <div className="space-y-1.5">
           <Label htmlFor="exec-timeout">Default step timeout (ms)</Label>

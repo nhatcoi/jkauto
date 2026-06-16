@@ -12,6 +12,9 @@ export const AppSettingsSchema = z.object({
     .object({
       headless: z.boolean().default(false),
       browser: z.enum(['chromium', 'firefox', 'webkit']).default('chromium'),
+      /** Custom Playwright browsers dir. Sets PLAYWRIGHT_BROWSERS_PATH at run time.
+       *  Empty = use Playwright default (~/Library/Caches/ms-playwright) or inherited env. */
+      browsersPath: z.string().default(''),
       defaultTimeoutMs: z.number().int().min(0).default(30000),
       stepDelayMs: z.number().int().min(0).default(200),
       screenshotOnFail: z.boolean().default(true),

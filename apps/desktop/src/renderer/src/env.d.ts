@@ -7,6 +7,7 @@ interface ElectronApi {
   invoke: (channel: IpcChannel, ...args: unknown[]) => Promise<unknown>
   on: (channel: IpcChannel, callback: (...args: unknown[]) => void) => () => void
   off: (channel: IpcChannel, callback: (...args: unknown[]) => void) => void
+  openExternal: (url: string) => Promise<void>
 }
 
 declare global {

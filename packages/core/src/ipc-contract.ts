@@ -41,6 +41,7 @@ export const IpcChannels = {
   ENGINE_SUITE_EVENT: 'engine:suite-event',
   ENGINE_RUN_COMPLETE: 'engine:run-complete',
   ENGINE_GET_RUNS: 'engine:get-runs',
+  ENGINE_GET_ALL_RUNS: 'engine:get-all-runs',
   ENGINE_SAVE_RUN: 'engine:save-run',
   ENGINE_DEBUG_NEXT: 'engine:debug-next',
   ENGINE_GET_KEYWORDS: 'engine:get-keywords',
@@ -94,6 +95,19 @@ export const IpcChannels = {
   SCRCPY_STOP: 'scrcpy:stop',
   SCRCPY_VIDEO_PACKET: 'scrcpy:video-packet',
   SCRCPY_INJECT_TOUCH: 'scrcpy:inject-touch',
+  SCRCPY_PRESS_BUTTON: 'scrcpy:press-button',
+  SCRCPY_ENV_CHECK: 'scrcpy:env:check',
+  SCRCPY_INSTALL: 'scrcpy:install',
+  SCRCPY_LOG: 'scrcpy:log',
+
+  // iOS Simulator mirror — PNG frame polling via xcrun simctl
+  IOS_SIMULATOR_OPEN: 'ios-simulator:open',
+  IOS_SIMULATOR_SCREENSHOT: 'ios-simulator:screenshot',
+  IOS_SIMULATOR_TAP: 'ios-simulator:tap',
+  IOS_SIMULATOR_SWIPE: 'ios-simulator:swipe',
+  IDB_ENV_CHECK: 'idb:env:check',
+  IDB_INSTALL: 'idb:install',
+  IDB_LOG: 'idb:log',
 
   // Appium global install (npm install -g appium) — logs piped via APPIUM_LOG
   APPIUM_GLOBAL_INSTALL: 'appium:global-install',
@@ -212,6 +226,15 @@ export interface RunCompleteEvent {
   passedSteps: number
   failedSteps: number
   durationMs: number
+  error?: string
+}
+
+export interface StepResult {
+  stepIndex: number
+  status: 'passed' | 'failed' | 'skipped'
+  message?: string
+  screenshotPath?: string
+  durationMs?: number
 }
 
 export interface RunRecord {
@@ -224,6 +247,7 @@ export interface RunRecord {
   durationMs: number
   startedAt: string
   endedAt: string
+  stepResults?: StepResult[]
 }
 
 export interface WorkspaceState {
@@ -413,6 +437,23 @@ export interface ScrcpyInjectTouchPayload {
   pressure: number
 }
 
+export interface IosSimulatorTapPayload {
+  udid: string
+  /** normalized 0..1 coordinates relative to simulator screen */
+  x: number
+  y: number
+}
+
+export interface IosSimulatorSwipePayload {
+  udid: string
+  /** normalized 0..1 coordinates relative to simulator screen */
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+  durationMs?: number
+}
+
 export interface AppiumSessionStartResult {
   ok: boolean
   session?: AppiumSessionInfo
@@ -482,6 +523,18 @@ export interface AppiumEnvStatus {
 export interface MaestroEnvStatus {
   installed: boolean
   path?: string
+}
+
+export interface ScrcpyEnvStatus {
+  installed: boolean
+  path?: string
+}
+
+export interface IdbEnvStatus {
+  installed: boolean
+  path?: string
+  companionInstalled: boolean
+  companionPath?: string
 }
 
 export interface AgentChatResult {

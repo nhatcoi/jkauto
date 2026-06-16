@@ -7,7 +7,9 @@
     "dev": "electron-vite dev -- --no-sandbox --disable-gpu",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json"
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "fetch-scrcpy-server": "fetch-scrcpy-server 3.1",
+    "postinstall": "fetch-scrcpy-server 3.1"
   },
   "dependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",

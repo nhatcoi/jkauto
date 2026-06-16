@@ -1,3 +1,4 @@
+import './bootstrap-env' // MUST stay first — seeds PLAYWRIGHT_BROWSERS_PATH before engine/Playwright import
 import { app, BrowserWindow, shell, ipcMain } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
@@ -19,6 +20,7 @@ import {
 } from './handlers/appium-session.handler'
 import { registerScrcpyHandlers, stopScrcpyOnQuit } from './handlers/scrcpy.handler'
 import { registerMaestroHandlers } from './handlers/maestro.handler'
+import { registerMobileToolsHandlers } from './handlers/mobile-tools.handler'
 import { IpcChannels } from '@jkauto/core'
 import { setupMenu } from './menu'
 
@@ -107,6 +109,7 @@ app.whenReady().then(() => {
   registerAppiumHandlers(ipcMain)
   registerAppiumSessionHandlers(ipcMain)
   registerMaestroHandlers(ipcMain)
+  registerMobileToolsHandlers(ipcMain)
   registerScrcpyHandlers(ipcMain)
   ipcMain.handle(IpcChannels.APPIUM_INSPECTOR_OPEN, () => {
     openInspectorWindow()

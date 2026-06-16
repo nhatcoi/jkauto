@@ -1,32 +1,28 @@
 import { useState, useEffect, useCallback } from 'react'
 import { IpcChannels } from '@jkauto/core'
-import type { AppiumEnvStatus, MaestroEnvStatus } from '@jkauto/core'
+import type {
+  AppiumEnvStatus,
+  IdbEnvStatus,
+  IpcChannel,
+  MaestroEnvStatus,
+  ScrcpyEnvStatus,
+} from '@jkauto/core'
 import { AlertTriangle, Terminal, ExternalLink, RefreshCw, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-declare global {
-  interface Window {
-    api: {
-      invoke: (channel: string, ...args: unknown[]) => Promise<unknown>
-      on: (channel: string, cb: (...args: unknown[]) => void) => void
-      off: (channel: string, cb: (...args: unknown[]) => void) => void
-      openExternal: (url: string) => void
-    }
-  }
-}
-
-export type MobileEngine = 'appium' | 'maestro'
+export type MobileEngine = 'appium' | 'maestro' | 'scrcpy' | 'idb'
 
 interface EngineInfo {
   label: string
-  checkChannel: string
-  installChannel: string
-  logChannel: string
+  checkChannel: IpcChannel
+  installChannel: IpcChannel
+  logChannel: IpcChannel
   extractInstalled: (res: unknown) => boolean
   installCmd: (os: 'windows' | 'mac' | 'linux') => string | null
   installCmdLabel: (os: 'windows' | 'mac' | 'linux') => string
   guideUrl: string
+  purpose: string
   installDisabledOnWindows?: boolean
 }
 
@@ -40,6 +36,7 @@ const ENGINES: Record<MobileEngine, EngineInfo> = {
     installCmd: () => 'npm install -g appium',
     installCmdLabel: () => 'npm install -g appium',
     guideUrl: 'https://appium.io/docs/en/latest/quickstart/',
+    purpose: 'Install to run mobile tests.',
   },
   maestro: {
     label: 'Maestro',
@@ -54,6 +51,49 @@ const ENGINES: Record<MobileEngine, EngineInfo> = {
         ? 'Not supported on Windows — use WSL'
         : 'curl -Ls "https://get.maestro.mobile.dev" | bash',
     guideUrl: 'https://docs.mobile.dev/getting-started/installing-maestro',
+    purpose: 'Install to run mobile tests.',
+    installDisabledOnWindows: true,
+  },
+  scrcpy: {
+    label: 'Scrcpy',
+    checkChannel: IpcChannels.SCRCPY_ENV_CHECK,
+    installChannel: IpcChannels.SCRCPY_INSTALL,
+    logChannel: IpcChannels.SCRCPY_LOG,
+    extractInstalled: (res) => !!(res as ScrcpyEnvStatus)?.installed,
+    installCmd: (os) => {
+      if (os === 'mac') return 'brew install scrcpy'
+      if (os === 'linux') return 'sudo apt-get update && sudo apt-get install -y scrcpy'
+      return null
+    },
+    installCmdLabel: (os) => {
+      if (os === 'mac') return 'brew install scrcpy'
+      if (os === 'linux') return 'sudo apt-get install scrcpy'
+      return 'Install manually on Windows'
+    },
+    guideUrl: 'https://github.com/Genymobile/scrcpy/blob/master/doc/linux.md',
+    purpose: 'Optional: install only if you want Android mirror inside the app.',
+    installDisabledOnWindows: true,
+  },
+  idb: {
+    label: 'IDB',
+    checkChannel: IpcChannels.IDB_ENV_CHECK,
+    installChannel: IpcChannels.IDB_INSTALL,
+    logChannel: IpcChannels.IDB_LOG,
+    extractInstalled: (res) => !!(res as IdbEnvStatus)?.installed,
+    installCmd: (os) => {
+      if (os === 'mac') {
+        return 'brew tap facebook/fb && brew install idb-companion && python3 -m pip install --user fb-idb'
+      }
+      if (os === 'linux') return 'python3 -m pip install --user fb-idb'
+      return null
+    },
+    installCmdLabel: (os) => {
+      if (os === 'mac') return 'brew install idb-companion + pip install fb-idb'
+      if (os === 'linux') return 'python3 -m pip install --user fb-idb'
+      return 'Install manually on Windows'
+    },
+    guideUrl: 'https://fbidb.io/docs/installation/',
+    purpose: 'Optional: install only if you want iOS Simulator mirror and control inside the app.',
     installDisabledOnWindows: true,
   },
 }
@@ -141,7 +181,7 @@ export function EngineInstallBanner({ engine, className, onInstalled }: Props) {
         <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
           <span className="font-medium text-amber-200">{info.label} not found.</span>
-          <span className="text-muted-foreground ml-1">Install to run mobile tests.</span>
+          <span className="text-muted-foreground ml-1">{info.purpose}</span>
 
           {/* Install command */}
           <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
