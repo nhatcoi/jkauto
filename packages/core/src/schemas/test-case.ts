@@ -14,14 +14,18 @@ export const StepSchema = z.object({
 })
 export type Step = z.infer<typeof StepSchema>
 
+export const MobileTestTypeSchema = z.enum(['normal', 'yaml', 'appium'])
+export type MobileTestType = z.infer<typeof MobileTestTypeSchema>
+
 export const TestCaseSchema = z.object({
   schemaVersion: z.number().default(1),
   id: z.string(),
   name: z.string().min(1),
   description: z.string().default(''),
-  platform: PlatformSchema.optional(), // fallback = project.type tại runtime
-  device: z.string().optional(),       // mobile: e.g. "iPhone 14"; undefined = adapter default
-  stepDelayMs: z.number().int().min(0).nullable().default(null), // null = use global setting
+  platform: PlatformSchema.optional(),
+  mobileTestType: MobileTestTypeSchema.optional(), // when platform='mobile': 'normal'|'yaml'|'appium'
+  mobileYaml: z.string().optional(),              // raw Maestro YAML, used when mobileTestType='yaml'
+  stepDelayMs: z.number().int().min(0).nullable().default(null),
   tags: z.array(z.string()).default([]),
   steps: z.array(StepSchema).default([]),
   createdAt: z.string().datetime(),

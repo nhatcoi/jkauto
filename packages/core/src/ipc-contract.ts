@@ -93,6 +93,14 @@ export const IpcChannels = {
   SCRCPY_START: 'scrcpy:start',
   SCRCPY_STOP: 'scrcpy:stop',
   SCRCPY_VIDEO_PACKET: 'scrcpy:video-packet',
+
+  // Appium global install (npm install -g appium) — logs piped via APPIUM_LOG
+  APPIUM_GLOBAL_INSTALL: 'appium:global-install',
+
+  // Maestro CLI env check + install
+  MAESTRO_ENV_CHECK: 'maestro:env:check',
+  MAESTRO_INSTALL: 'maestro:install',
+  MAESTRO_LOG: 'maestro:log',
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -458,6 +466,11 @@ export interface AppiumEnvStatus {
   androidSdk: boolean
   /** xcrun present → Xcode command-line tools (iOS, macOS only) */
   xcode: boolean
+}
+
+export interface MaestroEnvStatus {
+  installed: boolean
+  path?: string
 }
 
 export interface AgentChatResult {
