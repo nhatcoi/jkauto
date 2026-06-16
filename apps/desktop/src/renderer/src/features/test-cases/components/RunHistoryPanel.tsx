@@ -1,11 +1,11 @@
-import { History, CheckCircle2, XCircle, Square, Clock, ChevronDown } from 'lucide-react'
+import { History, CheckCircle2, XCircle, Square, Clock, ChevronDown, SkipForward } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
-import type { RunRecord } from '@jkauto/core'
+import type { RunRecord, StepResult } from '@jkauto/core'
 
 interface RunHistoryPanelProps {
   records: RunRecord[]
-  embedded?: boolean  // true = inside BottomPanel tab (no outer border/max-height)
+  embedded?: boolean
 }
 
 function formatDuration(ms: number): string {
@@ -26,14 +26,46 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + formatTime(iso)
 }
 
-function StatusIcon({ status }: { status: RunRecord['status'] }) {
+function RunStatusIcon({ status }: { status: RunRecord['status'] }) {
   if (status === 'passed') return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
   if (status === 'failed') return <XCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
   return <Square className="w-3.5 h-3.5 text-amber-500 shrink-0" />
 }
 
+function StepStatusIcon({ status }: { status: StepResult['status'] }) {
+  if (status === 'passed') return <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
+  if (status === 'failed') return <XCircle className="w-3 h-3 text-red-500 shrink-0" />
+  return <SkipForward className="w-3 h-3 text-muted-foreground/40 shrink-0" />
+}
+
+function StepResultRow({ result, index }: { result: StepResult; index: number }) {
+  return (
+    <div className={cn(
+      'flex items-start gap-2 py-0.5 px-2 rounded text-xs',
+      result.status === 'failed' && 'bg-red-500/5',
+    )}>
+      <span className="text-muted-foreground/40 w-5 text-right shrink-0 mt-0.5">{index + 1}</span>
+      <StepStatusIcon status={result.status} />
+      <span className={cn(
+        'flex-1',
+        result.status === 'failed' && 'text-red-400',
+        result.status === 'skipped' && 'text-muted-foreground/40',
+      )}>
+        {result.status === 'failed' && result.message
+          ? <span className="font-mono">{result.message}</span>
+          : <span className="text-muted-foreground/60">{result.status}</span>
+        }
+      </span>
+      {result.durationMs !== undefined && (
+        <span className="text-muted-foreground/40 shrink-0">{result.durationMs}ms</span>
+      )}
+    </div>
+  )
+}
+
 function RunRow({ record }: { record: RunRecord }) {
   const [expanded, setExpanded] = useState(false)
+  const hasStepResults = (record.stepResults?.length ?? 0) > 0
 
   return (
     <div className="border-b border-border/40 last:border-0">
@@ -46,16 +78,14 @@ function RunRow({ record }: { record: RunRecord }) {
           expanded && 'bg-muted/30',
         )}
       >
-        <StatusIcon status={record.status} />
+        <RunStatusIcon status={record.status} />
 
-        <span
-          className={cn(
-            'text-xs font-medium w-14 shrink-0',
-            record.status === 'passed' && 'text-emerald-500',
-            record.status === 'failed' && 'text-red-500',
-            record.status === 'stopped' && 'text-amber-500',
-          )}
-        >
+        <span className={cn(
+          'text-xs font-medium w-14 shrink-0',
+          record.status === 'passed' && 'text-emerald-500',
+          record.status === 'failed' && 'text-red-500',
+          record.status === 'stopped' && 'text-amber-500',
+        )}>
           {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
         </span>
 
@@ -68,27 +98,30 @@ function RunRow({ record }: { record: RunRecord }) {
           {formatDuration(record.durationMs)}
         </span>
 
-        <ChevronDown
-          className={cn(
-            'w-3.5 h-3.5 text-muted-foreground/50 shrink-0 transition-transform',
-            expanded && 'rotate-180',
-          )}
-        />
+        <ChevronDown className={cn(
+          'w-3.5 h-3.5 text-muted-foreground/50 shrink-0 transition-transform',
+          expanded && 'rotate-180',
+        )} />
       </button>
 
       {expanded && (
-        <div className="px-10 pb-2 flex gap-4 text-xs text-muted-foreground">
-          <span>
-            <span className="text-emerald-500 font-medium">{record.passedSteps}</span> passed
-          </span>
-          <span>
-            <span className={record.failedSteps > 0 ? 'text-red-500 font-medium' : ''}>
-              {record.failedSteps}
-            </span>{' '}
-            failed
-          </span>
-          <span>{record.totalSteps} total</span>
-          <span className="text-muted-foreground/50 ml-auto">run {record.runId.slice(0, 8)}</span>
+        <div className="pb-2">
+          <div className="px-10 pb-1.5 flex gap-4 text-xs text-muted-foreground">
+            <span><span className="text-emerald-500 font-medium">{record.passedSteps}</span> passed</span>
+            <span>
+              <span className={record.failedSteps > 0 ? 'text-red-500 font-medium' : ''}>{record.failedSteps}</span>{' '}failed
+            </span>
+            <span>{record.totalSteps} total</span>
+            <span className="text-muted-foreground/40 ml-auto">run {record.runId.slice(0, 8)}</span>
+          </div>
+
+          {hasStepResults && (
+            <div className="mx-3 border border-border/30 rounded bg-background/30 py-1">
+              {record.stepResults!.map((r, i) => (
+                <StepResultRow key={r.stepIndex} result={r} index={i} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

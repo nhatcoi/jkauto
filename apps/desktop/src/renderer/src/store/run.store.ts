@@ -179,7 +179,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
   setDebugPaused: (paused) => set({ isDebugPaused: paused }),
 
   handleRunComplete: (event: RunCompleteEvent) => {
-    const { status, passedSteps, failedSteps, totalSteps, durationMs } = event
+    const { status, passedSteps, failedSteps, totalSteps, durationMs, error } = event
     const icon = status === 'passed' ? '✓' : status === 'stopped' ? '⏹' : '✗'
     const summaryMsg = `${icon} Run ${status} — ${passedSteps}/${totalSteps} passed, ${failedSteps} failed (${durationMs}ms)`
 
@@ -194,6 +194,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
           level: status === 'passed' ? 'success' : 'error',
           message: summaryMsg,
         },
+        ...(error ? [{ id: uid(), time: ts(), level: 'error' as const, message: `Error: ${error}` }] : []),
       ],
       events: [
         ...state.events,

@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { IpcChannels } from "@jkauto/core";
-import type { RunRecord } from "@jkauto/core";
+import type { RunRecord, StepResult } from "@jkauto/core";
 import { invoke } from "@/lib/utils";
 import { useProjectStore } from "@/store/project.store";
 import { useRunStore } from "@/store/run.store";
@@ -53,7 +53,19 @@ export function useTestCaseRun({ filePath, tcRef, serialize }: Options) {
       IpcChannels.ENGINE_RUN_COMPLETE,
       (event: any) => {
         handleRunComplete(event);
-        // Persist the run record and update in-memory history
+        const { stepStatuses, stepMessages, stepDurations } = useRunStore.getState();
+        const stepResults: StepResult[] = Object.entries(stepStatuses)
+          .map(([idx, status]) => {
+            const i = Number(idx);
+            const s = status === 'idle' || status === 'running' ? 'skipped' : status;
+            return {
+              stepIndex: i,
+              status: s as StepResult['status'],
+              message: stepMessages[i],
+              durationMs: stepDurations[i],
+            };
+          })
+          .sort((a, b) => a.stepIndex - b.stepIndex);
         const record: RunRecord = {
           runId: event.runId,
           filePath,
@@ -64,6 +76,7 @@ export function useTestCaseRun({ filePath, tcRef, serialize }: Options) {
           durationMs: event.durationMs,
           startedAt: new Date(Date.now() - event.durationMs).toISOString(),
           endedAt: new Date().toISOString(),
+          stepResults,
         };
         appendRunRecord(record);
         invoke(IpcChannels.ENGINE_SAVE_RUN, filePath, record).catch(

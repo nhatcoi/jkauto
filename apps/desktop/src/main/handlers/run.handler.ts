@@ -57,9 +57,32 @@ async function writeRuns(filePath: string, runs: RunRecord[]): Promise<void> {
   await fs.writeFile(file, JSON.stringify(runs, null, 2), 'utf-8')
 }
 
+async function getAllRunsForProject(projectPath: string): Promise<RunRecord[]> {
+  const dir = path.join(projectPath, '.autotest', 'runs')
+  try {
+    const entries = await fs.readdir(dir)
+    const results: RunRecord[] = []
+    for (const entry of entries) {
+      if (!entry.endsWith('.json')) continue
+      try {
+        const raw = await fs.readFile(path.join(dir, entry), 'utf-8')
+        const records = JSON.parse(raw) as RunRecord[]
+        results.push(...records)
+      } catch { /* skip malformed */ }
+    }
+    return results.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+  } catch {
+    return []
+  }
+}
+
 export function registerRunHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(IpcChannels.ENGINE_GET_RUNS, async (_, filePath: string) => {
     return readRuns(filePath)
+  })
+
+  ipcMain.handle(IpcChannels.ENGINE_GET_ALL_RUNS, async (_, projectPath: string) => {
+    return getAllRunsForProject(projectPath)
   })
 
   ipcMain.handle(IpcChannels.ENGINE_SAVE_RUN, async (_, filePath: string, record: RunRecord) => {

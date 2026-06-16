@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { IpcChannels } from '@jkauto/core'
-import type { RunCompleteEvent, RunRecord, StepEvent, SuiteEvent, TestSuite } from '@jkauto/core'
+import type { RunCompleteEvent, RunRecord, StepResult, StepEvent, SuiteEvent, TestSuite } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
 import { useProjectStore } from '@/store/project.store'
 import { useRunStore } from '@/store/run.store'
@@ -70,6 +70,15 @@ export function useSuiteRun(
       const event = payload as RunCompleteEvent
       handleRunComplete(event)
 
+      const { stepStatuses, stepMessages, stepDurations } = useRunStore.getState()
+      const stepResults: StepResult[] = Object.entries(stepStatuses)
+        .map(([idx, status]) => {
+          const i = Number(idx)
+          const s = status === 'idle' || status === 'running' ? 'skipped' : status
+          return { stepIndex: i, status: s as StepResult['status'], message: stepMessages[i], durationMs: stepDurations[i] }
+        })
+        .sort((a, b) => a.stepIndex - b.stepIndex)
+
       const record: RunRecord = {
         runId: event.runId,
         filePath,
@@ -80,6 +89,7 @@ export function useSuiteRun(
         durationMs: event.durationMs,
         startedAt: new Date(Date.now() - event.durationMs).toISOString(),
         endedAt: new Date().toISOString(),
+        stepResults,
       }
       appendRunRecord(record)
       invoke(IpcChannels.ENGINE_SAVE_RUN, filePath, record).catch(console.error)
