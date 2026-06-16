@@ -4,13 +4,14 @@ import { readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { IpcChannels } from '@jkauto/core'
-import type { ScrcpyStartPayload, ScrcpyInjectTouchPayload } from '@jkauto/core'
+import type { AppiumButton, ScrcpyStartPayload, ScrcpyInjectTouchPayload } from '@jkauto/core'
 import { Adb } from '@yume-chan/adb'
 import { AdbServerClient } from '@yume-chan/adb'
 import { AdbServerNodeTcpConnector } from '@yume-chan/adb-server-node-tcp'
 import { AdbScrcpyClient, AdbScrcpyOptions3_1 } from '@yume-chan/adb-scrcpy'
 import { DefaultServerPath, h264ParseConfiguration } from '@yume-chan/scrcpy'
-import type { ScrcpyControlMessageWriter } from '@yume-chan/scrcpy'
+import { AndroidKeyCode, AndroidKeyEventAction, AndroidKeyEventMeta } from '@yume-chan/scrcpy'
+import type { ScrcpyControlMessageWriter, AndroidKeyCode as AndroidKeyCodeType } from '@yume-chan/scrcpy'
 
 const hex2 = (n: number) => n.toString(16).padStart(2, '0')
 
@@ -18,12 +19,24 @@ let activeClient: { close(): Promise<void> } | null = null
 let activeController: ScrcpyControlMessageWriter | null = null
 let streamAbort: AbortController | null = null
 
+const SCRCPY_BUTTON_KEYCODES: Record<AppiumButton, AndroidKeyCodeType | undefined> = {
+  home: AndroidKeyCode.AndroidHome,
+  back: AndroidKeyCode.AndroidBack,
+  appswitch: AndroidKeyCode.AndroidAppSwitch,
+  lock: AndroidKeyCode.Power,
+  volup: AndroidKeyCode.VolumeUp,
+  voldown: AndroidKeyCode.VolumeDown,
+}
+
 function getServerBinPath(): string {
-  // Resolve server.bin relative to app root (works in dev; prod needs extraResources)
   const appRoot = app.getAppPath()
   const candidates = [
+    join(appRoot, 'node_modules', '@yume-chan', 'fetch-scrcpy-server', 'scrcpy-server-v3.1'),
     join(appRoot, 'node_modules', '@yume-chan', 'fetch-scrcpy-server', 'server.bin'),
     // pnpm hoisting fallback
+    join(appRoot, '..', '..', 'node_modules', '.pnpm',
+      '@yume-chan+fetch-scrcpy-server@1.0.0', 'node_modules',
+      '@yume-chan', 'fetch-scrcpy-server', 'scrcpy-server-v3.1'),
     join(appRoot, '..', '..', 'node_modules', '.pnpm',
       '@yume-chan+fetch-scrcpy-server@1.0.0', 'node_modules',
       '@yume-chan', 'fetch-scrcpy-server', 'server.bin'),
@@ -60,12 +73,15 @@ async function launchScrcpy(serial: string, webContents: WebContents): Promise<v
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await AdbScrcpyClient.pushServer(adb, binStream as any, DefaultServerPath)
 
+  const isEmulator = serial.startsWith('emulator-')
   const options = new AdbScrcpyOptions3_1(
     {
       video: true,
       audio: false,
       control: true,
       videoCodec: 'h264',
+      // Emulators lack hardware H264 encoder; force Google's software encoder
+      ...(isEmulator ? { videoEncoder: 'OMX.google.h264.encoder' } : {}),
       videoBitRate: 4_000_000,
       maxFps: 30,
       maxSize: 1080,
@@ -154,6 +170,21 @@ export function registerScrcpyHandlers(ipcMain: IpcMain): void {
         actionButton: 0,
         buttons: payload.action === 1 ? 0 : 1, // 0 on Up, primary button on Down/Move
       })
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  ipcMain.handle(IpcChannels.SCRCPY_PRESS_BUTTON, async (_event, button: AppiumButton) => {
+    if (!activeController) return { ok: false, error: 'no controller' }
+    const keyCode = SCRCPY_BUTTON_KEYCODES[button]
+    if (keyCode == null) return { ok: false, error: `unsupported button: ${button}` }
+
+    const event = { keyCode, repeat: 0, metaState: AndroidKeyEventMeta.None }
+    try {
+      await activeController.injectKeyCode({ ...event, action: AndroidKeyEventAction.Down })
+      await activeController.injectKeyCode({ ...event, action: AndroidKeyEventAction.Up })
       return { ok: true }
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : String(err) }

@@ -7,6 +7,7 @@ const TAP_THRESHOLD = 0.02
 
 interface Props {
   serial: string
+  screenshotRequest?: number
 }
 
 interface DecoderState {
@@ -16,7 +17,7 @@ interface DecoderState {
   configured: boolean
 }
 
-export function AndroidMirror({ serial }: Props) {
+export function AndroidMirror({ serial, screenshotRequest = 0 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const startRef = useRef<{ x: number; y: number } | null>(null)
   const stateRef = useRef<DecoderState | null>(null)
@@ -150,6 +151,16 @@ export function AndroidMirror({ serial }: Props) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serial])
+
+  useEffect(() => {
+    if (!screenshotRequest || status !== 'streaming') return
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const a = document.createElement('a')
+    a.href = canvas.toDataURL('image/png')
+    a.download = `screenshot-${Date.now()}.png`
+    a.click()
+  }, [screenshotRequest, status])
 
   function norm(e: React.MouseEvent): { x: number; y: number } | null {
     const el = canvasRef.current
