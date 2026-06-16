@@ -46,6 +46,10 @@ interface ProjectStore {
   moveTabRight: () => void
   closedTabHistory: Tab[]
 
+  // tab reload (used by agent to trigger editor re-read after writing file)
+  tabReloadKeys: Record<string, number>
+  triggerTabReload: (path: string) => void
+
   // compat (single-project patterns still used in some dialogs)
   setProject: (path: string, project: Project) => void
   clearProject: () => void
@@ -77,6 +81,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   activeProjectPath: null,
   activeProject: null,
   closedTabHistory: [],
+  tabReloadKeys: {},
+
+  triggerTabReload: (path) =>
+    set((state) => ({
+      tabReloadKeys: { ...state.tabReloadKeys, [path]: (state.tabReloadKeys[path] ?? 0) + 1 },
+    })),
 
   addProject: (path, project, activeProfile = 'default') => {
     set((state) => {

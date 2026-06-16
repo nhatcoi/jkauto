@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { parse as yamlParse, stringify as yamlStringify } from 'yaml'
 import { AlertCircle, Loader2, Trash2 } from 'lucide-react'
+import { IpcChannels } from '@jkauto/core'
 import type { AgentContextSnapshot, AgentMessage } from './types'
 import { sendAgentMessage } from './api'
 import { useAgentStore } from './store'
@@ -7,6 +9,12 @@ import { MessageList } from './MessageList'
 import { ChatInput } from './ChatInput'
 import { useProjectStore } from '@/store/project.store'
 import { useRunStore } from '@/store/run.store'
+import { invoke } from '@/lib/utils'
+import {
+  normalizeTestCase,
+  compactTestCase,
+} from '@/features/test-cases/hooks/useTestCaseFile'
+import type { TestCase } from '@/features/test-cases/types'
 
 function createMessage(role: AgentMessage['role'], content: string): AgentMessage {
   return {
@@ -15,6 +23,11 @@ function createMessage(role: AgentMessage['role'], content: string): AgentMessag
     content,
     createdAt: new Date().toISOString(),
   }
+}
+
+function isTestCasePath(p: string | null | undefined): boolean {
+  if (!p) return false
+  return p.endsWith('.test.json') || p.endsWith('.test.yaml') || p.endsWith('.test.yml')
 }
 
 export function AgentPanel() {
@@ -34,13 +47,15 @@ export function AgentPanel() {
     clear,
   } = useAgentStore()
 
-  const { activeProject, activeTabPath, openTabs } = useProjectStore()
+  const { activeProject, activeTabPath, openTabs, triggerTabReload } = useProjectStore()
   const run = useRunStore()
 
   const activeTab = useMemo(
     () => openTabs.find((tab) => tab.path === activeTabPath) ?? null,
     [activeTabPath, openTabs],
   )
+
+  const applyTargetPath = isTestCasePath(activeTabPath) ? activeTabPath : null
 
   const context = useMemo<AgentContextSnapshot>(() => ({
     activeProject: activeProject
@@ -111,6 +126,38 @@ export function AgentPanel() {
     }
   }
 
+  const handleApplySteps = useCallback(async (steps: unknown[]) => {
+    if (!applyTargetPath) throw new Error('No test case file open')
+
+    const raw = await invoke<string>(IpcChannels.FS_READ_FILE, applyTargetPath)
+    const isYaml = applyTargetPath.endsWith('.yaml') || applyTargetPath.endsWith('.yml')
+    const parsed = (isYaml ? yamlParse(raw) : JSON.parse(raw)) as Partial<TestCase>
+    const tc = normalizeTestCase(parsed)
+
+    const normalizedSteps = (steps as Array<Record<string, unknown>>).map((s) => ({
+      id: crypto.randomUUID(),
+      name: String(s.name ?? ''),
+      keyword: String(s.keyword ?? ''),
+      description: String(s.description ?? ''),
+      objectRef: String(s.objectRef ?? ''),
+      input: String(s.input ?? ''),
+      expected: String(s.expected ?? ''),
+      enabled: s.enabled !== false,
+      continueOnFailure: s.continueOnFailure === true,
+      timeout: typeof s.timeout === 'number' ? s.timeout : null,
+    }))
+
+    const updated: TestCase = {
+      ...tc,
+      steps: normalizedSteps,
+      updatedAt: new Date().toISOString(),
+    }
+
+    const serialized = yamlStringify(compactTestCase(updated))
+    await invoke(IpcChannels.FS_WRITE_FILE, applyTargetPath, serialized)
+    triggerTabReload(applyTargetPath)
+  }, [applyTargetPath, triggerTabReload])
+
   const isSending = sendState === 'sending'
 
   return (
@@ -139,7 +186,11 @@ export function AgentPanel() {
             Ask about the current project, test case, run failure, or selector.
           </div>
         ) : (
-          <MessageList messages={messages} />
+          <MessageList
+            messages={messages}
+            applyTargetPath={applyTargetPath}
+            onApplySteps={handleApplySteps}
+          />
         )}
 
         {isSending && (

@@ -15,4 +15,24 @@ When the user asks to fix a failing test, inspect the context for:
 - latest console/problems/events
 - current project type and active profile
 
-For code or JSON suggestions, produce concise valid snippets. Do not claim you applied changes unless the app confirms it.`
+## Editing test case steps
+
+When the user explicitly asks you to add, remove, reorder, or modify steps in a test case:
+1. Look at the current steps from the active file context.
+2. Produce the COMPLETE updated steps array (not a diff — include ALL steps after modification).
+3. Output the steps in a fenced code block with language tag \`apply-steps\`.
+
+Format:
+\`\`\`apply-steps
+[
+  { "keyword": "navigate-to", "description": "Go to login page", "input": "/login", "objectRef": "", "expected": "" },
+  { "keyword": "type-text", "description": "Enter username", "objectRef": "#username", "input": "admin", "expected": "" }
+]
+\`\`\`
+
+Rules for the apply-steps block:
+- Each step MUST have a "keyword" field (string, required).
+- Optional fields: "description", "objectRef", "input", "expected", "enabled" (default true), "continueOnFailure" (default false), "timeout" (default null).
+- Omit "id" — the app will generate UUIDs automatically.
+- Only output one apply-steps block per response. Add a brief explanation before the block.
+- Do NOT output apply-steps if the user only asked a question; only output it when they ask to change/add/remove steps.`

@@ -72,7 +72,7 @@ function compactStep(step: TestStep): Record<string, unknown> {
   return out
 }
 
-function compactTestCase(tc: TestCase): Record<string, unknown> {
+export function compactTestCase(tc: TestCase): Record<string, unknown> {
   const out: Record<string, unknown> = {
     schemaVersion: tc.schemaVersion,
     id: tc.id,
@@ -95,6 +95,7 @@ function compactTestCase(tc: TestCase): Record<string, unknown> {
 // Loads/saves a test case file and exposes undo/redo history + dirty tracking.
 export function useTestCaseFile(filePath: string) {
   const { markTabDirty } = useProjectStore();
+  const reloadKey = useProjectStore((s) => s.tabReloadKeys[filePath] ?? 0);
   const tcHistory = useHistory<TestCase>();
   const tc = tcHistory.state;
   const [error, setError] = useState("");
@@ -116,9 +117,10 @@ export function useTestCaseFile(filePath: string) {
     }
   }, [filePath, tcHistory.setInitial]);
 
+  // reloadKey incremented by triggerTabReload (e.g. after agent applies steps)
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, reloadKey]);
 
   const mutate = useCallback(
     (fn: (prev: TestCase) => TestCase) => {
