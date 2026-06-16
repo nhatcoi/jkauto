@@ -16,7 +16,8 @@ export interface TestCase {
   name: string
   description: string
   platform?: 'web' | 'mobile' | 'desktop' | 'api' | 'appium'
-  device?: string
+  mobileTestType?: 'normal' | 'yaml' | 'appium'
+  mobileYaml?: string
   stepDelayMs?: number | null
   steps: TestStep[]
 }

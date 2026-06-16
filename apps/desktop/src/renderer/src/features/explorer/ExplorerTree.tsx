@@ -575,7 +575,7 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
     [],
   )
 
-  const handleCreateItem = async (name: string) => {
+  const handleCreateItem = async (name: string, platform?: string, mobileTestType?: string) => {
     if (!newItemState) return
     const { dir, type } = newItemState
     const displayName = stripKnownExtension(name, type)
@@ -585,8 +585,19 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
       await invoke(IpcChannels.FS_CREATE_DIR, pathJoin(dir, key), displayName)
     } else if (type === 'test-case') {
       const fileName = `${key}.test.json`
+      const now = new Date().toISOString()
       const content = JSON.stringify(
-        { schemaVersion: 1, id: randomUUID(), name: displayName, description: '', steps: [] },
+        {
+          schemaVersion: 1,
+          id: randomUUID(),
+          name: displayName,
+          description: '',
+          ...(platform ? { platform } : {}),
+          ...(mobileTestType ? { mobileTestType } : {}),
+          steps: [],
+          createdAt: now,
+          updatedAt: now,
+        },
         null,
         2,
       )

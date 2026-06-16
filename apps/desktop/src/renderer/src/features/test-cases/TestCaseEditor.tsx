@@ -1,175 +1,84 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import {
-  Plus,
-  ChevronUp,
-  ChevronDown,
-  Save,
-  Play,
-  Bug,
-  CircleCheck,
-  CircleX,
-  Circle,
-  Loader2,
-  Square,
-  Upload,
-  AlertCircle,
-  StepForward,
-  Undo2,
-  Redo2,
-} from "lucide-react";
-import { useHistory } from "@/hooks/useHistory";
-import { cn } from "@/lib/utils";
-import { invoke } from "@/lib/utils";
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from "@/components/ui/tooltip";
-import { Kbd } from "@/components/ui/kbd";
+import { useEffect } from "react";
+import { AlertCircle } from "lucide-react";
 import { useSettingsKeymap } from "@/hooks/useSettingsKeymap";
 import { TEST_CASE_KEYMAPS, KEYMAP_SCOPES } from "@/shared/keymaps";
-import { parse as yamlParse, stringify as yamlStringify } from "yaml";
-import { IpcChannels } from "@jkauto/core";
-import type { RunRecord, Platform } from "@jkauto/core";
 import { useProjectStore } from "@/store/project.store";
-import { useRunStore } from "@/store/run.store";
-import type { StepStatus } from "@/store/run.store";
-import { getKeyword } from "./keywords";
 import { useKeywords } from "./hooks/useKeywords";
 import { useObjectItems } from "./hooks/useObjectItems";
-import { readEnv } from "@/features/env/api";
+import { useTestCaseFile } from "./hooks/useTestCaseFile";
+import { useTestCaseRun } from "./hooks/useTestCaseRun";
+import { useStepEditor } from "./hooks/useStepEditor";
+import { useStepDragDrop } from "./hooks/useStepDragDrop";
+import { useStepContextMenu } from "./hooks/useStepContextMenu";
 import { ImportStepsDialog } from "./components/ImportStepsDialog";
 import { CallTestCaseDialog } from "./components/CallTestCaseDialog";
-import { StepRow } from "./components/StepRow";
 import { StepContextMenu } from "./components/StepContextMenu";
-import type { TestCase, TestStep } from "./types";
-
-function makeStep(keyword = "click"): TestStep {
-  return {
-    id: crypto.randomUUID(),
-    keyword,
-    description: "",
-    objectRef: "",
-    input: "",
-    expected: "",
-    enabled: true,
-    continueOnFailure: false,
-    timeout: null,
-  };
-}
+import { EngineInstallBanner } from "@/components/engine-install/EngineInstallBanner";
+import { TestCaseToolbar } from "./components/TestCaseToolbar";
+import { MobileYamlEditor } from "./components/MobileYamlEditor";
+import { StepTable } from "./components/StepTable";
 
 export function TestCaseEditor({ filePath }: { filePath: string }) {
   const { markTabDirty, activeProject } = useProjectStore();
+
+  const { tc, tcRef, tcHistory, error, saving, mutate, save, serialize } =
+    useTestCaseFile(filePath);
+
+  const platform = tc?.platform ?? activeProject?.project.type;
+  // For keyword filtering: normal/yaml mode shows 'mobile' DSL keywords; appium shows 'appium' keywords.
+  const effectivePlatform =
+    platform === "mobile"
+      ? tc?.mobileTestType === "appium"
+        ? ("appium" as const)
+        : ("mobile" as const)
+      : platform;
+  const keywords = useKeywords(effectivePlatform);
+  const objectItems = useObjectItems(activeProject?.path);
+
   const {
-    startRun,
-    handleStepEvent,
-    handleRunComplete,
-    stopRun,
-    status: runStatus,
+    runStatus,
     stepStatuses,
     stepMessages,
-    runId,
-    setRunHistory,
-    appendRunRecord,
     isDebugMode,
     isDebugPaused,
-  } = useRunStore();
+    handleRun,
+    handleStop,
+    handleDebugNext,
+  } = useTestCaseRun({ filePath, tcRef, serialize });
 
-  const tcHistory = useHistory<TestCase>();
-  const tc = tcHistory.state;
-  const platform = tc?.platform ?? activeProject?.project.type;
-  const keywords = useKeywords(platform);
-  const objectItems = useObjectItems(activeProject?.path);
-  const [error, setError] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
-  const [showImport, setShowImport] = useState(false);
-  const [showCallDialog, setShowCallDialog] = useState(false);
-  const [callDialogTargetIdx, setCallDialogTargetIdx] = useState<number | null>(
-    null,
-  );
+  const {
+    selectedIdx,
+    setSelectedIdx,
+    clipboard,
+    showImport,
+    setShowImport,
+    showCallDialog,
+    setShowCallDialog,
+    updateStep,
+    addStep,
+    deleteStep,
+    moveStep,
+    handleImport,
+    duplicateStep,
+    insertStepBefore,
+    insertStepAfter,
+    copyStep,
+    cutStep,
+    pasteStepBefore,
+    pasteStepAfter,
+    toggleFailureHandling,
+    openCallDialog,
+    handleCallTestCaseSelect,
+  } = useStepEditor({ tc, mutate });
 
-  // Drag and Drop State
-  const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
-  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const dragDrop = useStepDragDrop({ mutate, setSelectedIdx });
+  const { contextMenu, handleContextMenu, closeContextMenu } =
+    useStepContextMenu(setSelectedIdx);
 
-  // Context Menu and Clipboard State
-  const [clipboard, setClipboard] = useState<Partial<TestStep> | null>(null);
-  const [contextMenu, setContextMenu] = useState<{
-    x: number;
-    y: number;
-    visible: boolean;
-    stepIdx: number;
-  } | null>(null);
-
-  // keep ref for save callback (avoids stale closure in keydown)
-  const tcRef = useRef<TestCase | null>(null);
-  tcRef.current = tc;
-
-  const isYaml = filePath.endsWith(".yaml") || filePath.endsWith(".yml");
-
-  const load = useCallback(async () => {
-    try {
-      setError("");
-      const raw = await invoke<string>(IpcChannels.FS_READ_FILE, filePath);
-      const parsed = (isYaml ? yamlParse(raw) : JSON.parse(raw)) as TestCase;
-      tcHistory.setInitial(parsed);
-      setSelectedIdx(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load");
-    }
-  }, [filePath, isYaml, tcHistory.setInitial]);
-
-  // Load run history whenever the file changes
+  // Reset step selection whenever a different file is opened.
   useEffect(() => {
-    invoke<RunRecord[]>(IpcChannels.ENGINE_GET_RUNS, filePath)
-      .then((records) => setRunHistory(records ?? []))
-      .catch(() => setRunHistory([]));
-  }, [filePath, setRunHistory]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  // Subscribe to engine events
-  useEffect(() => {
-    const offStep = window.api.on(
-      IpcChannels.ENGINE_STEP_EVENT,
-      (event: any) => {
-        handleStepEvent(event);
-      },
-    );
-    // ENGINE_DEBUG_NEXT from main signals engine is paused — store already tracks via handleStepEvent
-    // We just need to unsub on cleanup; the actual pause state is managed in run.store
-    const offDebugNext = window.api.on(IpcChannels.ENGINE_DEBUG_NEXT, () => {});
-    const offComplete = window.api.on(
-      IpcChannels.ENGINE_RUN_COMPLETE,
-      (event: any) => {
-        handleRunComplete(event);
-        // Persist the run record and update in-memory history
-        const record: RunRecord = {
-          runId: event.runId,
-          filePath,
-          status: event.status,
-          totalSteps: event.totalSteps,
-          passedSteps: event.passedSteps,
-          failedSteps: event.failedSteps,
-          durationMs: event.durationMs,
-          startedAt: new Date(Date.now() - event.durationMs).toISOString(),
-          endedAt: new Date().toISOString(),
-        };
-        appendRunRecord(record);
-        invoke(IpcChannels.ENGINE_SAVE_RUN, filePath, record).catch(
-          console.error,
-        );
-      },
-    );
-    return () => {
-      offStep();
-      offDebugNext();
-      offComplete();
-    };
-  }, [filePath, handleStepEvent, handleRunComplete, appendRunRecord]);
+    setSelectedIdx(null);
+  }, [filePath, setSelectedIdx]);
 
   // Undo / Redo — skip when focus is inside a text field (let browser handle native undo there)
   useEffect(() => {
@@ -177,140 +86,22 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
       const inEditable =
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement ||
-        (e.target as HTMLElement).isContentEditable
-      if (inEditable) return
-      const mod = e.metaKey || e.ctrlKey
-      if (mod && !e.shiftKey && e.key.toLowerCase() === 'z') {
-        e.preventDefault()
-        tcHistory.undo()
-        markTabDirty(filePath, true)
-      } else if (mod && e.shiftKey && e.key.toLowerCase() === 'z') {
-        e.preventDefault()
-        tcHistory.redo()
-        markTabDirty(filePath, true)
+        (e.target as HTMLElement).isContentEditable;
+      if (inEditable) return;
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && !e.shiftKey && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        tcHistory.undo();
+        markTabDirty(filePath, true);
+      } else if (mod && e.shiftKey && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        tcHistory.redo();
+        markTabDirty(filePath, true);
       }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [tcHistory.undo, tcHistory.redo, filePath, markTabDirty])
-
-  const handleRun = useCallback(
-    async (debugMode = false) => {
-      if (runStatus === "running") return;
-      const current = tcRef.current;
-      if (current) {
-        const content = isYaml
-          ? yamlStringify(current)
-          : JSON.stringify(current, null, 2);
-        await invoke(IpcChannels.FS_WRITE_FILE, filePath, content);
-        markTabDirty(filePath, false);
-      }
-      let profileVariables: Record<string, string> = {};
-      if (activeProject) {
-        try {
-          profileVariables = await readEnv(
-            `${activeProject.path}/profiles/${activeProject.activeProfile}.env.json`,
-          );
-        } catch {
-          /* profile missing — ignore */
-        }
-      }
-      const result = await invoke<{ runId: string }>(
-        IpcChannels.ENGINE_RUN_CASE,
-        {
-          filePath,
-          debugMode,
-          profileVariables,
-          projectPath: activeProject?.path,
-          device: tcRef.current?.device,
-        },
-      );
-      startRun(result.runId, filePath, debugMode);
-    },
-    [filePath, runStatus, markTabDirty, startRun, activeProject, isYaml],
-  );
-
-  const handleStop = useCallback(async () => {
-    if (!runId) return;
-    await invoke(IpcChannels.ENGINE_STOP, runId);
-    stopRun();
-  }, [runId, stopRun]);
-
-  const handleDebugNext = useCallback(async () => {
-    if (!runId) return;
-    await invoke(IpcChannels.ENGINE_DEBUG_NEXT, runId);
-  }, [runId]);
-
-  const save = useCallback(async () => {
-    const current = tcRef.current;
-    if (!current) return;
-    setSaving(true);
-    try {
-      const content = isYaml
-        ? yamlStringify(current)
-        : JSON.stringify(current, null, 2);
-      await invoke(IpcChannels.FS_WRITE_FILE, filePath, content);
-      markTabDirty(filePath, false);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Save failed");
-    } finally {
-      setSaving(false);
-    }
-  }, [filePath, markTabDirty, isYaml]);
-
-  const mutate = (fn: (prev: TestCase) => TestCase) => {
-    tcHistory.update(fn);
-    markTabDirty(filePath, true);
-  };
-
-  const updateStep = (idx: number, patch: Partial<TestStep>) => {
-    mutate((tc) => ({
-      ...tc,
-      steps: tc.steps.map((s, i) => (i === idx ? { ...s, ...patch } : s)),
-    }));
-  };
-
-  const addStep = () => {
-    mutate((tc) => ({
-      ...tc,
-      steps: [...tc.steps, makeStep()],
-    }));
-    setSelectedIdx(tc?.steps.length ?? 0);
-  };
-
-  const deleteStep = (idx: number) => {
-    mutate((tc) => ({ ...tc, steps: tc.steps.filter((_, i) => i !== idx) }));
-    setSelectedIdx(null);
-  };
-
-  const moveStep = (idx: number, dir: -1 | 1) => {
-    const target = idx + dir;
-    mutate((tc) => {
-      if (target < 0 || target >= tc.steps.length) return tc;
-      const steps = [...tc.steps];
-      [steps[idx], steps[target]] = [steps[target], steps[idx]];
-      return { ...tc, steps };
-    });
-    setSelectedIdx(target);
-  };
-
-  const handleImport = (importedSteps: any[]) => {
-    mutate((tc) => ({
-      ...tc,
-      steps: [...tc.steps, ...importedSteps],
-    }));
-  };
-
-  const duplicateStep = (idx: number) => {
-    if (!tc) return;
-    const src = tc.steps[idx];
-    mutate((prev) => {
-      const steps = [...prev.steps];
-      steps.splice(idx + 1, 0, { ...src, id: crypto.randomUUID() });
-      return { ...prev, steps };
-    });
-    setSelectedIdx(idx + 1);
-  };
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [tcHistory.undo, tcHistory.redo, filePath, markTabDirty]);
 
   const km = useSettingsKeymap(TEST_CASE_KEYMAPS, KEYMAP_SCOPES.TEST_CASE, {
     save,
@@ -339,187 +130,10 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
     toggleHistory: () => {},
   });
 
-  // Drag & Drop Handlers
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedIdx(index);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", index.toString());
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-  };
-
-  const handleDragEnter = (index: number) => {
-    setDragOverIdx(index);
-  };
-
-  const handleDragLeave = () => {
-    // handled on dragEnd / drop
-  };
-
-  const handleDragEnd = () => {
-    setDraggedIdx(null);
-    setDragOverIdx(null);
-  };
-
-  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
-    e.preventDefault();
-    if (draggedIdx === null || draggedIdx === targetIndex) {
-      setDraggedIdx(null);
-      setDragOverIdx(null);
-      return;
-    }
-
-    mutate((tc) => {
-      const steps = [...tc.steps];
-      const [draggedItem] = steps.splice(draggedIdx, 1);
-      steps.splice(targetIndex, 0, draggedItem);
-      return { ...tc, steps };
-    });
-
-    setSelectedIdx(targetIndex);
-    setDraggedIdx(null);
-    setDragOverIdx(null);
-  };
-
-  // Context Menu Handlers
-  const handleContextMenu = (e: React.MouseEvent, index: number) => {
-    e.preventDefault();
-    setSelectedIdx(index);
-
-    const menuWidth = 220;
-    const menuHeight = 280;
-    const screenWidth = window.innerWidth;
-    const screenHeight = window.innerHeight;
-
-    let posX = e.clientX;
-    let posY = e.clientY;
-
-    if (posX + menuWidth > screenWidth) posX = screenWidth - menuWidth - 8;
-    if (posY + menuHeight > screenHeight) posY = screenHeight - menuHeight - 8;
-
-    setContextMenu({
-      x: posX,
-      y: posY,
-      visible: true,
-      stepIdx: index,
-    });
-  };
-
-  const closeContextMenu = () => {
-    setContextMenu(null);
-  };
-
-  // Action Methods
-  const insertStepBefore = (idx: number) => {
-    mutate((tc) => {
-      const steps = [...tc.steps];
-      steps.splice(idx, 0, makeStep());
-      return { ...tc, steps };
-    });
-    setSelectedIdx(idx);
-  };
-
-  const insertStepAfter = (idx: number) => {
-    mutate((tc) => {
-      const steps = [...tc.steps];
-      steps.splice(idx + 1, 0, makeStep());
-      return { ...tc, steps };
-    });
-    setSelectedIdx(idx + 1);
-  };
-
-  const copyStep = (idx: number) => {
-    if (!tc) return;
-    const stepToCopy = tc.steps[idx];
-    setClipboard({ ...stepToCopy, id: undefined });
-  };
-
-  const cutStep = (idx: number) => {
-    if (!tc) return;
-    const stepToCut = tc.steps[idx];
-    setClipboard({ ...stepToCut, id: undefined });
-    deleteStep(idx);
-  };
-
-  const pasteStepBefore = (idx: number) => {
-    if (!clipboard) return;
-    mutate((tc) => {
-      const steps = [...tc.steps];
-      steps.splice(idx, 0, {
-        ...makeStep(clipboard.keyword),
-        ...clipboard,
-        id: crypto.randomUUID(),
-      });
-      return { ...tc, steps };
-    });
-    setSelectedIdx(idx);
-  };
-
-  const pasteStepAfter = (idx: number) => {
-    if (!clipboard) return;
-    mutate((tc) => {
-      const steps = [...tc.steps];
-      steps.splice(idx + 1, 0, {
-        ...makeStep(clipboard.keyword),
-        ...clipboard,
-        id: crypto.randomUUID(),
-      });
-      return { ...tc, steps };
-    });
-    setSelectedIdx(idx + 1);
-  };
-
-  const toggleFailureHandling = (idx: number) => {
-    if (!tc) return;
-    updateStep(idx, { continueOnFailure: !tc.steps[idx].continueOnFailure });
-  };
-
-  const openCallDialog = (idx: number) => {
+  const handleOpenCallDialog = (idx: number) => {
     closeContextMenu();
-    setCallDialogTargetIdx(idx);
-    setShowCallDialog(true);
+    openCallDialog(idx);
   };
-
-  const handleCallTestCaseSelect = (path: string, name: string) => {
-    const targetIdx = callDialogTargetIdx;
-    mutate((tc) => {
-      const steps = [...tc.steps];
-      const newStep = {
-        ...makeStep("call-test-case"),
-        description: `Call: ${name}`,
-        input: path,
-      };
-      steps.splice(
-        targetIdx !== null ? targetIdx + 1 : steps.length,
-        0,
-        newStep,
-      );
-      return { ...tc, steps };
-    });
-    setSelectedIdx(
-      targetIdx !== null ? targetIdx + 1 : (tc?.steps.length ?? 0),
-    );
-    setCallDialogTargetIdx(null);
-  };
-
-  // Close context menu on window mousedown
-  useEffect(() => {
-    if (!contextMenu || !contextMenu.visible) return;
-
-    const handleOutsideClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest("#step-context-menu")) {
-        closeContextMenu();
-      }
-    };
-
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-    };
-  }, [contextMenu]);
 
   if (error) {
     return (
@@ -538,416 +152,69 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
     );
   }
 
-  const sel = selectedIdx !== null ? tc.steps[selectedIdx] : null;
-
-  const RunStatusBadge = () => {
-    const map: Record<
-      string,
-      { icon: React.ElementType; label: string; cls: string }
-    > = {
-      idle: {
-        icon: Circle,
-        label: "Never run",
-        cls: "text-muted-foreground/50",
-      },
-      running: { icon: Loader2, label: "Running…", cls: "text-yellow-400" },
-      passed: { icon: CircleCheck, label: "Passed", cls: "text-green-500" },
-      failed: { icon: CircleX, label: "Failed", cls: "text-red-500" },
-      stopped: { icon: Square, label: "Stopped", cls: "text-muted-foreground" },
-    };
-    const { icon: Icon, label, cls } = map[runStatus] ?? map.idle;
-    return (
-      <span className={cn("flex items-center gap-1 text-xs font-medium", cls)}>
-        <Icon
-          className={cn(
-            "w-3.5 h-3.5",
-            runStatus === "running" && "animate-spin",
-          )}
-        />
-        {label}
-      </span>
-    );
-  };
+  const isYamlMode = platform === "mobile" && (tc.mobileTestType ?? "normal") === "yaml";
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* ── toolbar ── */}
-      <div className="flex items-center gap-1 px-2 py-1 border-b border-border bg-panel shrink-0">
-        {/* edit actions */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onClick={addStep}
-              className="flex items-center gap-1 text-xs px-2 py-1 rounded hover:bg-secondary transition-colors text-foreground/80"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Add Step
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>
-            Add Step<Kbd>Alt+A</Kbd>
-          </TooltipContent>
-        </Tooltip>
+      <TestCaseToolbar
+        tc={tc}
+        platform={platform}
+        canUndo={tcHistory.canUndo}
+        canRedo={tcHistory.canRedo}
+        onUndo={() => { tcHistory.undo(); markTabDirty(filePath, true); }}
+        onRedo={() => { tcHistory.redo(); markTabDirty(filePath, true); }}
+        selectedIdx={selectedIdx}
+        stepsLength={tc.steps.length}
+        onAddStep={addStep}
+        onShowImport={() => setShowImport(true)}
+        onMoveStep={moveStep}
+        onMutate={mutate}
+        runStatus={runStatus}
+        isDebugMode={isDebugMode}
+        isDebugPaused={isDebugPaused}
+        onRun={() => handleRun(false)}
+        onDebug={() => handleRun(true)}
+        onStop={handleStop}
+        onDebugNext={handleDebugNext}
+        onSave={save}
+        saving={saving}
+        saveHint={km.save.hint}
+      />
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onClick={() => setShowImport(true)}
-              className="flex items-center gap-1 text-xs px-2 py-1 rounded hover:bg-secondary transition-colors text-foreground/80"
-            >
-              <Upload className="w-3.5 h-3.5" />
-              Import Steps
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>Import steps from file</TooltipContent>
-        </Tooltip>
+      {/* engine install banner — mobile only, auto-hides when installed */}
+      {platform === "mobile" && (
+        <EngineInstallBanner
+          engine={tc.mobileTestType === "appium" ? "appium" : "maestro"}
+          className="mx-3 my-1.5 shrink-0"
+        />
+      )}
 
-        <div className="w-px h-4 bg-border mx-0.5" />
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              disabled={!tcHistory.canUndo}
-              onClick={() => { tcHistory.undo(); markTabDirty(filePath, true) }}
-              className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground disabled:opacity-30"
-            >
-              <Undo2 className="w-3.5 h-3.5" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>Undo<Kbd>⌘+Z</Kbd></TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              disabled={!tcHistory.canRedo}
-              onClick={() => { tcHistory.redo(); markTabDirty(filePath, true) }}
-              className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground disabled:opacity-30"
-            >
-              <Redo2 className="w-3.5 h-3.5" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>Redo<Kbd>⌘+⇧+Z</Kbd></TooltipContent>
-        </Tooltip>
-
-        <div className="w-px h-4 bg-border mx-0.5" />
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              disabled={selectedIdx === null || selectedIdx === 0}
-              onClick={() => selectedIdx !== null && moveStep(selectedIdx, -1)}
-              className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground disabled:opacity-30"
-            >
-              <ChevronUp className="w-3.5 h-3.5" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>
-            Move Up<Kbd>Alt+↑</Kbd>
-          </TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              disabled={
-                selectedIdx === null || selectedIdx === tc.steps.length - 1
-              }
-              onClick={() => selectedIdx !== null && moveStep(selectedIdx, 1)}
-              className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground disabled:opacity-30"
-            >
-              <ChevronDown className="w-3.5 h-3.5" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>
-            Move Down<Kbd>Alt+↓</Kbd>
-          </TooltipContent>
-        </Tooltip>
-
-        <div className="w-px h-4 bg-border mx-0.5" />
-
-        {/* platform picker */}
-        <div className="flex items-center gap-1">
-          <span className="text-[10px] text-muted-foreground/70 shrink-0">
-            Platform:
-          </span>
-          <select
-            value={tc.platform ?? ""}
-            onChange={(e) => {
-              const v = e.target.value as Platform | "";
-              mutate((prev) => ({ ...prev, platform: v || undefined }));
-            }}
-            className="text-xs bg-input text-foreground px-1.5 py-0.5 rounded border border-border focus:border-primary outline-none cursor-pointer"
-          >
-            <option value="">inherit</option>
-            <option value="web">Web</option>
-            <option value="mobile">Mobile</option>
-            <option value="desktop">Desktop</option>
-            <option value="api">API</option>
-            <option value="appium">Appium</option>
-          </select>
-        </div>
-
-        {/* device picker — visible only when platform === mobile */}
-        {platform === "mobile" && (
-          <div className="flex items-center gap-1">
-            <span className="text-[10px] text-muted-foreground/70 shrink-0">
-              Device:
-            </span>
-            <input
-              list="device-list"
-              value={tc.device ?? ""}
-              placeholder="iPhone 14"
-              onChange={(e) =>
-                mutate((prev) => ({
-                  ...prev,
-                  device: e.target.value || undefined,
-                }))
-              }
-              className="text-xs bg-input text-foreground px-1.5 py-0.5 rounded border border-border focus:border-primary outline-none w-32"
-            />
-            <datalist id="device-list">
-              <option value="iPhone 14" />
-              <option value="iPhone 14 Pro" />
-              <option value="iPhone 14 Plus" />
-              <option value="iPhone SE" />
-              <option value="iPhone 13" />
-              <option value="Pixel 7" />
-              <option value="Pixel 5" />
-              <option value="Galaxy S8" />
-              <option value="Galaxy Tab S4" />
-              <option value="iPad (gen 7)" />
-              <option value="iPad Mini" />
-            </datalist>
-          </div>
-        )}
-
-        {/* step delay override */}
-        <div className="flex items-center gap-1">
-          <span className="text-[10px] text-muted-foreground/70 shrink-0">
-            Delay:
-          </span>
-          <input
-            type="number"
-            min={0}
-            step={100}
-            value={tc.stepDelayMs ?? ""}
-            placeholder="ms"
-            onChange={(e) =>
-              mutate((prev) => ({
-                ...prev,
-                stepDelayMs: e.target.value
-                  ? Math.max(0, parseInt(e.target.value, 10))
-                  : null,
-              }))
-            }
-            className="text-xs bg-input text-foreground px-1.5 py-0.5 rounded border border-border focus:border-primary outline-none w-20"
-          />
-        </div>
-
-        <div className="flex-1" />
-
-        {/* run status + run controls */}
-        <RunStatusBadge />
-
-        <div className="w-px h-4 bg-border mx-0.5" />
-
-        {runStatus === "running" ? (
-          <>
-            {isDebugMode && isDebugPaused && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={handleDebugNext}
-                    className="flex items-center gap-1 text-xs px-2.5 py-1 rounded font-medium transition-colors bg-blue-600 hover:bg-blue-500 text-white"
-                  >
-                    <StepForward className="w-3.5 h-3.5" />
-                    Next Step
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Execute next step</TooltipContent>
-              </Tooltip>
-            )}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={handleStop}
-                  className="flex items-center gap-1 text-xs px-2.5 py-1 rounded font-medium transition-colors bg-red-600 hover:bg-red-500 text-white"
-                >
-                  <Square className="w-3 h-3 fill-white" />
-                  Stop
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Stop run<Kbd>Shift+F5</Kbd>
-              </TooltipContent>
-            </Tooltip>
-          </>
-        ) : (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={() => handleRun(false)}
-                className="flex items-center gap-1 text-xs px-2.5 py-1 rounded font-medium transition-colors bg-[hsl(142,72%,29%)] hover:bg-[hsl(142,72%,34%)] text-white"
-              >
-                <Play className="w-3 h-3 fill-white" />
-                Run
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              Run test case<Kbd>F5</Kbd>
-            </TooltipContent>
-          </Tooltip>
-        )}
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              disabled={runStatus === "running"}
-              onClick={() => handleRun(true)}
-              className={cn(
-                "flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors",
-                "bg-secondary hover:bg-secondary/80 text-foreground/80",
-                "disabled:opacity-40",
-              )}
-            >
-              <Bug className="w-3.5 h-3.5" />
-              Debug
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>
-            Debug — 1 s pause between steps<Kbd>F6</Kbd>
-          </TooltipContent>
-        </Tooltip>
-
-        <div className="w-px h-4 bg-border mx-0.5" />
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onClick={save}
-              disabled={saving}
-              className="flex items-center gap-1 text-xs px-2 py-1 rounded hover:bg-secondary transition-colors text-foreground/80 disabled:opacity-50"
-            >
-              <Save className="w-3.5 h-3.5" />
-              {saving ? "Saving…" : "Save"}
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>
-            Save<Kbd>{km.save.hint}</Kbd>
-          </TooltipContent>
-        </Tooltip>
-      </div>
-
-      {/* ── table ── */}
-      <div className="flex-1 overflow-auto">
-        <table className="w-full border-collapse min-w-[700px]">
-          <thead>
-            <tr className="border-b border-border bg-muted/30 sticky top-0 z-10">
-              <th className="w-12 px-1 py-1.5" />
-              <th className="w-7 px-1" />
-              <th className="w-40 text-[10px] font-medium text-muted-foreground text-left px-1 py-1.5">
-                Keyword
-              </th>
-              <th className="text-[10px] font-medium text-muted-foreground text-left px-1 py-1.5">
-                Description
-              </th>
-              <th className="w-36 text-[10px] font-medium text-muted-foreground text-left px-1 py-1.5">
-                Object / Selector
-              </th>
-              <th className="w-36 text-[10px] font-medium text-muted-foreground text-left px-1 py-1.5">
-                Input
-              </th>
-              <th className="w-36 text-[10px] font-medium text-muted-foreground text-left px-1 py-1.5">
-                Expected
-              </th>
-              <th className="w-8 px-1" />
-            </tr>
-          </thead>
-          <tbody>
-            {tc.steps.length === 0 && (
-              <tr>
-                <td
-                  colSpan={8}
-                  className="text-center text-xs text-muted-foreground/50 py-12"
-                >
-                  No steps yet. Click <strong>Add Step</strong> to get started.
-                </td>
-              </tr>
-            )}
-            {tc.steps.map((step, idx) => (
-              <StepRow
-                key={step.id}
-                step={step}
-                index={idx}
-                selected={selectedIdx === idx}
-                onSelect={() => setSelectedIdx(idx)}
-                onChange={(patch) => updateStep(idx, patch)}
-                onDelete={() => deleteStep(idx)}
-                kw={getKeyword(keywords, step.keyword)}
-                platform={platform}
-                objectItems={objectItems}
-                stepStatus={stepStatuses[idx]}
-                stepMessage={stepMessages[idx]}
-                onDragStart={handleDragStart}
-                onDragOver={handleDragOver}
-                onDragEnd={handleDragEnd}
-                onDrop={handleDrop}
-                isDragOver={dragOverIdx === idx}
-                onDragEnter={handleDragEnter}
-                onDragLeave={handleDragLeave}
-                onContextMenu={handleContextMenu}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* ── step detail (continue-on-failure, timeout) ── */}
-      {sel && (
-        <div className="flex items-center gap-4 px-3 py-1.5 border-t border-border bg-muted/20 text-xs text-muted-foreground shrink-0">
-          <span className="font-medium text-foreground/60">
-            Step {selectedIdx! + 1}
-          </span>
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={sel.continueOnFailure}
-              onChange={(e) =>
-                updateStep(selectedIdx!, {
-                  continueOnFailure: e.target.checked,
-                })
-              }
-              className="w-3 h-3 accent-primary"
-            />
-            Continue on failure
-          </label>
-          <label className="flex items-center gap-1.5">
-            Timeout (ms):
-            <input
-              type="number"
-              value={sel.timeout ?? ""}
-              placeholder="default"
-              onChange={(e) =>
-                updateStep(selectedIdx!, {
-                  timeout: e.target.value ? parseInt(e.target.value, 10) : null,
-                })
-              }
-              className="w-20 bg-input text-foreground text-xs px-1.5 py-0.5 rounded border border-border focus:border-primary outline-none"
-            />
-          </label>
-        </div>
+      {isYamlMode ? (
+        <MobileYamlEditor
+          value={tc.mobileYaml ?? ""}
+          onChange={(value) => mutate((prev) => ({ ...prev, mobileYaml: value }))}
+        />
+      ) : (
+        <StepTable
+          steps={tc.steps}
+          keywords={keywords}
+          platform={platform}
+          objectItems={objectItems}
+          selectedIdx={selectedIdx}
+          onSelect={setSelectedIdx}
+          onChange={updateStep}
+          onDelete={deleteStep}
+          stepStatuses={stepStatuses}
+          stepMessages={stepMessages}
+          dragOverIdx={dragDrop.dragOverIdx}
+          onDragStart={dragDrop.handleDragStart}
+          onDragOver={dragDrop.handleDragOver}
+          onDragEnd={dragDrop.handleDragEnd}
+          onDrop={dragDrop.handleDrop}
+          onDragEnter={dragDrop.handleDragEnter}
+          onDragLeave={dragDrop.handleDragLeave}
+          onContextMenu={handleContextMenu}
+        />
       )}
 
       <ImportStepsDialog
@@ -964,7 +231,7 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
           stepIdx={contextMenu.stepIdx}
           onInsertBefore={insertStepBefore}
           onInsertAfter={insertStepAfter}
-          onCallTestCase={openCallDialog}
+          onCallTestCase={handleOpenCallDialog}
           onCopy={copyStep}
           onCut={cutStep}
           onPasteBefore={pasteStepBefore}
