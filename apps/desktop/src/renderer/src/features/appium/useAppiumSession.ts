@@ -64,6 +64,22 @@ export function useAppiumSession() {
     [addLog],
   )
 
+  const openIosSimulator = useCallback(
+    async (udid: string, name: string) => {
+      addLog(`Opening simulator: ${name}…`)
+      const res = (await window.api.invoke(IpcChannels.IOS_SIMULATOR_OPEN, udid)) as {
+        ok: boolean
+        error?: string
+      }
+      if (!res.ok) {
+        addLog(`Open simulator failed: ${res.error ?? 'unknown'}`, 'error')
+        return
+      }
+      addLog(`${name} open`, 'action')
+    },
+    [addLog],
+  )
+
   const refreshStatus = useCallback(async () => {
     const s = (await window.api.invoke(IpcChannels.APPIUM_SESSION_STATUS)) as AppiumSessionInfo | null
     setSession(s)
@@ -202,6 +218,7 @@ export function useAppiumSession() {
     refreshDevices,
     refreshAvds,
     startAvd,
+    openIosSimulator,
     clearLog,
   }
 }

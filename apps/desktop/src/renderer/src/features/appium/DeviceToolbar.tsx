@@ -25,6 +25,8 @@ type PlatformTab = 'android' | 'ios'
 
 interface Props {
   session: AppiumSessionInfo | null
+  androidMirrorActive?: boolean
+  iosSimulatorMirrorActive?: boolean
   avdEntries: AvdEntry[]
   iosDevices: AppiumDeviceEntry[]
   selectedId: string
@@ -81,6 +83,8 @@ const IOS_UNSUPPORTED = new Set<AppiumButton>(['back', 'appswitch'])
 
 export function DeviceToolbar({
   session,
+  androidMirrorActive = false,
+  iosSimulatorMirrorActive = false,
   avdEntries,
   iosDevices,
   selectedId,
@@ -92,6 +96,7 @@ export function DeviceToolbar({
   onScreenshot,
 }: Props) {
   const connected = !!session
+  const controlsEnabled = !!session || androidMirrorActive
   const [activeTab, setActiveTab] = useState<PlatformTab>('android')
 
   function handleTabChange(tab: PlatformTab) {
@@ -101,6 +106,16 @@ export function DeviceToolbar({
   }
 
   const isIosTab = activeTab === 'ios'
+  const selectedAvd = avdEntries.find((e) => `avd:${e.avdName}` === selectedId)
+  const selectedIos = iosDevices.find((d) => `ios:${d.udid}` === selectedId)
+  const selectedIosBooted = selectedIos?.state === 'Booted' || selectedIos?.state === 'device'
+  const selectedExternalRunning =
+    selectedAvd?.state === 'device' || selectedIosBooted || androidMirrorActive || iosSimulatorMirrorActive
+  const statusLabel = androidMirrorActive || iosSimulatorMirrorActive
+    ? 'Mirroring'
+    : selectedExternalRunning
+      ? 'External'
+      : 'Not connected'
 
   return (
     <div className="flex items-center gap-1 px-2 py-1.5 bg-background/60 rounded-full border border-border shadow-sm shrink-0">
@@ -143,15 +158,21 @@ export function DeviceToolbar({
         <Smartphone className="w-4 h-4 text-muted-foreground shrink-0" />
         {connected ? (
           <div className="flex flex-col min-w-0 leading-tight">
-            <span className="text-xs font-semibold truncate">{session.deviceName}</span>
-            <span className="text-[10px] text-green-400">Connected</span>
+            <span className="text-xs font-semibold truncate">
+              {session?.deviceName ??
+                avdEntries.find((e) => `avd:${e.avdName}` === selectedId)?.displayName ??
+                iosDevices.find((d) => `ios:${d.udid}` === selectedId)?.name}
+            </span>
+            <span className="text-[10px] text-green-400">
+              Connected
+            </span>
           </div>
         ) : (
           <Select value={selectedId} onValueChange={onSelectId}>
             <SelectTrigger className="h-7 border-0 bg-transparent px-1 text-xs gap-1 focus:ring-0 shadow-none">
               <div className="flex flex-col items-start min-w-0 leading-tight">
                 <SelectValue placeholder="Select device" />
-                <span className="text-[10px] text-muted-foreground">Not connected</span>
+                <span className="text-[10px] text-muted-foreground truncate max-w-full">{statusLabel}</span>
               </div>
             </SelectTrigger>
             <SelectContent>
@@ -212,14 +233,18 @@ export function DeviceToolbar({
         <ToolButton
           key={b.id}
           label={b.label}
-          disabled={!connected || (isIosTab && IOS_UNSUPPORTED.has(b.id))}
+          disabled={!controlsEnabled || (isIosTab && IOS_UNSUPPORTED.has(b.id))}
           onClick={() => onPressButton(b.id)}
         >
           <b.icon className="w-4 h-4" />
         </ToolButton>
       ))}
 
-      <ToolButton label="Screenshot" disabled={!connected} onClick={onScreenshot}>
+      <ToolButton
+        label="Screenshot"
+        disabled={!connected && !androidMirrorActive && !iosSimulatorMirrorActive}
+        onClick={onScreenshot}
+      >
         <Camera className="w-4 h-4" />
       </ToolButton>
     </div>

@@ -1,5 +1,5 @@
 import type { IpcMain } from 'electron'
-import { execSync, spawn } from 'node:child_process'
+import { execFile, execSync, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -17,6 +17,19 @@ import type {
   AvdStartPayload,
 } from '@jkauto/core'
 import { getSettings } from '../services/settings.service'
+
+function execFileBuffer(file: string, args: string[], timeout = 8000): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    execFile(file, args, { encoding: 'buffer', maxBuffer: 20 * 1024 * 1024, timeout }, (err, stdout, stderr) => {
+      if (err) {
+        const detail = Buffer.isBuffer(stderr) ? stderr.toString('utf8') : String(stderr ?? '')
+        reject(new Error(detail.trim() || err.message))
+        return
+      }
+      resolve(stdout as Buffer)
+    })
+  })
+}
 
 // One live inspector session at a time (mirror + manual interactions).
 let session: AppiumSessionInfo | null = null
@@ -322,6 +335,27 @@ export function registerAppiumSessionHandlers(ipcMain: IpcMain): void {
   })
 
   ipcMain.handle(IpcChannels.APPIUM_SESSION_STATUS, () => session)
+
+  ipcMain.handle(IpcChannels.IOS_SIMULATOR_OPEN, async (_e, udid: string) => {
+    if (!isSimulatorUdid(udid)) return { ok: false, error: 'not an iOS simulator UDID' }
+    try {
+      await ensureSimulatorBooted(udid)
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  ipcMain.handle(IpcChannels.IOS_SIMULATOR_SCREENSHOT, async (_e, udid: string) => {
+    if (!isSimulatorUdid(udid)) return { ok: false, error: 'not an iOS simulator UDID' }
+    try {
+      await ensureSimulatorBooted(udid)
+      const png = await execFileBuffer('xcrun', ['simctl', 'io', udid, 'screenshot', '-'], 10000)
+      return { ok: true, data: png.toString('base64') }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
 
   ipcMain.handle(
     IpcChannels.APPIUM_SESSION_START,
