@@ -1,4 +1,8 @@
-import type { TestCase, Profile, Platform, ObjectRepository, Locator, MobileTestType } from '@jkauto/core'
+import { execSync, spawn } from 'node:child_process'
+import fs from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+import type { TestCase, Profile, Platform, ObjectRepository, Locator } from '@jkauto/core'
 import type { StepEvent, RunCompleteEvent } from '@jkauto/core'
 import { getAdapter } from './adapter/registry'
 import type { EngineAdapter } from './adapter/types'
@@ -62,6 +66,150 @@ function buildLocatorIndex(repos: ObjectRepository[], platform: Platform): Map<s
   return index
 }
 
+function resolveMaestro(): string {
+  const shells = [process.env['SHELL'] ?? '/bin/zsh', '/bin/zsh', '/bin/bash']
+  for (const shell of shells) {
+    try {
+      const bin = execSync(`${shell} -lc "which maestro"`, { encoding: 'utf-8', timeout: 3000 }).trim()
+      if (bin) return bin
+    } catch { /* try next */ }
+  }
+  const candidates = [
+    `${process.env['HOME'] ?? ''}/.maestro/bin/maestro`,
+    '/usr/local/bin/maestro',
+    '/opt/homebrew/bin/maestro',
+  ]
+  for (const candidate of candidates) {
+    try { execSync(`test -x "${candidate}"`); return candidate } catch { /* skip */ }
+  }
+  throw new Error('Maestro CLI not found')
+}
+
+function yamlScalar(value: string): string {
+  return JSON.stringify(value)
+}
+
+function maestroTarget(step: { objectRef: string; input: string; expected: string }): string {
+  return step.objectRef || step.input || step.expected
+}
+
+function maestroCommand(step: TestCase['steps'][number], interpolate: (value: string) => string): string[] {
+  const keyword = step.keyword
+  const target = interpolate(maestroTarget(step))
+  const input = interpolate(step.input)
+  const expected = interpolate(step.expected)
+
+  switch (keyword) {
+    case 'mobile.launchApp':
+    case 'launchApp':
+      return ['- launchApp']
+    case 'clearState':
+    case 'mobile.clearState':
+      return ['- clearState']
+    case 'mobile.tap':
+    case 'tapOn':
+      return [`- tapOn: ${yamlScalar(target)}`]
+    case 'mobile.inputText':
+    case 'inputText':
+      return step.objectRef
+        ? [`- tapOn: ${yamlScalar(interpolate(step.objectRef))}`, `- inputText: ${yamlScalar(input)}`]
+        : [`- inputText: ${yamlScalar(input)}`]
+    case 'mobile.assertVisible':
+    case 'assertVisible':
+      return [`- assertVisible: ${yamlScalar(target || expected)}`]
+    case 'mobile.assertNotVisible':
+    case 'assertNotVisible':
+      return [`- assertNotVisible: ${yamlScalar(target || expected)}`]
+    case 'mobile.back':
+    case 'back':
+      return ['- back']
+    case 'mobile.pressKey':
+    case 'pressKey':
+      return [`- pressKey: ${yamlScalar(input)}`]
+    case 'mobile.screenshot':
+    case 'takeScreenshot':
+      return [`- takeScreenshot: ${yamlScalar(input || step.name || step.id)}`]
+    case 'mobile.swipe':
+    case 'swipe':
+      return [`- swipe: ${yamlScalar(input || 'up')}`]
+    default:
+      throw new Error(`Maestro runner does not support keyword: ${keyword}`)
+  }
+}
+
+async function runMaestroTestCase(
+  testCase: TestCase,
+  profile: Profile,
+  runId: string,
+  onStep: StepEventCallback,
+  onComplete: RunCompleteCallback,
+  signal: AbortSignal | undefined,
+): Promise<void> {
+  const startTime = Date.now()
+  const variables = { ...testCase.variables, ...profile.variables }
+  const appId = testCase.app?.id || variables['APP_ID']
+  if (!appId) throw new Error('Maestro runner requires app.id or APP_ID')
+
+  function interpolate(value: string): string {
+    return value
+      .replace(/\{\{(\w+)\}\}/g, (_, key) => variables[key] ?? `{{${key}}}`)
+      .replace(/\$\{(\w+)\}/g, (_, key) => variables[key] ?? `\${${key}}`)
+  }
+
+  const enabledSteps = testCase.steps
+    .map((step, index) => ({ step, index }))
+    .filter(({ step }) => step.enabled)
+
+  for (const { index } of enabledSteps) {
+    onStep({ runId, testCaseId: testCase.id, stepIndex: index, status: 'running' })
+  }
+
+  const flow = [
+    `appId: ${yamlScalar(appId)}`,
+    '---',
+    ...enabledSteps.flatMap(({ step }) => maestroCommand(step, interpolate)),
+    '',
+  ].join('\n')
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'jkauto-maestro-'))
+  const flowPath = path.join(dir, `${testCase.id || 'test'}.yaml`)
+  await fs.writeFile(flowPath, flow, 'utf-8')
+
+  let failed = false
+  let error = ''
+  const maestro = resolveMaestro()
+  const proc = spawn(maestro, ['test', flowPath], { stdio: 'pipe' })
+  signal?.addEventListener('abort', () => proc.kill('SIGTERM'), { once: true })
+  proc.stderr?.on('data', (chunk: Buffer) => { error += chunk.toString() })
+  proc.stdout?.on('data', (chunk: Buffer) => { error += chunk.toString() })
+
+  const code = await new Promise<number | null>((resolve, reject) => {
+    proc.on('exit', resolve)
+    proc.on('error', reject)
+  })
+  failed = code !== 0 || !!signal?.aborted
+
+  let passedSteps = 0
+  let failedSteps = 0
+  for (const { index } of enabledSteps) {
+    if (failed) {
+      failedSteps++
+      onStep({ runId, testCaseId: testCase.id, stepIndex: index, status: 'failed', message: error.trim() || `Maestro exited with code ${code}` })
+    } else {
+      passedSteps++
+      onStep({ runId, testCaseId: testCase.id, stepIndex: index, status: 'passed' })
+    }
+  }
+
+  onComplete({
+    runId,
+    status: signal?.aborted ? 'stopped' : failed ? 'failed' : 'passed',
+    totalSteps: testCase.steps.length,
+    passedSteps,
+    failedSteps,
+    durationMs: Date.now() - startTime,
+  })
+}
+
 async function executeCalledTestCase(
   calledPath: string,
   loadTestCase: ((path: string) => Promise<TestCase>) | undefined,
@@ -93,15 +241,18 @@ export async function runTestCase(
   const { headless = false, stepDelay = 0, waitForNext, objectRepositories = [], appPath, externalSession, loadTestCase } = options
   const platform: Platform = testCase.platform ?? options.platform ?? 'web'
   // When platform is 'mobile', resolve to the concrete engine adapter key.
-  const mobileTestType: MobileTestType = testCase.mobileTestType ?? 'normal'
   const adapterKey = platform === 'mobile'
-    ? (mobileTestType === 'appium' ? 'appium' : 'maestro')
+    ? (testCase.runner === 'appium' ? 'appium' : 'maestro')
     : platform
+  if (adapterKey === 'maestro') {
+    await runMaestroTestCase(testCase, profile, runId, onStep, onComplete, signal)
+    return
+  }
   const startTime = Date.now()
   let passedSteps = 0
   let failedSteps = 0
 
-  const variables = profile.variables
+  const variables = { ...testCase.variables, ...profile.variables }
   const locatorIndex = buildLocatorIndex(objectRepositories, platform)
 
   function interpolate(value: string): string {

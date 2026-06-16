@@ -3,7 +3,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { IpcChannels } from '@jkauto/core'
-import type { TestCase, TestSuite, Profile, RunCompleteEvent, SuiteEvent, ObjectRepository } from '@jkauto/core'
+import type { TestCase, TestSuite, Profile, RunCompleteEvent, SuiteEvent, ObjectRepository, Step } from '@jkauto/core'
 import { runTestCase, getKeywordMeta, getAdapter } from '@jkauto/engine'
 import { getSettings } from '../services/settings.service'
 import { ensureAppiumRunning } from './appium.handler'
@@ -43,19 +43,52 @@ async function loadObjectRepositories(projectPath: string): Promise<ObjectReposi
 }
 
 function normalizeTestCase(tcData: Partial<TestCase>): TestCase {
+  const platform = tcData.platform
+  const runner = tcData.runner ?? (
+    platform === 'mobile' ? 'maestro'
+    : platform === 'api' ? 'api'
+    : platform === 'appium' ? 'appium'
+    : 'playwright'
+  )
   return {
     schemaVersion: 1,
     id: tcData.id ?? randomUUID(),
     name: tcData.name ?? 'Unnamed',
     description: tcData.description ?? '',
-    platform: tcData.platform,
-    mobileTestType: tcData.mobileTestType,
-    mobileYaml: tcData.mobileYaml,
-    stepDelayMs: tcData.stepDelayMs ?? null,
+    owner: tcData.owner ?? '',
     tags: tcData.tags ?? [],
-    steps: tcData.steps ?? [],
+    platform,
+    runner,
+    app: {
+      id: tcData.app?.id ?? '',
+      env: tcData.app?.env ?? '',
+      path: tcData.app?.path ?? '',
+    },
+    config: {
+      timeoutMs: tcData.config?.timeoutMs ?? null,
+      retry: tcData.config?.retry ?? 0,
+      stepDelayMs: tcData.config?.stepDelayMs ?? tcData.stepDelayMs ?? null,
+    },
+    variables: tcData.variables ?? {},
+    stepDelayMs: tcData.stepDelayMs ?? null,
+    steps: (tcData.steps ?? []).map(normalizeStep),
     createdAt: tcData.createdAt ?? new Date().toISOString(),
     updatedAt: tcData.updatedAt ?? new Date().toISOString(),
+  }
+}
+
+function normalizeStep(step: Partial<Step>): Step {
+  return {
+    id: step.id ?? randomUUID(),
+    name: step.name ?? '',
+    keyword: step.keyword ?? '',
+    description: step.description ?? '',
+    objectRef: step.objectRef ?? '',
+    input: step.input ?? '',
+    expected: step.expected ?? '',
+    enabled: step.enabled ?? true,
+    continueOnFailure: step.continueOnFailure ?? false,
+    timeout: step.timeout ?? null,
   }
 }
 
@@ -110,7 +143,8 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
 
     const resolvedVars = { ...profileVariables }
     const platform = testCase.platform ?? 'web'
-    if (platform === 'appium') {
+    const runner = testCase.runner ?? (platform === 'mobile' ? 'maestro' : platform === 'api' ? 'api' : 'playwright')
+    if (platform === 'appium' || runner === 'appium') {
       if (!resolvedVars['APPIUM_HOST']) resolvedVars['APPIUM_HOST'] = settings.appium.host
       if (!resolvedVars['APPIUM_PORT']) resolvedVars['APPIUM_PORT'] = String(settings.appium.port)
       if (settings.appium.autoStart) await ensureAppiumRunning(event.sender)
@@ -130,7 +164,7 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
     // Fire async — return runId immediately so renderer can subscribe
     const loadTestCase = readTestCase
 
-    const stepDelay = testCase.stepDelayMs ?? settings.execution.stepDelayMs
+    const stepDelay = testCase.config?.stepDelayMs ?? testCase.stepDelayMs ?? settings.execution.stepDelayMs
 
     runTestCase(
       testCase,
@@ -152,7 +186,7 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
         ? {
             headless: settings.execution.headless,
             objectRepositories,
-            appPath,
+            appPath: appPath ?? testCase.app?.path,
             loadTestCase,
             waitForNext: (stepIndex: number) =>
               new Promise<void>((resolve) => {
@@ -162,7 +196,7 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
                 }
               }),
           }
-        : { headless: settings.execution.headless, objectRepositories, appPath, loadTestCase, stepDelay },
+        : { headless: settings.execution.headless, objectRepositories, appPath: appPath ?? testCase.app?.path, loadTestCase, stepDelay },
     ).catch((err) => {
       activeRuns.delete(runId)
       if (!webContents.isDestroyed()) {

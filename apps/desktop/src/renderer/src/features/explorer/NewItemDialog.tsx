@@ -13,7 +13,6 @@ import { cn } from '@/lib/utils'
 
 type NewItemType = 'folder' | 'test-case' | 'suite' | 'keyword' | 'api-request'
 type DialogPlatform = 'web' | 'mobile' | 'desktop' | 'api'
-type MobileTestType = 'normal' | 'yaml' | 'appium'
 
 const LABELS: Record<NewItemType, { title: string; placeholder: string }> = {
   folder: { title: 'New Folder', placeholder: 'folder-name' },
@@ -35,14 +34,13 @@ export type { NewItemType }
 interface Props {
   open: boolean
   type: NewItemType
-  onConfirm: (name: string, platform?: string, mobileTestType?: string) => void
+  onConfirm: (name: string, platform?: string) => void
   onCancel: () => void
 }
 
 export function NewItemDialog({ open, type, onConfirm, onCancel }: Props) {
   const [name, setName] = useState('')
   const [platform, setPlatform] = useState<DialogPlatform>('web')
-  const [mobileTestType, setMobileTestType] = useState<MobileTestType>('normal')
   const meta = LABELS[type]
   const isTestCase = type === 'test-case'
 
@@ -50,15 +48,13 @@ export function NewItemDialog({ open, type, onConfirm, onCancel }: Props) {
     if (open) {
       setName('')
       setPlatform('web')
-      setMobileTestType('normal')
     }
   }, [open])
 
   const handleSubmit = () => {
     if (!name.trim()) return
     const pl = isTestCase && platform !== 'web' ? platform : undefined
-    const mt = isTestCase && platform === 'mobile' ? mobileTestType : undefined
-    onConfirm(name.trim(), pl, mt)
+    onConfirm(name.trim(), pl)
     setName('')
   }
 
@@ -107,68 +103,6 @@ export function NewItemDialog({ open, type, onConfirm, onCancel }: Props) {
                   </button>
                 ))}
               </div>
-
-              {/* Mobile test type sub-choice */}
-              {platform === 'mobile' && (
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setMobileTestType('normal')}
-                    className={cn(
-                      'p-2.5 rounded border text-left transition-colors',
-                      mobileTestType === 'normal'
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/40',
-                    )}
-                  >
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="text-xs font-medium">Normal</span>
-                      {mobileTestType === 'normal' && (
-                        <span className="text-[9px] bg-primary/15 text-primary px-1 rounded">default</span>
-                      )}
-                    </div>
-                    <div className="text-[10px] text-muted-foreground leading-tight">
-                      Steps · Auto Maestro
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setMobileTestType('yaml')}
-                    className={cn(
-                      'p-2.5 rounded border text-left transition-colors',
-                      mobileTestType === 'yaml'
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/40',
-                    )}
-                  >
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="text-xs font-medium">YAML</span>
-                    </div>
-                    <div className="text-[10px] text-muted-foreground leading-tight">
-                      Maestro · Direct YAML
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setMobileTestType('appium')}
-                    className={cn(
-                      'p-2.5 rounded border text-left transition-colors',
-                      mobileTestType === 'appium'
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/40',
-                    )}
-                  >
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="text-xs font-medium">Appium</span>
-                    </div>
-                    <div className="text-[10px] text-muted-foreground leading-tight">
-                      Advanced · WebDriverIO
-                    </div>
-                  </button>
-                </div>
-              )}
             </div>
           )}
         </div>

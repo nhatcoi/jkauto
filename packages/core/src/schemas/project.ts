@@ -5,7 +5,7 @@ export type ProjectType = z.infer<typeof ProjectTypeSchema>
 
 // Platform extends ProjectType with 'appium' for native device automation.
 // Runtime fallback: testCase.platform ?? project.type.
-// For mobile, mobileTestType on TestCase selects Normal/YAML/Appium at runtime.
+// For mobile, testCase.runner selects Maestro/Appium at runtime.
 export const PlatformSchema = z.enum(['web', 'mobile', 'desktop', 'api', 'appium'])
 export type Platform = z.infer<typeof PlatformSchema>
 

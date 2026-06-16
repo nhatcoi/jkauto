@@ -11,7 +11,7 @@ import { SuiteEditor } from '@/features/test-suites/SuiteEditor'
 import { useTabDnd } from '@/hooks/useTabDnd'
 
 function isTestCase(path: string) {
-  return path.endsWith('.test.json') || path.endsWith('.test.yaml')
+  return path.endsWith('.test.json') || path.endsWith('.test.yaml') || path.endsWith('.test.yml')
 }
 
 function isApiRequest(path: string) {

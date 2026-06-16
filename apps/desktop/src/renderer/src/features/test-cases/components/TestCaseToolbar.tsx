@@ -33,7 +33,8 @@ import { Kbd } from "@/components/ui/kbd";
 import type { Platform } from "@jkauto/core";
 import type { TestCase } from "../types";
 
-const MOBILE_TEST_TYPES = ["normal", "yaml", "appium"] as const;
+export type TestCaseViewMode = "table" | "yaml";
+
 const PLATFORM_OPTIONS: { value: Platform | "inherit"; label: string }[] = [
   { value: "inherit", label: "Inherit" },
   { value: "web", label: "Web" },
@@ -41,15 +42,22 @@ const PLATFORM_OPTIONS: { value: Platform | "inherit"; label: string }[] = [
   { value: "desktop", label: "Desktop" },
   { value: "api", label: "API" },
 ];
+const RUNNER_OPTIONS: Array<{ value: NonNullable<TestCase["runner"]>; label: string }> = [
+  { value: "playwright", label: "Playwright" },
+  { value: "maestro", label: "Maestro" },
+  { value: "appium", label: "Appium" },
+  { value: "api", label: "API" },
+];
+const VIEW_OPTIONS: Array<{ value: TestCaseViewMode; label: string }> = [
+  { value: "table", label: "Table" },
+  { value: "yaml", label: "YAML" },
+];
 
-function mobileTestTypeTitle(type: (typeof MOBILE_TEST_TYPES)[number]) {
-  if (type === "normal") return "Normal Steps — neutral DSL, runs via Maestro";
-  if (type === "yaml") return "Maestro YAML — write/import .yaml directly";
-  return "Appium Code — advanced native automation via WebDriverIO";
-}
-
-function mobileTestTypeLabel(type: (typeof MOBILE_TEST_TYPES)[number]) {
-  return type === "yaml" ? "YAML" : type.charAt(0).toUpperCase() + type.slice(1);
+function defaultRunner(platform?: Platform): NonNullable<TestCase["runner"]> {
+  if (platform === "mobile") return "maestro";
+  if (platform === "api") return "api";
+  if (platform === "appium") return "appium";
+  return "playwright";
 }
 
 function RunStatusBadge({ runStatus }: { runStatus: string }) {
@@ -86,6 +94,8 @@ interface Props {
   onMoveStep: (idx: number, dir: -1 | 1) => void;
   onMutate: (fn: (prev: TestCase) => TestCase) => void;
   runStatus: string;
+  viewMode: TestCaseViewMode;
+  onViewModeChange: (mode: TestCaseViewMode) => void;
   isDebugMode: boolean;
   isDebugPaused: boolean;
   onRun: () => void;
@@ -111,6 +121,8 @@ export function TestCaseToolbar({
   onMoveStep,
   onMutate,
   runStatus,
+  viewMode,
+  onViewModeChange,
   isDebugMode,
   isDebugPaused,
   onRun,
@@ -229,7 +241,11 @@ export function TestCaseToolbar({
           value={tc.platform ?? "inherit"}
           onValueChange={(value) => {
             const platformValue = value === "inherit" ? undefined : (value as Platform);
-            onMutate((prev) => ({ ...prev, platform: platformValue }));
+            onMutate((prev) => ({
+              ...prev,
+              platform: platformValue,
+              runner: defaultRunner(platformValue),
+            }));
           }}
         >
           <SelectTrigger className="h-6 w-[92px] px-2 text-xs">
@@ -247,37 +263,49 @@ export function TestCaseToolbar({
         </Select>
       </div>
 
-      {/* mobile test type toggle — visible when platform === mobile */}
-      {platform === "mobile" && (
-        <div className="flex items-center gap-1">
-          <span className="text-[10px] text-muted-foreground/70 shrink-0">Test type:</span>
-          <Select
-            value={tc.mobileTestType ?? "normal"}
-            onValueChange={(value) => {
-              const type = value as (typeof MOBILE_TEST_TYPES)[number];
-              onMutate((prev) => ({ ...prev, mobileTestType: type }));
-            }}
-          >
-            <SelectTrigger className="h-6 w-[92px] px-2 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {MOBILE_TEST_TYPES.map((t, i) => (
-                  <SelectItem
-                    key={t}
-                    value={t}
-                    title={mobileTestTypeTitle(t)}
-                    className={cn("text-xs", i > 0 && "border-t border-border")}
-                  >
-                    {mobileTestTypeLabel(t)}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
+      <div className="flex items-center gap-1">
+        <span className="text-[10px] text-muted-foreground/70 shrink-0">Runner:</span>
+        <Select
+          value={tc.runner ?? "playwright"}
+          onValueChange={(value) =>
+            onMutate((prev) => ({
+              ...prev,
+              runner: value as NonNullable<TestCase["runner"]>,
+            }))
+          }
+        >
+          <SelectTrigger className="h-6 w-[108px] px-2 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {RUNNER_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value} className="text-xs">
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex items-center gap-1">
+        <span className="text-[10px] text-muted-foreground/70 shrink-0">View:</span>
+        <Select value={viewMode} onValueChange={(value) => onViewModeChange(value as TestCaseViewMode)}>
+          <SelectTrigger className="h-6 w-[80px] px-2 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {VIEW_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value} className="text-xs">
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </div>
 
       {/* step delay override */}
       <div className="flex items-center gap-1">

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Tree } from 'react-arborist'
 import type { NodeRendererProps, NodeApi, TreeApi } from 'react-arborist'
+import { stringify as yamlStringify } from 'yaml'
 import {
   ChevronRight,
   ChevronDown,
@@ -79,7 +80,7 @@ function toExplorerKey(value: string, fallback = 'item'): string {
 }
 
 const KNOWN_SUFFIXES = [
-  '.test.json', '.test.yaml',
+  '.test.json', '.test.yaml', '.test.yml',
   '.suite.json', '.suite.yaml',
   '.objects.json', '.objects.yaml',
   '.keywords.json', '.keywords.yaml',
@@ -105,7 +106,7 @@ function stripKnownExtension(name: string, type: NewItemType): string {
 
 function getFileIcon(node: FsTreeNode): React.ElementType {
   const name = node.name.toLowerCase()
-  if (name.endsWith('.test.json') || name.endsWith('.test.yaml')) return FlaskConical
+  if (name.endsWith('.test.json') || name.endsWith('.test.yaml') || name.endsWith('.test.yml')) return FlaskConical
   if (name.endsWith('.suite.json') || name.endsWith('.suite.yaml')) return ListChecks
   if (name.endsWith('.objects.json') || name.endsWith('.objects.yaml')) return Database
   if (name.endsWith('.keywords.json') || name.endsWith('.keywords.yaml')) return Code2
@@ -575,7 +576,7 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
     [],
   )
 
-  const handleCreateItem = async (name: string, platform?: string, mobileTestType?: string) => {
+  const handleCreateItem = async (name: string, platform?: string) => {
     if (!newItemState) return
     const { dir, type } = newItemState
     const displayName = stripKnownExtension(name, type)
@@ -584,23 +585,37 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
     if (type === 'folder') {
       await invoke(IpcChannels.FS_CREATE_DIR, pathJoin(dir, key), displayName)
     } else if (type === 'test-case') {
-      const fileName = `${key}.test.json`
+      const fileName = `${key}.test.yaml`
       const now = new Date().toISOString()
-      const content = JSON.stringify(
-        {
-          schemaVersion: 1,
-          id: randomUUID(),
-          name: displayName,
-          description: '',
-          ...(platform ? { platform } : {}),
-          ...(mobileTestType ? { mobileTestType } : {}),
-          steps: [],
-          createdAt: now,
-          updatedAt: now,
+      const resolvedPlatform = platform ?? 'web'
+      const runner =
+        resolvedPlatform === 'mobile' ? 'maestro'
+        : resolvedPlatform === 'api' ? 'api'
+        : 'playwright'
+      const content = yamlStringify({
+        schemaVersion: 1,
+        id: randomUUID(),
+        name: displayName,
+        description: '',
+        owner: '',
+        tags: [],
+        ...(platform ? { platform } : {}),
+        runner,
+        app: {
+          id: '',
+          env: '',
+          path: '',
         },
-        null,
-        2,
-      )
+        config: {
+          timeoutMs: null,
+          retry: 0,
+          stepDelayMs: null,
+        },
+        variables: {},
+        steps: [],
+        createdAt: now,
+        updatedAt: now,
+      })
       await invoke(IpcChannels.FS_CREATE_FILE, pathJoin(dir, fileName), content)
     } else if (type === 'suite') {
       const fileName = `${key}.suite.json`

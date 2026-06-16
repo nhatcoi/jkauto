@@ -1,5 +1,6 @@
 export interface TestStep {
   id: string
+  name?: string
   keyword: string
   description: string
   objectRef: string
@@ -15,9 +16,23 @@ export interface TestCase {
   id: string
   name: string
   description: string
+  owner?: string
+  tags?: string[]
   platform?: 'web' | 'mobile' | 'desktop' | 'api' | 'appium'
-  mobileTestType?: 'normal' | 'yaml' | 'appium'
-  mobileYaml?: string
+  runner?: 'playwright' | 'maestro' | 'appium' | 'api'
+  app?: {
+    id?: string
+    env?: string
+    path?: string
+  }
+  config?: {
+    timeoutMs?: number | null
+    retry?: number
+    stepDelayMs?: number | null
+  }
+  variables?: Record<string, string>
   stepDelayMs?: number | null
   steps: TestStep[]
+  createdAt?: string
+  updatedAt?: string
 }

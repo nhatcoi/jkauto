@@ -3,6 +3,7 @@ import { PlatformSchema } from './project'
 
 export const StepSchema = z.object({
   id: z.string(),
+  name: z.string().default(''),
   keyword: z.string().min(1),
   description: z.string().default(''),
   objectRef: z.string().default(''),
@@ -14,19 +15,30 @@ export const StepSchema = z.object({
 })
 export type Step = z.infer<typeof StepSchema>
 
-export const MobileTestTypeSchema = z.enum(['normal', 'yaml', 'appium'])
-export type MobileTestType = z.infer<typeof MobileTestTypeSchema>
+export const TestRunnerSchema = z.enum(['playwright', 'maestro', 'appium', 'api'])
+export type TestRunner = z.infer<typeof TestRunnerSchema>
 
 export const TestCaseSchema = z.object({
   schemaVersion: z.number().default(1),
   id: z.string(),
   name: z.string().min(1),
   description: z.string().default(''),
-  platform: PlatformSchema.optional(),
-  mobileTestType: MobileTestTypeSchema.optional(), // when platform='mobile': 'normal'|'yaml'|'appium'
-  mobileYaml: z.string().optional(),              // raw Maestro YAML, used when mobileTestType='yaml'
-  stepDelayMs: z.number().int().min(0).nullable().default(null),
+  owner: z.string().default(''),
   tags: z.array(z.string()).default([]),
+  platform: PlatformSchema.optional(),
+  runner: TestRunnerSchema.optional(),
+  app: z.object({
+    id: z.string().default(''),
+    env: z.string().default(''),
+    path: z.string().default(''),
+  }).default({}),
+  config: z.object({
+    timeoutMs: z.number().int().min(0).nullable().default(null),
+    retry: z.number().int().min(0).default(0),
+    stepDelayMs: z.number().int().min(0).nullable().default(null),
+  }).default({}),
+  variables: z.record(z.string()).default({}),
+  stepDelayMs: z.number().int().min(0).nullable().default(null),
   steps: z.array(StepSchema).default([]),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),

@@ -1,11 +1,12 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { parse as yamlParse } from "yaml";
 import { AlertCircle } from "lucide-react";
 import { useSettingsKeymap } from "@/hooks/useSettingsKeymap";
 import { TEST_CASE_KEYMAPS, KEYMAP_SCOPES } from "@/shared/keymaps";
 import { useProjectStore } from "@/store/project.store";
 import { useKeywords } from "./hooks/useKeywords";
 import { useObjectItems } from "./hooks/useObjectItems";
-import { useTestCaseFile } from "./hooks/useTestCaseFile";
+import { normalizeTestCase, useTestCaseFile } from "./hooks/useTestCaseFile";
 import { useTestCaseRun } from "./hooks/useTestCaseRun";
 import { useStepEditor } from "./hooks/useStepEditor";
 import { useStepDragDrop } from "./hooks/useStepDragDrop";
@@ -14,21 +15,25 @@ import { ImportStepsDialog } from "./components/ImportStepsDialog";
 import { CallTestCaseDialog } from "./components/CallTestCaseDialog";
 import { StepContextMenu } from "./components/StepContextMenu";
 import { EngineInstallBanner } from "@/components/engine-install/EngineInstallBanner";
-import { TestCaseToolbar } from "./components/TestCaseToolbar";
-import { MobileYamlEditor } from "./components/MobileYamlEditor";
+import { TestCaseToolbar, type TestCaseViewMode } from "./components/TestCaseToolbar";
+import { YamlTestcaseEditor } from "./components/YamlTestcaseEditor";
 import { StepTable } from "./components/StepTable";
+import type { TestCase } from "./types";
 
 export function TestCaseEditor({ filePath }: { filePath: string }) {
   const { markTabDirty, activeProject } = useProjectStore();
+  const [viewMode, setViewMode] = useState<TestCaseViewMode>("table");
+  const [yamlDraft, setYamlDraft] = useState("");
+  const [yamlError, setYamlError] = useState("");
 
-  const { tc, tcRef, tcHistory, error, saving, mutate, save, serialize } =
+  const { tc, tcRef, tcHistory, error, saving, mutate, save, saveRaw, serialize } =
     useTestCaseFile(filePath);
 
   const platform = tc?.platform ?? activeProject?.project.type;
-  // For keyword filtering: normal/yaml mode shows 'mobile' DSL keywords; appium shows 'appium' keywords.
+  // For keyword filtering: runner decides the concrete engine when platform is mobile.
   const effectivePlatform =
     platform === "mobile"
-      ? tc?.mobileTestType === "appium"
+      ? tc?.runner === "appium"
         ? ("appium" as const)
         : ("mobile" as const)
       : platform;
@@ -78,7 +83,15 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
   // Reset step selection whenever a different file is opened.
   useEffect(() => {
     setSelectedIdx(null);
+    setViewMode("table");
+    setYamlError("");
   }, [filePath, setSelectedIdx]);
+
+  useEffect(() => {
+    if (tc && viewMode === "table") {
+      setYamlDraft(serialize(tc));
+    }
+  }, [tc, serialize, viewMode]);
 
   // Undo / Redo — skip when focus is inside a text field (let browser handle native undo there)
   useEffect(() => {
@@ -103,8 +116,37 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [tcHistory.undo, tcHistory.redo, filePath, markTabDirty]);
 
+  const handleViewModeChange = (mode: TestCaseViewMode) => {
+    if (mode === "yaml" && tc) {
+      setYamlDraft(serialize(tc));
+      setYamlError("");
+    }
+    setViewMode(mode);
+  };
+
+  const handleYamlChange = (value: string) => {
+    setYamlDraft(value);
+    try {
+      const parsed = normalizeTestCase(yamlParse(value) as Partial<TestCase>);
+      setYamlError("");
+      mutate(() => parsed);
+    } catch (e) {
+      setYamlError(e instanceof Error ? e.message : "Invalid YAML");
+      markTabDirty(filePath, true);
+    }
+  };
+
+  const handleSave = () => {
+    if (viewMode === "yaml") {
+      if (yamlError) return;
+      void saveRaw(yamlDraft);
+      return;
+    }
+    void save();
+  };
+
   const km = useSettingsKeymap(TEST_CASE_KEYMAPS, KEYMAP_SCOPES.TEST_CASE, {
-    save,
+    save: handleSave,
     addStep,
     deleteStep: () => {
       if (selectedIdx !== null) deleteStep(selectedIdx);
@@ -152,8 +194,6 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
     );
   }
 
-  const isYamlMode = platform === "mobile" && (tc.mobileTestType ?? "normal") === "yaml";
-
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <TestCaseToolbar
@@ -170,13 +210,15 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
         onMoveStep={moveStep}
         onMutate={mutate}
         runStatus={runStatus}
+        viewMode={viewMode}
+        onViewModeChange={handleViewModeChange}
         isDebugMode={isDebugMode}
         isDebugPaused={isDebugPaused}
         onRun={() => handleRun(false)}
         onDebug={() => handleRun(true)}
         onStop={handleStop}
         onDebugNext={handleDebugNext}
-        onSave={save}
+        onSave={handleSave}
         saving={saving}
         saveHint={km.save.hint}
       />
@@ -184,16 +226,25 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
       {/* engine install banner — mobile only, auto-hides when installed */}
       {platform === "mobile" && (
         <EngineInstallBanner
-          engine={tc.mobileTestType === "appium" ? "appium" : "maestro"}
+          engine={tc.runner === "appium" ? "appium" : "maestro"}
           className="mx-3 my-1.5 shrink-0"
         />
       )}
 
-      {isYamlMode ? (
-        <MobileYamlEditor
-          value={tc.mobileYaml ?? ""}
-          onChange={(value) => mutate((prev) => ({ ...prev, mobileYaml: value }))}
-        />
+      {viewMode === "yaml" ? (
+        <>
+          {yamlError && (
+            <div className="px-3 py-1 text-[11px] font-mono text-destructive border-b border-border/40 shrink-0">
+              {yamlError}
+            </div>
+          )}
+          <YamlTestcaseEditor
+            value={yamlDraft}
+            onChange={handleYamlChange}
+            keywords={keywords}
+            objectItems={objectItems}
+          />
+        </>
       ) : (
         <StepTable
           steps={tc.steps}
