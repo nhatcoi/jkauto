@@ -12,8 +12,7 @@ import type { Project } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { useSettingsKeymap } from '@/hooks/useSettingsKeymap'
-import { APP_KEYMAPS, KEYMAP_SCOPES } from '@/shared/keymaps'
-import { REPORTS_TAB_PATH } from '@/components/layout/MidPanel'
+import { APP_KEYMAPS, KEYMAP_SCOPES, REPORTS_TAB_PATH } from '@/shared/keymaps'
 
 export function TitleBar() {
   const { activeProject, activeProjectPath, projects, activeTabPath } = useProjectStore()

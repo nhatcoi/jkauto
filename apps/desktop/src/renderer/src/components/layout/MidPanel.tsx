@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { X, FileText, Globe, Database, Layers, BarChart2 } from 'lucide-react'
+import { X, FileText, Globe, Database, Layers, BarChart2, Braces } from 'lucide-react'
 import { useProjectStore } from '@/store/project.store'
 import { IpcChannels } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
@@ -8,10 +8,11 @@ import { TestCaseEditor } from '@/features/test-cases/TestCaseEditor'
 import { RequestEditor } from '@/features/api-request/RequestEditor'
 import { ObjectEditor } from '@/features/api-request/ObjectEditor'
 import { SuiteEditor } from '@/features/test-suites/SuiteEditor'
+import { KeywordEditor } from '@/features/keywords/KeywordEditor'
+import { KeywordsView } from '@/features/keywords/KeywordsView'
 import { ReportsView } from '@/features/reports/ReportsView'
 import { useTabDnd } from '@/hooks/useTabDnd'
-
-const REPORTS_TAB_PATH = '__reports__'
+import { REPORTS_TAB_PATH, KEYWORDS_TAB_PATH } from '@/shared/keymaps'
 
 function isTestCase(path: string) {
   return path.endsWith('.test.json') || path.endsWith('.test.yaml') || path.endsWith('.test.yml')
@@ -29,11 +30,17 @@ function isTestSuite(path: string) {
   return path.endsWith('.suite.json') || path.endsWith('.suite.yaml')
 }
 
+function isKeywords(path: string) {
+  return path.endsWith('.keywords.json') || path.endsWith('.keywords.yaml')
+}
+
 function getTabIcon(path: string): React.ElementType {
   if (path === REPORTS_TAB_PATH) return BarChart2
+  if (path === KEYWORDS_TAB_PATH) return Braces
   if (isApiRequest(path)) return Globe
   if (isObjectRepo(path)) return Database
   if (isTestSuite(path)) return Layers
+  if (isKeywords(path)) return Braces
   return FileText
 }
 
@@ -70,14 +77,14 @@ function FileContent({ path }: { path: string }) {
   )
 }
 
-export { REPORTS_TAB_PATH }
-
 function TabContent({ path }: { path: string }) {
   if (path === REPORTS_TAB_PATH) return <ReportsView />
+  if (path === KEYWORDS_TAB_PATH) return <KeywordsView />
   if (isTestCase(path)) return <TestCaseEditor key={path} filePath={path} />
   if (isTestSuite(path)) return <SuiteEditor key={path} filePath={path} />
   if (isApiRequest(path)) return <RequestEditor key={path} filePath={path} />
   if (isObjectRepo(path)) return <ObjectEditor key={path} filePath={path} />
+  if (isKeywords(path)) return <KeywordEditor key={path} filePath={path} />
   return <FileContent path={path} />
 }
 

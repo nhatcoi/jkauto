@@ -148,3 +148,6 @@ export const KEYMAP_REGISTRY: Array<{ scopedId: string; binding: KeyBinding }> =
     binding: b as KeyBinding,
   })),
 ]
+
+export const REPORTS_TAB_PATH = '__reports__'
+export const KEYWORDS_TAB_PATH = '__keywords__'
