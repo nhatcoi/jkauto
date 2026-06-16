@@ -3,7 +3,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { IpcChannels } from '@jkauto/core'
-import type { TestCase, TestSuite, Profile, RunCompleteEvent, SuiteEvent, ObjectRepository, Step } from '@jkauto/core'
+import type { TestCase, TestSuite, Profile, RunCompleteEvent, SuiteEvent, ObjectRepository, Step, AppSettings } from '@jkauto/core'
 import { runTestCase, getKeywordMeta, getAdapter } from '@jkauto/engine'
 import { getSettings } from '../services/settings.service'
 import { ensureAppiumRunning } from './appium.handler'
@@ -133,10 +133,22 @@ function sendSuiteEvent(webContents: WebContents, event: SuiteEvent): void {
   }
 }
 
+/**
+ * GUI-launched Electron does not inherit the shell's PLAYWRIGHT_BROWSERS_PATH,
+ * so chromium.launch() fails to find browsers installed in a custom dir.
+ * When execution.browsersPath is configured, push it into process.env before a run.
+ * Playwright reads this env at launch time, so changes apply without restart.
+ */
+function applyBrowsersPath(settings: AppSettings): void {
+  const dir = settings.execution.browsersPath?.trim()
+  if (dir) process.env['PLAYWRIGHT_BROWSERS_PATH'] = dir
+}
+
 export function registerEngineHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(IpcChannels.ENGINE_RUN_CASE, async (event, payload: RunPayload) => {
     const { filePath, debugMode = false, profileVariables = {}, projectPath, appPath } = payload
     const settings = await getSettings()
+    applyBrowsersPath(settings)
 
     const testCase = await readTestCase(filePath)
     const objectRepositories = projectPath ? await loadObjectRepositories(projectPath) : []
@@ -218,6 +230,7 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(IpcChannels.ENGINE_RUN_SUITE, async (event, payload: RunPayload) => {
     const { filePath, profileVariables = {}, projectPath } = payload
     const settings = await getSettings()
+    applyBrowsersPath(settings)
 
     const raw = await fs.readFile(filePath, 'utf-8')
     const suite = normalizeSuite(JSON.parse(raw))
