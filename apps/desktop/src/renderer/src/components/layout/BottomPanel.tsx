@@ -1,5 +1,5 @@
 import * as TabsPrimitive from '@radix-ui/react-tabs'
-import { AlertCircle, Terminal, Activity, Trash2, ChevronDown, ChevronUp, History, Smartphone } from 'lucide-react'
+import { AlertCircle, Terminal, Activity, Trash2, ChevronDown, ChevronUp, History } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useRunStore } from '@/store/run.store'
 import { useEffect, useRef, useState } from 'react'
@@ -7,15 +7,14 @@ import { useTabDnd, moveItem } from '@/hooks/useTabDnd'
 import { useLayoutStore } from '@/store/layout.store'
 import { RunHistoryPanel } from '@/features/test-cases/components/RunHistoryPanel'
 
-type BottomTabId = 'problems' | 'console' | 'eventlog' | 'runhistory' | 'appium'
+type BottomTabId = 'problems' | 'console' | 'eventlog' | 'runhistory'
 
 export function BottomPanel() {
-  const { logs, events, clearLogs, runHistory, appiumLogs, clearAppiumLogs } = useRunStore()
+  const { logs, events, clearLogs, runHistory } = useRunStore()
   const { bottomCollapsed, toggleBottom } = useLayoutStore()
   const consoleEndRef = useRef<HTMLDivElement>(null)
-  const appiumEndRef = useRef<HTMLDivElement>(null)
   const [activeTab, setActiveTab] = useState<BottomTabId>('console')
-  const [order, setOrder] = useState<BottomTabId[]>(['problems', 'console', 'eventlog', 'runhistory', 'appium'])
+  const [order, setOrder] = useState<BottomTabId[]>(['problems', 'console', 'eventlog', 'runhistory'])
   const { getTabProps, overIndex } = useTabDnd((from, to) =>
     setOrder((prev) => moveItem(prev, from, to)),
   )
@@ -24,10 +23,6 @@ export function BottomPanel() {
     consoleEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [logs])
 
-  useEffect(() => {
-    appiumEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [appiumLogs])
-
   const errors = logs.filter((l) => l.level === 'error')
 
   const tabMeta: Record<BottomTabId, { label: string; icon: typeof AlertCircle; count?: number }> = {
@@ -35,16 +30,13 @@ export function BottomPanel() {
     console: { label: 'Console', icon: Terminal },
     eventlog: { label: 'Event Log', icon: Activity },
     runhistory: { label: 'Run History', icon: History, count: runHistory.length || undefined },
-    appium: { label: 'Appium', icon: Smartphone },
   }
 
   function handleClear() {
-    if (activeTab === 'appium') clearAppiumLogs()
-    else clearLogs()
+    clearLogs()
   }
 
-  const hasClearable =
-    activeTab === 'appium' ? appiumLogs.length > 0 : logs.length > 0 || events.length > 0
+  const hasClearable = logs.length > 0 || events.length > 0
 
   return (
     <TabsPrimitive.Root
@@ -169,34 +161,6 @@ export function BottomPanel() {
       {/* Run History Panel */}
       <TabsPrimitive.Content value="runhistory" className="flex-1 overflow-hidden">
         <RunHistoryPanel records={runHistory} embedded />
-      </TabsPrimitive.Content>
-
-      {/* Appium Log Panel */}
-      <TabsPrimitive.Content
-        value="appium"
-        className="flex-1 overflow-auto p-3 font-mono text-xs flex flex-col bg-background/20"
-      >
-        {appiumLogs.length === 0 ? (
-          <div className="text-xs text-muted-foreground/50 italic text-center py-6">
-            Appium server logs will appear here
-          </div>
-        ) : (
-          <div className="flex flex-col gap-1 select-text">
-            {appiumLogs.map((log) => (
-              <div
-                key={log.id}
-                className={cn(
-                  'whitespace-pre-wrap leading-relaxed',
-                  log.level === 'error' ? 'text-red-400' : 'text-foreground/80',
-                )}
-              >
-                <span className="text-muted-foreground/60 select-none mr-2">[{log.time}]</span>
-                {log.message}
-              </div>
-            ))}
-            <div ref={appiumEndRef} />
-          </div>
-        )}
       </TabsPrimitive.Content>
     </TabsPrimitive.Root>
   )

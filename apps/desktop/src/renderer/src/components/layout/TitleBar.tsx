@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FolderOpen, Settings, Layers, FolderPlus } from 'lucide-react'
+import { FolderOpen, Settings, Layers, FolderPlus, BarChart2 } from 'lucide-react'
 import logoUrl from '@/assets/logo.png'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
@@ -13,10 +13,12 @@ import { invoke } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { useSettingsKeymap } from '@/hooks/useSettingsKeymap'
 import { APP_KEYMAPS, KEYMAP_SCOPES } from '@/shared/keymaps'
+import { REPORTS_TAB_PATH } from '@/components/layout/MidPanel'
 
 export function TitleBar() {
   const { activeProject, activeProjectPath, projects, activeTabPath } = useProjectStore()
   const addProject = useProjectStore((s) => s.addProject)
+  const openTab = useProjectStore((s) => s.openTab)
   const closeTab = useProjectStore((s) => s.closeTab)
   const reopenLastTab = useProjectStore((s) => s.reopenLastTab)
   const moveTabLeft = useProjectStore((s) => s.moveTabLeft)
@@ -104,6 +106,22 @@ export function TitleBar() {
           </TooltipTrigger>
           <TooltipContent>Open Project<Kbd>{km.openProject.hint}</Kbd></TooltipContent>
         </Tooltip>
+
+        {activeProject && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                onClick={() => openTab(REPORTS_TAB_PATH, 'Reports', activeProjectPath ?? '')}
+              >
+                <BarChart2 className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Reports</TooltipContent>
+          </Tooltip>
+        )}
 
         <Tooltip>
           <TooltipTrigger asChild>

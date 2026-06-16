@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { X, FileText, Globe, Database, Layers } from 'lucide-react'
+import { X, FileText, Globe, Database, Layers, BarChart2 } from 'lucide-react'
 import { useProjectStore } from '@/store/project.store'
 import { IpcChannels } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
@@ -8,7 +8,10 @@ import { TestCaseEditor } from '@/features/test-cases/TestCaseEditor'
 import { RequestEditor } from '@/features/api-request/RequestEditor'
 import { ObjectEditor } from '@/features/api-request/ObjectEditor'
 import { SuiteEditor } from '@/features/test-suites/SuiteEditor'
+import { ReportsView } from '@/features/reports/ReportsView'
 import { useTabDnd } from '@/hooks/useTabDnd'
+
+const REPORTS_TAB_PATH = '__reports__'
 
 function isTestCase(path: string) {
   return path.endsWith('.test.json') || path.endsWith('.test.yaml') || path.endsWith('.test.yml')
@@ -27,6 +30,7 @@ function isTestSuite(path: string) {
 }
 
 function getTabIcon(path: string): React.ElementType {
+  if (path === REPORTS_TAB_PATH) return BarChart2
   if (isApiRequest(path)) return Globe
   if (isObjectRepo(path)) return Database
   if (isTestSuite(path)) return Layers
@@ -66,7 +70,10 @@ function FileContent({ path }: { path: string }) {
   )
 }
 
+export { REPORTS_TAB_PATH }
+
 function TabContent({ path }: { path: string }) {
+  if (path === REPORTS_TAB_PATH) return <ReportsView />
   if (isTestCase(path)) return <TestCaseEditor key={path} filePath={path} />
   if (isTestSuite(path)) return <SuiteEditor key={path} filePath={path} />
   if (isApiRequest(path)) return <RequestEditor key={path} filePath={path} />
