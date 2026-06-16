@@ -143,24 +143,6 @@ export function AppiumPanel() {
   }
 
   async function handleConnect() {
-    // Auto-start Appium if not running, then wait up to 10s for it to be ready
-    if (!serverStatus.running) {
-      setBusy(true)
-      try {
-        await window.api.invoke(IpcChannels.APPIUM_START)
-        let started = false
-        for (let i = 0; i < 10; i++) {
-          await new Promise<void>((r) => setTimeout(r, 1000))
-          const s = (await window.api.invoke(IpcChannels.APPIUM_STATUS)) as AppiumStatus
-          setServerStatus(s)
-          if (s.running) { started = true; break }
-        }
-        if (!started) return
-      } finally {
-        setBusy(false)
-      }
-    }
-
     if (selectedAvd?.udid && selectedAvd.state === 'device') {
       await connect({
         platform: 'android',
@@ -304,7 +286,7 @@ export function AppiumPanel() {
             <Button
               size="sm"
               className="h-7 text-xs px-3"
-              disabled={!canConnect || connecting}
+              disabled={!canConnect || connecting || !serverStatus.running}
               onClick={handleConnect}
             >
               {connecting ? 'Connecting…' : 'Connect'}
