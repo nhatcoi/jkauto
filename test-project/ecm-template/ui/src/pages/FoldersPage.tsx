@@ -55,7 +55,7 @@ export default function FoldersPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <h1 style={{ margin: 0, fontSize: 24, color: '#1e293b' }}>Folders</h1>
-        <button onClick={() => setShowCreate(true)}
+        <button id="new-fld-btn" onClick={() => setShowCreate(true)}
           style={{ padding: '8px 18px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
           + New Folder
         </button>
@@ -70,11 +70,11 @@ export default function FoldersPage() {
           <form onSubmit={handleCreate}>
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 5 }}>Name *</label>
-              <input style={inp} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required autoFocus />
+              <input id="fld-name" style={inp} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required autoFocus />
             </div>
             <div style={{ marginBottom: 20 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 5 }}>Parent Folder</label>
-              <select style={inp} value={form.parentId} onChange={e => setForm(f => ({ ...f, parentId: e.target.value }))}>
+              <select id="fld-parent" style={inp} value={form.parentId} onChange={e => setForm(f => ({ ...f, parentId: e.target.value }))}>
                 <option value="">None (root)</option>
                 {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
@@ -83,7 +83,7 @@ export default function FoldersPage() {
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button type="button" onClick={() => setShowCreate(false)}
                 style={{ padding: '8px 18px', background: '#f1f5f9', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Cancel</button>
-              <button type="submit"
+              <button id="fld-submit-btn" type="submit"
                 style={{ padding: '8px 18px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>Create</button>
             </div>
           </form>

@@ -34,8 +34,8 @@ const initialTasks: Task[] = [
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = React.useState(false);
-  const [email, setEmail] = React.useState('tester@example.com');
-  const [password, setPassword] = React.useState('password123');
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
   const [loginError, setLoginError] = React.useState('');
   const [tasks, setTasks] = React.useState<Task[]>(initialTasks);
   const [title, setTitle] = React.useState('');

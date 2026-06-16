@@ -1,0 +1,33 @@
+schemaVersion: 1
+id: tc_ecm_login_failure
+name: Login ECM - Failure
+platform: web
+runner: playwright
+variables:
+  username: invalid_user
+  password: wrongpassword
+steps:
+  - id: open_app
+    keyword: navigate-to
+    input: http://localhost:5174
+  - id: wait_login_form
+    keyword: wait-for-element
+    objectRef: "#username"
+  - id: enter_username
+    keyword: type-text
+    objectRef: "#username"
+    input: "{{username}}"
+  - id: enter_password
+    keyword: type-text
+    objectRef: "#password"
+    input: "{{password}}"
+  - id: submit_login
+    keyword: click
+    objectRef: "#login-btn"
+  - id: wait_error_message
+    keyword: wait-for-element
+    objectRef: 'text="Invalid credentials"'
+  - id: assert_error_text
+    keyword: assert-text
+    objectRef: 'text="Invalid credentials"'
+    expected: "Invalid credentials"

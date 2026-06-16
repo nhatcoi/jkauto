@@ -4,8 +4,8 @@ import { LogIn, User, Lock, Eye, EyeOff, Package } from 'lucide-react';
 import { api, setToken } from '../api/client';
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('Admin@123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);

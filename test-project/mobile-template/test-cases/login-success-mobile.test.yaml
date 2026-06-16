@@ -1,0 +1,117 @@
+schemaVersion: 1
+id: tc-mobile-login-success
+name: Login Mobile - Success
+description: Login with valid credentials, verify tasks screen and signed-in email
+platform: appium
+runner: appium
+tags:
+  - login
+  - smoke
+app:
+  id: com.anonymous.mobiletemplate
+variables:
+  email: tester@example.com
+  password: password123
+stepDelayMs: null
+steps:
+  - id: s00
+    keyword: mobile.launchApp
+    description: Launch app with clear state
+    objectRef: ""
+    input: clearState
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - id: s01
+    keyword: wait-for-element
+    description: Wait for login screen ready
+    objectRef: ~login-email-input
+    input: "15000"
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - id: s02
+    keyword: clear-text
+    description: Clear email field
+    objectRef: ~login-email-input
+    input: ""
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - id: s03
+    keyword: type-text
+    description: Enter email
+    objectRef: ~login-email-input
+    input: "{{email}}"
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - id: s04
+    keyword: clear-text
+    description: Clear password field
+    objectRef: ~login-password-input
+    input: ""
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - id: s05
+    keyword: type-text
+    description: Enter password
+    objectRef: ~login-password-input
+    input: "{{password}}"
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - id: s06
+    keyword: tap
+    description: Tap Login button
+    objectRef: ~login-submit-button
+    input: ""
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - id: s07
+    keyword: wait-for-element
+    description: Wait for tasks screen
+    objectRef: ~tasks-screen
+    input: "15000"
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - id: s08
+    keyword: assert-visible
+    description: Assert tasks screen visible
+    objectRef: ~tasks-screen
+    input: ""
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - id: s09
+    keyword: assert-visible
+    description: Assert signed-in email element visible
+    objectRef: ~signed-in-email-text
+    input: ""
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - id: s10
+    keyword: assert-text
+    description: Assert email text matches
+    objectRef: ~signed-in-email-text
+    input: ""
+    expected: "{{email}}"
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+createdAt: "2026-06-16T00:00:00.000Z"
+updatedAt: "2026-06-16T00:00:00.000Z"

@@ -135,13 +135,17 @@ export function registerFsHandlers(ipcMain: IpcMain): void {
   )
 
   ipcMain.handle(IpcChannels.FS_LIST_DIR, async (_, dirPath: string) => {
-    const entries = await fs.readdir(dirPath, { withFileTypes: true })
-    return entries.map((e) => ({
-      name: e.name,
-      path: path.join(dirPath, e.name),
-      type: e.isDirectory() ? 'directory' : 'file',
-      ext: e.isFile() ? path.extname(e.name) : undefined,
-    }))
+    try {
+      const entries = await fs.readdir(dirPath, { withFileTypes: true })
+      return entries.map((e) => ({
+        name: e.name,
+        path: path.join(dirPath, e.name),
+        type: e.isDirectory() ? 'directory' : 'file',
+        ext: e.isFile() ? path.extname(e.name) : undefined,
+      }))
+    } catch {
+      return []
+    }
   })
 
   ipcMain.handle(IpcChannels.FS_TREE, async (_, rootPath: string) => {

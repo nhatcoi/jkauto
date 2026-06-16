@@ -1,0 +1,19 @@
+appId: com.anonymous.mobiletemplate
+---
+- launchApp:
+    clearState: true
+
+# Nhập sai thông tin đăng nhập
+- tapOn:
+    id: "login-email-input"
+- inputText: "wrong_user@example.com"
+- tapOn:
+    id: "login-password-input"
+- inputText: "wrongpassword"
+- tapOn:
+    id: "login-submit-button"
+
+# Kiểm tra xem thông báo lỗi có hiển thị hay không
+- assertVisible:
+    id: "login-error-text"
+- assertVisible: "Invalid email or password"
