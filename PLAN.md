@@ -29,7 +29,7 @@ MyAutoTestProject/
 │  └─ staging.env.json
 ├─ test-cases/
 │  └─ login-success.test.json
-├─ object-repository/
+├─ api-request/
 │  └─ login-page.objects.json
 ├─ test-suites/
 │  └─ smoke.suite.json
@@ -74,7 +74,7 @@ renderer/src/features/
 ├─ project/          # init dialog, open, recent
 ├─ explorer/         # tree, context menu, file ops
 ├─ test-cases/       # table editor, step CRUD
-├─ object-repository/# selector editor, capture
+├─ api-request/# selector editor, capture
 ├─ test-suites/      # suite composer
 ├─ keywords/         # custom keyword manager
 ├─ execution/        # run, progress, live log

@@ -480,7 +480,7 @@ Terminal:
 ```
 export * from './schemas/project'
 export * from './schemas/test-case'
-export * from './schemas/object-repository'
+export * from './schemas/api-request'
 export * from './schemas/test-suite'
 export * from './schemas/keyword'
 export * from './schemas/profile'
@@ -489,7 +489,7 @@ export * from './ipc-contract'
 /home/nhatcoi/Documents/personal/jkauto/packages/core/src/index.ts
 /home/nhatcoi/Documents/personal/jkauto/packages/core/src/ipc-contract.ts
 /home/nhatcoi/Documents/personal/jkauto/packages/core/src/schemas/keyword.ts
-/home/nhatcoi/Documents/personal/jkauto/packages/core/src/schemas/object-repository.ts
+/home/nhatcoi/Documents/personal/jkauto/packages/core/src/schemas/api-request.ts
 /home/nhatcoi/Documents/personal/jkauto/packages/core/src/schemas/profile.ts
 /home/nhatcoi/Documents/personal/jkauto/packages/core/src/schemas/project.ts
 /home/nhatcoi/Documents/personal/jkauto/packages/core/src/schemas/test-case.ts

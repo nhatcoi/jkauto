@@ -123,7 +123,7 @@ Every test artifact is a plain file:
 ```
 test-cases/login-success.test.json
 test-suites/smoke.suite.json
-object-repository/login-page.objects.json
+api-request/login-page.objects.json
 ```
 
 Diff test changes in PR review. Resolve conflicts in any editor. No binary formats, no proprietary databases in version control.

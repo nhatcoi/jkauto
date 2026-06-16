@@ -1,4 +1,4 @@
-import type { ApiRequest } from './schemas/object-repository'
+import type { ApiRequest } from './schemas/api-request'
 
 export const IpcChannels = {
   PROJECT_CREATE: 'project:create',

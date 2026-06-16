@@ -29,13 +29,13 @@ export const AppSettingsSchema = z.object({
       featureOrder: z.array(z.string()).default([
         'test-cases',
         'test-suites',
-        'object-repository',
+        'api-request',
         'profiles',
       ]),
       featureAliases: z.record(z.string()).default({
         'test-cases': 'Test Cases',
         'test-suites': 'Test Suites',
-        'object-repository': 'API Requests',
+        'api-request': 'API Requests',
         profiles: 'Profiles',
       }),
       fileDisplayName: z.enum(['metadataName', 'fileName']).default('metadataName'),

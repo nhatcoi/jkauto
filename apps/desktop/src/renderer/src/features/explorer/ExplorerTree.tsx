@@ -45,7 +45,7 @@ import { useAppSettingsStore } from '@/store/app-settings.store'
 import { cn } from '@/lib/utils'
 import { useExplorerTree } from './useExplorerTree'
 import { NewItemDialog } from './NewItemDialog'
-import { ImportOpenApiDialog } from '../object-repository/ImportOpenApiDialog'
+import { ImportOpenApiDialog } from '../api-request/ImportOpenApiDialog'
 import { randomUUID } from './utils'
 
 type NewItemType = 'folder' | 'test-case' | 'suite' | 'keyword' | 'api-request'
@@ -118,7 +118,7 @@ function getFileIcon(node: FsTreeNode): React.ElementType {
 const FEATURE_FOLDER_ICONS: Record<string, React.ElementType> = {
   'test-cases': TestTube2,
   'test-suites': Layers,
-  'object-repository': Box,
+  'api-request': Box,
   'api-requests': Activity,
   'profiles': CircleUserRound,
   'checkpoints': Milestone,
@@ -373,7 +373,7 @@ function FeatureContextMenu({
   cb: MenuCallbacks
 }) {
   const feature = featureOf(node.id)
-  if (feature === 'object-repository') return <ObjectRepoMenu node={node} cb={cb} />
+  if (feature === 'api-request') return <ObjectRepoMenu node={node} cb={cb} />
   if (feature === 'test-cases') return <TestCasesMenu node={node} cb={cb} />
   if (feature === 'test-suites') return <TestSuitesMenu node={node} cb={cb} />
   return <GenericMenu node={node} cb={cb} />
@@ -692,7 +692,7 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
         const type: NewItemType =
           feature === 'test-cases' ? 'test-case'
           : feature === 'test-suites' ? 'suite'
-          : feature === 'object-repository' ? 'api-request'
+          : feature === 'api-request' ? 'api-request'
           : 'folder'
         setNewItemState({ dir, type })
       }

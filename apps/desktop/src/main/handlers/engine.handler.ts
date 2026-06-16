@@ -27,7 +27,7 @@ interface RunPayload {
 }
 
 async function loadObjectRepositories(projectPath: string): Promise<ObjectRepository[]> {
-  const repoDir = path.join(projectPath, 'object-repository')
+  const repoDir = path.join(projectPath, 'api-request')
   const repos: ObjectRepository[] = []
   try {
     const entries = await fs.readdir(repoDir)
@@ -38,7 +38,7 @@ async function loadObjectRepositories(projectPath: string): Promise<ObjectReposi
         repos.push(JSON.parse(raw) as ObjectRepository)
       } catch { /* skip malformed file */ }
     }
-  } catch { /* object-repository dir missing */ }
+  } catch { /* api-request dir missing */ }
   return repos
 }
 

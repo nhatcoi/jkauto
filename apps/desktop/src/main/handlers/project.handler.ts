@@ -13,7 +13,7 @@ let recentProjects: RecentProject[] = []
 const PROJECT_STRUCTURE: Array<{ key: string; name?: string }> = [
   { key: 'profiles', name: 'Profiles' },
   { key: 'test-cases', name: 'Test Cases' },
-  { key: 'object-repository', name: 'API Requests' },
+  { key: 'api-request', name: 'API Requests' },
   { key: 'test-suites', name: 'Test Suites' },
   { key: 'keywords', name: 'Keywords' },
   { key: 'reports', name: 'Reports' },

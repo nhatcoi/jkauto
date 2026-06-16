@@ -1,4 +1,4 @@
-# object-repository feature
+# api-request feature
 
 ## Purpose
 Two distinct editors sharing this feature folder:
@@ -7,7 +7,7 @@ Two distinct editors sharing this feature folder:
 
 ## File structure
 ```
-object-repository/
+api-request/
 ├── RequestEditor.tsx         # root component — orchestrates all panels (for .request.json)
 ├── ObjectEditor.tsx          # editor for .objects.json (multi-locator element repo)
 ├── ImportOpenApiDialog.tsx   # import OpenAPI/Swagger spec dialog

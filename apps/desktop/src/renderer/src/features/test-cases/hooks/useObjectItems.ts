@@ -15,14 +15,14 @@ async function loadObjectEntries(projectPath: string): Promise<ObjectEntry[]> {
   try {
     const items = await invoke<Array<{ name: string; type: string }>>(
       IpcChannels.FS_LIST_DIR,
-      `${projectPath}/object-repository`,
+      `${projectPath}/api-request`,
     )
     for (const item of items ?? []) {
       if (!item.name.endsWith('.objects.json')) continue
       try {
         const raw = await invoke<string>(
           IpcChannels.FS_READ_FILE,
-          `${projectPath}/object-repository/${item.name}`,
+          `${projectPath}/api-request/${item.name}`,
         )
         const repo = JSON.parse(raw) as ObjectRepository
         for (const obj of repo.objects ?? []) {
@@ -30,7 +30,7 @@ async function loadObjectEntries(projectPath: string): Promise<ObjectEntry[]> {
         }
       } catch { /* skip malformed */ }
     }
-  } catch { /* object-repository dir missing */ }
+  } catch { /* api-request dir missing */ }
   return entries
 }
 

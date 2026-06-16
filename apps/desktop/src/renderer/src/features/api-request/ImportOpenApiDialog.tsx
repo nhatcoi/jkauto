@@ -83,7 +83,7 @@ export function ImportOpenApiDialog({ open, targetDir, onClose, onImported }: Pr
         {result ? (
           <div className="flex flex-col gap-3 py-2">
             <p className="text-xs text-muted-foreground">
-              Created <strong>{result.length}</strong> request{result.length !== 1 ? 's' : ''} in object-repository.
+              Created <strong>{result.length}</strong> request{result.length !== 1 ? 's' : ''} in API Requests.
             </p>
             <div className="max-h-48 overflow-auto rounded border border-border p-2 flex flex-col gap-0.5">
               {result.map((p) => {
