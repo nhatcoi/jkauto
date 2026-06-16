@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useState, useCallback } from 'react'
 import { IpcChannels } from '@jkauto/core'
 import type { ScrcpyVideoPacket } from '@jkauto/core'
 import { Smartphone, WifiOff } from 'lucide-react'
@@ -7,8 +7,6 @@ const TAP_THRESHOLD = 0.02
 
 interface Props {
   serial: string
-  onTap: (x: number, y: number) => void
-  onSwipe: (x1: number, y1: number, x2: number, y2: number) => void
 }
 
 interface DecoderState {
@@ -18,12 +16,30 @@ interface DecoderState {
   configured: boolean
 }
 
-export function AndroidMirror({ serial, onTap, onSwipe }: Props) {
+export function AndroidMirror({ serial }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const startRef = useRef<{ x: number; y: number } | null>(null)
   const stateRef = useRef<DecoderState | null>(null)
   const streamingRef = useRef(false)
+  const videoDimsRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 })
   const [status, setStatus] = useState<'starting' | 'streaming' | 'failed'>('starting')
+  const [failReason, setFailReason] = useState('')
+
+  const injectTouch = useCallback(
+    async (action: 0 | 1 | 2, nx: number, ny: number, pressure: number) => {
+      const { w, h } = videoDimsRef.current
+      if (!w || !h) return
+      await window.api.invoke(IpcChannels.SCRCPY_INJECT_TOUCH, {
+        action,
+        x: Math.round(nx * w),
+        y: Math.round(ny * h),
+        width: w,
+        height: h,
+        pressure,
+      })
+    },
+    [],
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -35,8 +51,14 @@ export function AndroidMirror({ serial, onTap, onSwipe }: Props) {
       return new VideoDecoder({
         output: (frame) => {
           if (cancelled || !canvas) { frame.close(); return }
-          if (canvas.width !== frame.displayWidth) canvas.width = frame.displayWidth
-          if (canvas.height !== frame.displayHeight) canvas.height = frame.displayHeight
+          if (canvas.width !== frame.displayWidth) {
+            canvas.width = frame.displayWidth
+            videoDimsRef.current.w = frame.displayWidth
+          }
+          if (canvas.height !== frame.displayHeight) {
+            canvas.height = frame.displayHeight
+            videoDimsRef.current.h = frame.displayHeight
+          }
           ctx.drawImage(frame, 0, 0)
           frame.close()
           if (!streamingRef.current) { streamingRef.current = true; setStatus('streaming') }
@@ -79,7 +101,6 @@ export function AndroidMirror({ serial, onTap, onSwipe }: Props) {
             hardwareAcceleration: 'no-preference',
           })
           state.configured = true
-          // Annex B: prepend SPS/PPS to first IDR frame
           const combined = new Uint8Array(state.configRaw.length + packet.data.length)
           combined.set(state.configRaw, 0)
           combined.set(packet.data, state.configRaw.length)
@@ -99,11 +120,22 @@ export function AndroidMirror({ serial, onTap, onSwipe }: Props) {
       )
     }
 
-    void window.api.invoke(IpcChannels.SCRCPY_START, { serial })
+    void (async () => {
+      const res = (await window.api.invoke(IpcChannels.SCRCPY_START, { serial })) as
+        | { ok: true }
+        | { ok: false; error: string }
+      if (!res.ok && !cancelled) {
+        setFailReason(res.error ?? 'unknown error')
+        setStatus('failed')
+      }
+    })()
     const off = window.api.on(IpcChannels.SCRCPY_VIDEO_PACKET, handlePacket)
 
     const timeout = setTimeout(() => {
-      if (!cancelled && !streamingRef.current) setStatus('failed')
+      if (!cancelled && !streamingRef.current) {
+        setFailReason('Timeout — no video frames received after 12s')
+        setStatus('failed')
+      }
     }, 12000)
 
     return () => {
@@ -129,23 +161,37 @@ export function AndroidMirror({ serial, onTap, onSwipe }: Props) {
     }
   }
 
-  function handleDown(e: React.MouseEvent) { startRef.current = norm(e) }
+  function handleDown(e: React.MouseEvent) {
+    const pos = norm(e)
+    if (!pos) return
+    startRef.current = pos
+    void injectTouch(0, pos.x, pos.y, 1)
+  }
+
   function handleUp(e: React.MouseEvent) {
     const start = startRef.current
     const end = norm(e)
     startRef.current = null
     if (!start || !end) return
     const dist = Math.hypot(end.x - start.x, end.y - start.y)
-    if (dist < TAP_THRESHOLD) onTap(start.x, start.y)
-    else onSwipe(start.x, start.y, end.x, end.y)
+    if (dist >= TAP_THRESHOLD) {
+      // swipe: send move then up at end position
+      void injectTouch(2, end.x, end.y, 1).then(() => injectTouch(1, end.x, end.y, 0))
+    } else {
+      void injectTouch(1, start.x, start.y, 0)
+    }
   }
 
   if (status === 'failed') {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground/50 text-xs">
+      <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground/50 text-xs px-4 text-center">
         <WifiOff className="w-8 h-8" />
-        <span>Scrcpy stream unavailable for {serial}</span>
-        <span className="text-muted-foreground/30">Check adb connection &amp; restart IDE</span>
+        <span>Scrcpy unavailable for <span className="font-mono">{serial}</span></span>
+        {failReason && (
+          <span className="text-muted-foreground/40 font-mono text-[10px] max-w-xs break-all">
+            {failReason}
+          </span>
+        )}
       </div>
     )
   }

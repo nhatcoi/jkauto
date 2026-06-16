@@ -143,6 +143,24 @@ export function AppiumPanel() {
   }
 
   async function handleConnect() {
+    // Auto-start Appium if not running, then wait up to 10s for it to be ready
+    if (!serverStatus.running) {
+      setBusy(true)
+      try {
+        await window.api.invoke(IpcChannels.APPIUM_START)
+        let started = false
+        for (let i = 0; i < 10; i++) {
+          await new Promise<void>((r) => setTimeout(r, 1000))
+          const s = (await window.api.invoke(IpcChannels.APPIUM_STATUS)) as AppiumStatus
+          setServerStatus(s)
+          if (s.running) { started = true; break }
+        }
+        if (!started) return
+      } finally {
+        setBusy(false)
+      }
+    }
+
     if (selectedAvd?.udid && selectedAvd.state === 'device') {
       await connect({
         platform: 'android',
@@ -242,12 +260,8 @@ export function AppiumPanel() {
             {session ? (
               <DeviceMirror session={session} onTap={tap} onSwipe={swipe} />
             ) : selectedAvd?.state === 'device' && selectedAvd.udid ? (
-              // Mirror starts as soon as AVD is running — no Appium session needed
-              <AndroidMirror
-                serial={selectedAvd.udid}
-                onTap={session ? tap : () => {}}
-                onSwipe={session ? swipe : () => {}}
-              />
+              // Mirror + gestures work via scrcpy control channel — no Appium needed
+              <AndroidMirror serial={selectedAvd.udid} />
             ) : (
               <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground/25 select-none">
                 <Smartphone className="w-14 h-14" strokeWidth={1} />
@@ -290,7 +304,7 @@ export function AppiumPanel() {
             <Button
               size="sm"
               className="h-7 text-xs px-3"
-              disabled={!canConnect || connecting || !serverStatus.running}
+              disabled={!canConnect || connecting}
               onClick={handleConnect}
             >
               {connecting ? 'Connecting…' : 'Connect'}

@@ -35,18 +35,16 @@ import type { TestCase } from "../types";
 
 export type TestCaseViewMode = "table" | "yaml";
 
-const PLATFORM_OPTIONS: { value: Platform | "inherit"; label: string }[] = [
-  { value: "inherit", label: "Inherit" },
+const PLATFORM_OPTIONS: { value: Platform; label: string }[] = [
   { value: "web", label: "Web" },
   { value: "mobile", label: "Mobile" },
   { value: "desktop", label: "Desktop" },
   { value: "api", label: "API" },
 ];
-const RUNNER_OPTIONS: Array<{ value: NonNullable<TestCase["runner"]>; label: string }> = [
-  { value: "playwright", label: "Playwright" },
+
+const MOBILE_RUNNER_OPTIONS: { value: "maestro" | "appium"; label: string }[] = [
   { value: "maestro", label: "Maestro" },
   { value: "appium", label: "Appium" },
-  { value: "api", label: "API" },
 ];
 const VIEW_OPTIONS: Array<{ value: TestCaseViewMode; label: string }> = [
   { value: "table", label: "Table" },
@@ -238,13 +236,13 @@ export function TestCaseToolbar({
           Platform:
         </span>
         <Select
-          value={tc.platform ?? "inherit"}
+          value={tc.platform ?? "web"}
           onValueChange={(value) => {
-            const platformValue = value === "inherit" ? undefined : (value as Platform);
+            const p = value as Platform;
             onMutate((prev) => ({
               ...prev,
-              platform: platformValue,
-              runner: defaultRunner(platformValue),
+              platform: p,
+              runner: defaultRunner(p),
             }));
           }}
         >
@@ -265,28 +263,31 @@ export function TestCaseToolbar({
 
       <div className="flex items-center gap-1">
         <span className="text-[10px] text-muted-foreground/70 shrink-0">Runner:</span>
-        <Select
-          value={tc.runner ?? "playwright"}
-          onValueChange={(value) =>
-            onMutate((prev) => ({
-              ...prev,
-              runner: value as NonNullable<TestCase["runner"]>,
-            }))
-          }
-        >
-          <SelectTrigger className="h-6 w-[108px] px-2 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {RUNNER_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value} className="text-xs">
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+        {tc.platform === "mobile" ? (
+          <Select
+            value={tc.runner === "appium" ? "appium" : "maestro"}
+            onValueChange={(value) =>
+              onMutate((prev) => ({ ...prev, runner: value as "maestro" | "appium" }))
+            }
+          >
+            <SelectTrigger className="h-6 w-[96px] px-2 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {MOBILE_RUNNER_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        ) : (
+          <span className="text-[11px] px-2 py-0.5 rounded bg-secondary text-foreground/70 font-mono">
+            {tc.runner ?? "playwright"}
+          </span>
+        )}
       </div>
 
       <div className="flex items-center gap-1">

@@ -1,6 +1,6 @@
 import type { IpcMain, WebContents } from 'electron'
 import { spawn, execSync, type ChildProcess } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { IpcChannels } from '@jkauto/core'
@@ -19,14 +19,26 @@ function resolveAppiumBin(): string {
       if (bin) return bin
     } catch { /* try next */ }
   }
-  // Fallback: common install locations
+  // Fallback: common install locations + search all nvm versions (newest first)
+  const home = homedir()
+  const nvmNodeDir = join(home, '.nvm', 'versions', 'node')
+  const nvmCandidates: string[] = []
+  if (existsSync(nvmNodeDir)) {
+    try {
+      const vers = readdirSync(nvmNodeDir)
+        .filter((v) => v.startsWith('v'))
+        .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
+      for (const v of vers) nvmCandidates.push(join(nvmNodeDir, v, 'bin', 'appium'))
+    } catch { /* ignore */ }
+  }
   const candidates = [
     '/usr/local/bin/appium',
     '/opt/homebrew/bin/appium',
-    `${process.env['HOME'] ?? ''}/.nvm/versions/node/current/bin/appium`,
+    join(home, '.nvm', 'versions', 'node', 'current', 'bin', 'appium'),
+    ...nvmCandidates,
   ]
   for (const p of candidates) {
-    try { execSync(`test -x "${p}"`); return p } catch { /* skip */ }
+    if (existsSync(p)) return p
   }
   throw new Error(
     'Appium not found. Install it with: npm install -g appium\n' +

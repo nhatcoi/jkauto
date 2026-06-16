@@ -1,0 +1,33 @@
+schemaVersion: 1
+id: tc_mobile_login_success
+name: Login Mobile Web - Success
+platform: web
+runner: playwright
+variables:
+  email: tester@example.com
+  password: password123
+steps:
+  - id: open_app
+    keyword: navigate-to
+    input: http://localhost:8081
+  - id: wait_login_form
+    keyword: wait-for-element
+    objectRef: '[data-testid="login-email-input"]'
+  - id: enter_email
+    keyword: type-text
+    objectRef: '[data-testid="login-email-input"]'
+    input: "{{email}}"
+  - id: enter_password
+    keyword: type-text
+    objectRef: '[data-testid="login-password-input"]'
+    input: "{{password}}"
+  - id: submit_login
+    keyword: click
+    objectRef: '[data-testid="login-submit-button"]'
+  - id: wait_tasks_screen
+    keyword: wait-for-element
+    objectRef: '[data-testid="tasks-screen"]'
+  - id: assert_logged_in_email
+    keyword: assert-text
+    objectRef: '[data-testid="signed-in-email-text"]'
+    expected: "{{email}}"

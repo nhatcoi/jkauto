@@ -1,0 +1,17 @@
+appId: com.anonymous.mobiletemplate
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: "login-email-input"
+- inputText: "tester@example.com"
+- tapOn:
+    id: "login-password-input"
+- inputText: "password123"
+- tapOn:
+    id: "login-submit-button"
+- assertVisible:
+    id: "tasks-screen"
+- assertVisible:
+    id: "signed-in-email-text"
+- assertVisible: "tester@example.com"

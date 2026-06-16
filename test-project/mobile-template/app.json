@@ -17,7 +17,8 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#f8fafc"
-      }
+      },
+      "package": "com.anonymous.mobiletemplate"
     }
   }
 }

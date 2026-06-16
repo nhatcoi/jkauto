@@ -93,6 +93,7 @@ export const IpcChannels = {
   SCRCPY_START: 'scrcpy:start',
   SCRCPY_STOP: 'scrcpy:stop',
   SCRCPY_VIDEO_PACKET: 'scrcpy:video-packet',
+  SCRCPY_INJECT_TOUCH: 'scrcpy:inject-touch',
 
   // Appium global install (npm install -g appium) — logs piped via APPIUM_LOG
   APPIUM_GLOBAL_INSTALL: 'appium:global-install',
@@ -400,6 +401,16 @@ export interface ScrcpyVideoPacket {
   /** true = keyframe, false = delta frame, only set on data packets */
   keyframe?: boolean
   data: Uint8Array
+}
+
+/** action: 0=Down 1=Up 2=Move. x/y are actual video pixels. */
+export interface ScrcpyInjectTouchPayload {
+  action: 0 | 1 | 2
+  x: number
+  y: number
+  width: number
+  height: number
+  pressure: number
 }
 
 export interface AppiumSessionStartResult {

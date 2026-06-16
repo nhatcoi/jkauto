@@ -71,11 +71,12 @@ function MjpegMirror({
   )
 }
 
-/** Routes to AndroidMirror (screencap) or MjpegMirror (iOS WDA) by platform. */
+/** Routes to AndroidMirror (scrcpy, gestures native) or MjpegMirror (iOS WDA) by platform. */
 export function DeviceMirror({ session, onTap, onSwipe }: Props) {
   if (session.platform === 'android') {
     const serial = session.udid ?? session.deviceName
-    return <AndroidMirror serial={serial} onTap={onTap} onSwipe={onSwipe} />
+    // Android gestures go through scrcpy control channel, not Appium
+    return <AndroidMirror serial={serial} />
   }
   return <MjpegMirror mjpegPort={session.mjpegPort} onTap={onTap} onSwipe={onSwipe} />
 }

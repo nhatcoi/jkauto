@@ -4,16 +4,18 @@ import { readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { IpcChannels } from '@jkauto/core'
-import type { ScrcpyStartPayload } from '@jkauto/core'
+import type { ScrcpyStartPayload, ScrcpyInjectTouchPayload } from '@jkauto/core'
 import { Adb } from '@yume-chan/adb'
 import { AdbServerClient } from '@yume-chan/adb'
 import { AdbServerNodeTcpConnector } from '@yume-chan/adb-server-node-tcp'
 import { AdbScrcpyClient, AdbScrcpyOptions3_1 } from '@yume-chan/adb-scrcpy'
 import { DefaultServerPath, h264ParseConfiguration } from '@yume-chan/scrcpy'
+import type { ScrcpyControlMessageWriter } from '@yume-chan/scrcpy'
 
 const hex2 = (n: number) => n.toString(16).padStart(2, '0')
 
 let activeClient: { close(): Promise<void> } | null = null
+let activeController: ScrcpyControlMessageWriter | null = null
 let streamAbort: AbortController | null = null
 
 function getServerBinPath(): string {
@@ -35,6 +37,7 @@ function getServerBinPath(): string {
 async function stopActive(): Promise<void> {
   streamAbort?.abort()
   streamAbort = null
+  activeController = null
   if (activeClient) {
     try { await activeClient.close() } catch { /* already gone */ }
     activeClient = null
@@ -61,7 +64,7 @@ async function launchScrcpy(serial: string, webContents: WebContents): Promise<v
     {
       video: true,
       audio: false,
-      control: false,
+      control: true,
       videoCodec: 'h264',
       videoBitRate: 4_000_000,
       maxFps: 30,
@@ -73,6 +76,7 @@ async function launchScrcpy(serial: string, webContents: WebContents): Promise<v
 
   const client = await AdbScrcpyClient.start(adb, DefaultServerPath, options)
   activeClient = client
+  activeController = client.controller ?? null
 
   // Stream video packets in background — don't await
   void streamVideoPackets(client, webContents)
@@ -134,6 +138,26 @@ export function registerScrcpyHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(IpcChannels.SCRCPY_STOP, async () => {
     await stopActive()
     return { ok: true }
+  })
+
+  ipcMain.handle(IpcChannels.SCRCPY_INJECT_TOUCH, async (_event, payload: ScrcpyInjectTouchPayload) => {
+    if (!activeController) return { ok: false, error: 'no controller' }
+    try {
+      await activeController.injectTouch({
+        action: payload.action,
+        pointerId: BigInt(0),
+        pointerX: payload.x,
+        pointerY: payload.y,
+        videoWidth: payload.width,
+        videoHeight: payload.height,
+        pressure: payload.pressure,
+        actionButton: 0,
+        buttons: payload.action === 1 ? 0 : 1, // 0 on Up, primary button on Down/Move
+      })
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
   })
 }
 
