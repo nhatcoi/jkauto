@@ -1,4 +1,4 @@
-import type { TestCase, Profile, Platform, ObjectRepository, Locator } from '@jkauto/core'
+import type { TestCase, Profile, Platform, ObjectRepository, Locator, MobileTestType } from '@jkauto/core'
 import type { StepEvent, RunCompleteEvent } from '@jkauto/core'
 import { getAdapter } from './adapter/registry'
 import type { EngineAdapter } from './adapter/types'
@@ -13,9 +13,7 @@ export interface RunOptions {
   platform?: Platform
   /** Loaded object repositories for resolveLocator. Passed by engine handler at runtime. */
   objectRepositories?: ObjectRepository[]
-  /** Mobile device name, e.g. "iPhone 14". Forwarded to adapter.start(). */
-  device?: string
-  /** Desktop app executable path. Forwarded to adapter.start(). */
+  /** Desktop/Appium app executable path. Forwarded to adapter.start(). */
   appPath?: string
   /** Pre-created session to reuse. When provided, start/stop are skipped — caller owns lifecycle. */
   externalSession?: unknown
@@ -92,8 +90,13 @@ export async function runTestCase(
   signal?: AbortSignal,
   options: RunOptions = {},
 ): Promise<void> {
-  const { headless = false, stepDelay = 0, waitForNext, objectRepositories = [], device, appPath, externalSession, loadTestCase } = options
+  const { headless = false, stepDelay = 0, waitForNext, objectRepositories = [], appPath, externalSession, loadTestCase } = options
   const platform: Platform = testCase.platform ?? options.platform ?? 'web'
+  // When platform is 'mobile', resolve to the concrete engine adapter key.
+  const mobileTestType: MobileTestType = testCase.mobileTestType ?? 'normal'
+  const adapterKey = platform === 'mobile'
+    ? (mobileTestType === 'appium' ? 'appium' : 'maestro')
+    : platform
   const startTime = Date.now()
   let passedSteps = 0
   let failedSteps = 0
@@ -109,16 +112,15 @@ export async function runTestCase(
 
   async function resolveLocator(ref: string): Promise<string> {
     if (!ref) return ''
-    // Object repo lookup: try exact key, then case-insensitive.
     const key = ref.toLowerCase()
     const resolved = locatorIndex.get(key)
     if (resolved) return resolved
-    // Fall back to treating ref as a raw CSS / XPath selector.
     return ref
   }
 
-  const adapter = getAdapter(platform)
-  const session = externalSession ?? await adapter.start(profile, { headless, device, appPath })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const adapter = getAdapter(adapterKey as any)
+  const session = externalSession ?? await adapter.start(profile, { headless, appPath })
 
   try {
     for (let i = 0; i < testCase.steps.length; i++) {

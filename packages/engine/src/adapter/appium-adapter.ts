@@ -13,7 +13,7 @@ export class AppiumAdapter implements EngineAdapter<AppiumDriver> {
     const host = profile.variables['APPIUM_HOST'] ?? 'localhost'
     const port = parseInt(profile.variables['APPIUM_PORT'] ?? '4723', 10)
     const appPath = options.appPath ?? profile.variables['APP_PATH']
-    const deviceName = options.device ?? profile.variables['APPIUM_DEVICE']
+    const deviceName = profile.variables['APPIUM_DEVICE']
     const isAndroid = deviceName?.toLowerCase().includes('android') ?? false
 
     return remote({

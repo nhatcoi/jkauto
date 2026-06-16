@@ -18,6 +18,11 @@ export interface AppiumDriver {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   touchAction(actions: any[]): Promise<unknown>
   deleteSession(): Promise<void>
+  back(): Promise<void>
+  pressKeyCode(keycode: number): Promise<void>
+  activateApp(appId: string): Promise<void>
+  terminateApp(appId: string): Promise<void>
+  saveScreenshot(filepath: string): Promise<unknown>
 }
 
 // Mutable API test session — api keywords read/write this across steps.
