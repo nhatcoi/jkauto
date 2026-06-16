@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, shell } from 'electron'
 import type { IpcChannel } from '@jkauto/core'
 
 const api = {
@@ -14,6 +14,7 @@ const api = {
   off: (channel: IpcChannel, callback: (...args: unknown[]) => void) => {
     ipcRenderer.removeAllListeners(channel)
   },
+  openExternal: (url: string) => shell.openExternal(url),
 }
 
 contextBridge.exposeInMainWorld('api', api)

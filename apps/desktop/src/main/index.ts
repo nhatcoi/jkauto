@@ -18,6 +18,7 @@ import {
   stopAppiumSessionOnQuit,
 } from './handlers/appium-session.handler'
 import { registerScrcpyHandlers, stopScrcpyOnQuit } from './handlers/scrcpy.handler'
+import { registerMaestroHandlers } from './handlers/maestro.handler'
 import { IpcChannels } from '@jkauto/core'
 import { setupMenu } from './menu'
 
@@ -105,6 +106,7 @@ app.whenReady().then(() => {
   registerSettingsHandlers(ipcMain)
   registerAppiumHandlers(ipcMain)
   registerAppiumSessionHandlers(ipcMain)
+  registerMaestroHandlers(ipcMain)
   registerScrcpyHandlers(ipcMain)
   ipcMain.handle(IpcChannels.APPIUM_INSPECTOR_OPEN, () => {
     openInspectorWindow()

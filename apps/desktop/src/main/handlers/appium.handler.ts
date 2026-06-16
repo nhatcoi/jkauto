@@ -186,6 +186,29 @@ function spawnAppium(port: number, logLevel: string): ChildProcess {
 }
 
 export function registerAppiumHandlers(ipcMain: IpcMain): void {
+  ipcMain.handle(IpcChannels.APPIUM_GLOBAL_INSTALL, async (event) => {
+    try {
+      const shells = [process.env['SHELL'] ?? '/bin/zsh', '/bin/zsh', '/bin/bash']
+      let nodeDir = ''
+      for (const shell of shells) {
+        try {
+          const bin = execSync(`${shell} -lc "which node"`, { encoding: 'utf-8', timeout: 3000 }).trim()
+          if (bin) { nodeDir = bin.replace(/\/node$/, ''); break }
+        } catch { /* try next */ }
+      }
+      const extra = ['/opt/homebrew/bin', '/usr/local/bin', nodeDir].filter(Boolean).join(':')
+      const env = { ...process.env, PATH: `${extra}:${process.env['PATH'] ?? ''}` }
+      const proc = spawn('npm', ['install', '-g', 'appium'], { stdio: 'pipe', shell: false, env })
+      pipeToRenderer(proc, event.sender)
+      return await new Promise<{ ok: boolean; error?: string }>((resolve) => {
+        proc.on('exit', (code) => resolve({ ok: code === 0 }))
+        proc.on('error', (err) => resolve({ ok: false, error: err.message }))
+      })
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
   ipcMain.handle(IpcChannels.APPIUM_START, async (event) => {
     if (appiumProcess) return { ok: true, pid: appiumProcess.pid }
     const settings = await getSettings()

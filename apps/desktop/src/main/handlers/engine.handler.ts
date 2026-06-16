@@ -23,7 +23,6 @@ interface RunPayload {
   debugMode?: boolean
   profileVariables?: Record<string, string>
   projectPath?: string
-  device?: string
   appPath?: string
 }
 
@@ -49,7 +48,9 @@ function normalizeTestCase(tcData: Partial<TestCase>): TestCase {
     id: tcData.id ?? randomUUID(),
     name: tcData.name ?? 'Unnamed',
     description: tcData.description ?? '',
-    platform: tcData.platform, // undefined → runner falls back to 'web'
+    platform: tcData.platform,
+    mobileTestType: tcData.mobileTestType,
+    mobileYaml: tcData.mobileYaml,
     stepDelayMs: tcData.stepDelayMs ?? null,
     tags: tcData.tags ?? [],
     steps: tcData.steps ?? [],
@@ -101,7 +102,7 @@ function sendSuiteEvent(webContents: WebContents, event: SuiteEvent): void {
 
 export function registerEngineHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(IpcChannels.ENGINE_RUN_CASE, async (event, payload: RunPayload) => {
-    const { filePath, debugMode = false, profileVariables = {}, projectPath, device, appPath } = payload
+    const { filePath, debugMode = false, profileVariables = {}, projectPath, appPath } = payload
     const settings = await getSettings()
 
     const testCase = await readTestCase(filePath)
@@ -151,7 +152,6 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
         ? {
             headless: settings.execution.headless,
             objectRepositories,
-            device,
             appPath,
             loadTestCase,
             waitForNext: (stepIndex: number) =>
@@ -162,7 +162,7 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
                 }
               }),
           }
-        : { headless: settings.execution.headless, objectRepositories, device, appPath, loadTestCase, stepDelay },
+        : { headless: settings.execution.headless, objectRepositories, appPath, loadTestCase, stepDelay },
     ).catch((err) => {
       activeRuns.delete(runId)
       if (!webContents.isDestroyed()) {
