@@ -93,33 +93,60 @@ function maestroTarget(step: { objectRef: string; input: string; expected: strin
   return step.objectRef || step.input || step.expected
 }
 
+/**
+ * Convert objectRef to Maestro selector YAML fragment.
+ * ~accessibilityId  →  block form:  "\n    id: \"value\""
+ * plain text/other  →  inline form: " \"value\""
+ */
+function maestroRef(ref: string): string {
+  if (ref.startsWith('~')) return `\n    id: ${yamlScalar(ref.slice(1))}`
+  return ` ${yamlScalar(ref)}`
+}
+
 function maestroCommand(step: TestCase['steps'][number], interpolate: (value: string) => string): string[] {
   const keyword = step.keyword
   const target = interpolate(maestroTarget(step))
   const input = interpolate(step.input)
   const expected = interpolate(step.expected)
+  const objectRef = interpolate(step.objectRef)
 
   switch (keyword) {
     case 'mobile.launchApp':
-    case 'launchApp':
-      return ['- launchApp']
+    case 'launchApp': {
+      const clearState = input === 'clearState' || input === 'true'
+      return clearState ? ['- launchApp:\n    clearState: true'] : ['- launchApp']
+    }
     case 'clearState':
     case 'mobile.clearState':
       return ['- clearState']
     case 'mobile.tap':
-    case 'tapOn':
-      return [`- tapOn: ${yamlScalar(target)}`]
     case 'mobile.inputText':
+    case 'tapOn':
+    case 'tap':
+      return [`- tapOn:${maestroRef(target)}`]
+    case 'type-text':
+      return objectRef
+        ? [`- tapOn:${maestroRef(objectRef)}`, `- inputText: ${yamlScalar(input)}`]
+        : [`- inputText: ${yamlScalar(input)}`]
     case 'inputText':
-      return step.objectRef
-        ? [`- tapOn: ${yamlScalar(interpolate(step.objectRef))}`, `- inputText: ${yamlScalar(input)}`]
+      return objectRef
+        ? [`- tapOn:${maestroRef(objectRef)}`, `- inputText: ${yamlScalar(input)}`]
         : [`- inputText: ${yamlScalar(input)}`]
     case 'mobile.assertVisible':
     case 'assertVisible':
-      return [`- assertVisible: ${yamlScalar(target || expected)}`]
+    case 'assert-visible':
+    case 'wait-for-element':
+    case 'mobile.waitForVisible':
+      return [`- assertVisible:${maestroRef(target || expected)}`]
     case 'mobile.assertNotVisible':
     case 'assertNotVisible':
-      return [`- assertNotVisible: ${yamlScalar(target || expected)}`]
+      return [`- assertNotVisible:${maestroRef(target || expected)}`]
+    case 'assert-text':
+      // Check element visible by id, then check expected text visible on screen
+      return [
+        ...(objectRef ? [`- assertVisible:${maestroRef(objectRef)}`] : []),
+        `- assertVisible: ${yamlScalar(expected || target)}`,
+      ]
     case 'mobile.back':
     case 'back':
       return ['- back']
@@ -132,6 +159,12 @@ function maestroCommand(step: TestCase['steps'][number], interpolate: (value: st
     case 'mobile.swipe':
     case 'swipe':
       return [`- swipe: ${yamlScalar(input || 'up')}`]
+    case 'mobile.closeApp':
+    case 'closeApp':
+    case 'clear-text':
+    case 'mobile.clearText':
+      // No equivalent in Maestro; skip
+      return []
     default:
       throw new Error(`Maestro runner does not support keyword: ${keyword}`)
   }
