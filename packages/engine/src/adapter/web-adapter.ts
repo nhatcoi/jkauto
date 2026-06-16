@@ -42,4 +42,8 @@ export class WebAdapter implements EngineAdapter<WebSession> {
   async stop(session: WebSession): Promise<void> {
     await session.browser.close()
   }
+
+  async screenshot(session: WebSession, { path }: { path: string }): Promise<void> {
+    await session.page.screenshot({ path, fullPage: true })
+  }
 }

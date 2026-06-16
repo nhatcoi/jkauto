@@ -36,7 +36,7 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
-import { EXPLORER_KEYMAPS, matchesBinding } from '@/shared/keymaps'
+import { EXPLORER_KEYMAPS, matchesBinding, REPORTS_TAB_PATH, KEYWORDS_TAB_PATH } from '@/shared/keymaps'
 import { IpcChannels } from '@jkauto/core'
 import type { FsTreeNode } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
@@ -101,6 +101,7 @@ function stripKnownExtension(name: string, type: NewItemType): string {
   if (type === 'test-case') return name.replace(/\.test\.(json|ya?ml)$/i, '')
   if (type === 'suite') return name.replace(/\.suite\.(json|ya?ml)$/i, '')
   if (type === 'api-request') return name.replace(/\.request\.(json|ya?ml)$/i, '')
+  if (type === 'keyword') return name.replace(/\.keywords\.json$/i, '')
   return name
 }
 
@@ -365,6 +366,51 @@ function GenericMenu({
   )
 }
 
+function KeywordsMenu({
+  node,
+  cb,
+}: {
+  node: NodeApi<FsTreeNode>
+  cb: MenuCallbacks
+}) {
+  const isFolder = node.isInternal
+  const isRoot = isTopLevel(node.id)
+
+  return (
+    <>
+      {isFolder && (
+        <>
+          <ContextMenuItem className="text-xs" onSelect={() => cb.onNewItem({ dir: node.data.path, type: 'keyword' })}>
+            New Keyword<ContextMenuShortcut>{EXPLORER_KEYMAPS.newItem.hint}</ContextMenuShortcut>
+          </ContextMenuItem>
+          <ContextMenuItem className="text-xs" onSelect={() => cb.onNewItem({ dir: node.data.path, type: 'folder' })}>
+            New Folder
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+        </>
+      )}
+      {!isRoot && (
+        <>
+          <ContextMenuItem className="text-xs" onSelect={cb.onEdit}>
+            Rename<ContextMenuShortcut>{EXPLORER_KEYMAPS.rename.hint}</ContextMenuShortcut>
+          </ContextMenuItem>
+          {!isFolder && (
+            <ContextMenuItem className="text-xs" onSelect={cb.onCopy}>Copy</ContextMenuItem>
+          )}
+          <ContextMenuItem
+            className="text-xs text-destructive focus:text-destructive"
+            onSelect={cb.onDelete}
+          >
+            Delete<ContextMenuShortcut>{EXPLORER_KEYMAPS.delete.hint}</ContextMenuShortcut>
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+        </>
+      )}
+      <ContextMenuItem className="text-xs" onSelect={cb.onOpenFolder}>Open Containing Folder</ContextMenuItem>
+    </>
+  )
+}
+
 function FeatureContextMenu({
   node,
   cb,
@@ -373,9 +419,10 @@ function FeatureContextMenu({
   cb: MenuCallbacks
 }) {
   const feature = featureOf(node.id)
-  if (feature === 'api-request') return <ObjectRepoMenu node={node} cb={cb} />
+  if (feature === 'api-requests') return <ObjectRepoMenu node={node} cb={cb} />
   if (feature === 'test-cases') return <TestCasesMenu node={node} cb={cb} />
   if (feature === 'test-suites') return <TestSuitesMenu node={node} cb={cb} />
+  if (feature === 'keywords') return <KeywordsMenu node={node} cb={cb} />
   return <GenericMenu node={node} cb={cb} />
 }
 
@@ -398,6 +445,12 @@ function NodeRow({
   const handleActivate = () => {
     if (node.isInternal) {
       node.toggle()
+      if (node.id === 'reports') {
+        openTab(REPORTS_TAB_PATH, 'Reports', projectPath)
+      }
+      if (node.id === 'keywords') {
+        openTab(KEYWORDS_TAB_PATH, 'Keywords', projectPath)
+      }
     } else {
       openTab(node.data.path, node.data.displayName ?? node.data.name, projectPath)
     }
@@ -656,6 +709,21 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
         2,
       )
       await invoke(IpcChannels.FS_CREATE_FILE, pathJoin(dir, fileName), content)
+    } else if (type === 'keyword') {
+      const fileName = `${key}.keywords.json`
+      const content = JSON.stringify(
+        {
+          schemaVersion: 1,
+          id: randomUUID(),
+          name: displayName,
+          description: '',
+          params: [],
+          steps: [],
+        },
+        null,
+        2,
+      )
+      await invoke(IpcChannels.FS_CREATE_FILE, pathJoin(dir, fileName), content)
     }
 
     setNewItemState(null)
@@ -692,7 +760,8 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
         const type: NewItemType =
           feature === 'test-cases' ? 'test-case'
           : feature === 'test-suites' ? 'suite'
-          : feature === 'api-request' ? 'api-request'
+          : feature === 'api-requests' ? 'api-request'
+          : feature === 'keywords' ? 'keyword'
           : 'folder'
         setNewItemState({ dir, type })
       }

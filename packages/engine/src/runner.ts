@@ -23,6 +23,8 @@ export interface RunOptions {
   externalSession?: unknown
   /** Loads a test case by path for call-test-case keyword — provided by engine handler. */
   loadTestCase?: (path: string) => Promise<TestCase>
+  /** Directory to save on-failure screenshots. When set, a PNG is captured after each failed step. */
+  screenshotDir?: string
 }
 
 function buildSelector(locator: Locator, platform: Platform): string {
@@ -271,7 +273,7 @@ export async function runTestCase(
   signal?: AbortSignal,
   options: RunOptions = {},
 ): Promise<void> {
-  const { headless = false, stepDelay = 0, waitForNext, objectRepositories = [], appPath, externalSession, loadTestCase } = options
+  const { headless = false, stepDelay = 0, waitForNext, objectRepositories = [], appPath, externalSession, loadTestCase, screenshotDir } = options
   const platform: Platform = testCase.platform ?? options.platform ?? 'web'
   // When platform is 'mobile', resolve to the concrete engine adapter key.
   const adapterKey = platform === 'mobile'
@@ -334,7 +336,17 @@ export async function runTestCase(
         passedSteps++
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
-        onStep({ runId, testCaseId: testCase.id, stepIndex: i, status: 'failed', message, durationMs: Date.now() - stepStart })
+        let screenshotPath: string | undefined
+        if (screenshotDir && adapter.screenshot) {
+          try {
+            await fs.mkdir(screenshotDir, { recursive: true })
+            screenshotPath = path.join(screenshotDir, `${runId}-step${i}.png`)
+            await adapter.screenshot(session, { path: screenshotPath })
+          } catch {
+            screenshotPath = undefined
+          }
+        }
+        onStep({ runId, testCaseId: testCase.id, stepIndex: i, status: 'failed', message, durationMs: Date.now() - stepStart, screenshotPath })
         failedSteps++
         if (!step.continueOnFailure) break
       }

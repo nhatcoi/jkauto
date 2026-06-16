@@ -42,4 +42,8 @@ export class DesktopAdapter implements EngineAdapter<DesktopSession> {
   async stop(session: DesktopSession): Promise<void> {
     await session.app.close()
   }
+
+  async screenshot(session: DesktopSession, { path }: { path: string }): Promise<void> {
+    await session.page.screenshot({ path, fullPage: true })
+  }
 }

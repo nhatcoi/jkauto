@@ -20,4 +20,6 @@ export interface EngineAdapter<Session = unknown> {
   start(profile: Profile, options: AdapterStartOptions): Promise<Session>
   execute(session: Session, step: Step, helpers: ExecutionHelpers): Promise<void>
   stop(session: Session): Promise<void>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  screenshot?: (session: any, options: { path: string }) => Promise<void>
 }

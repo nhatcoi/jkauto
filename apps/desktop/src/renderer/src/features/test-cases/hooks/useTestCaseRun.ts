@@ -53,7 +53,7 @@ export function useTestCaseRun({ filePath, tcRef, serialize }: Options) {
       IpcChannels.ENGINE_RUN_COMPLETE,
       (event: any) => {
         handleRunComplete(event);
-        const { stepStatuses, stepMessages, stepDurations } = useRunStore.getState();
+        const { stepStatuses, stepMessages, stepDurations, stepScreenshots } = useRunStore.getState();
         const stepResults: StepResult[] = Object.entries(stepStatuses)
           .map(([idx, status]) => {
             const i = Number(idx);
@@ -63,6 +63,7 @@ export function useTestCaseRun({ filePath, tcRef, serialize }: Options) {
               status: s as StepResult['status'],
               message: stepMessages[i],
               durationMs: stepDurations[i],
+              screenshotPath: stepScreenshots[i],
             };
           })
           .sort((a, b) => a.stepIndex - b.stepIndex);

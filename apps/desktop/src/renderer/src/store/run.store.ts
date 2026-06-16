@@ -31,6 +31,7 @@ interface RunStore {
   stepStatuses: Record<number, StepStatus>
   stepMessages: Record<number, string>
   stepDurations: Record<number, number>
+  stepScreenshots: Record<number, string>
   logs: LogEntry[]
   events: EventEntry[]
   appiumLogs: AppiumLogEntry[]
@@ -69,6 +70,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
   stepStatuses: {},
   stepMessages: {},
   stepDurations: {},
+  stepScreenshots: {},
   logs: [],
   events: [],
   appiumLogs: [],
@@ -86,6 +88,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
       stepStatuses: {},
       stepMessages: {},
       stepDurations: {},
+      stepScreenshots: {},
       logs: [
         {
           id: uid(),
@@ -104,7 +107,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
     }),
 
   handleStepEvent: (event: StepEvent) => {
-    const { stepIndex, status, message, durationMs } = event
+    const { stepIndex, status, message, durationMs, screenshotPath } = event
     set((state) => {
       const newStatuses = { ...state.stepStatuses, [stepIndex]: status as StepStatus }
       const newMessages = message
@@ -114,6 +117,10 @@ export const useRunStore = create<RunStore>((set, get) => ({
         durationMs !== undefined
           ? { ...state.stepDurations, [stepIndex]: durationMs }
           : state.stepDurations
+      const newScreenshots =
+        screenshotPath
+          ? { ...state.stepScreenshots, [stepIndex]: screenshotPath }
+          : state.stepScreenshots
 
       const logLevel =
         status === 'passed' ? 'success' : status === 'failed' ? 'error' : 'info'
@@ -134,6 +141,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
         stepStatuses: newStatuses,
         stepMessages: newMessages,
         stepDurations: newDurations,
+        stepScreenshots: newScreenshots,
         isDebugPaused,
         logs: [
           ...state.logs,
@@ -230,6 +238,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
       stepStatuses: {},
       stepMessages: {},
       stepDurations: {},
+      stepScreenshots: {},
       logs: [],
       events: [],
     }),

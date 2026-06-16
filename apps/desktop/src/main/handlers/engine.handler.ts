@@ -208,7 +208,7 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
                 }
               }),
           }
-        : { headless: settings.execution.headless, objectRepositories, appPath: appPath ?? testCase.app?.path, loadTestCase, stepDelay },
+        : { headless: settings.execution.headless, objectRepositories, appPath: appPath ?? testCase.app?.path, loadTestCase, stepDelay, screenshotDir: projectPath ? path.join(projectPath, '.autotest', 'screenshots') : undefined },
     ).catch((err) => {
       activeRuns.delete(runId)
       if (!webContents.isDestroyed()) {
