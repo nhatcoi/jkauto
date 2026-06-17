@@ -1,31 +1,36 @@
-import { exec } from 'node:child_process'
-import { promisify } from 'node:util'
 import type { IpcMain } from 'electron'
 import { IpcChannels } from '@jkauto/core'
-import type { AgentChatPayload } from '@jkauto/core'
-import { chatWithAgent, getAgentContext } from '../services/agent/agent.service'
+import type {
+  AgentChatPayload,
+  AgentSessionListPayload,
+  AgentSessionCreatePayload,
+  AgentSessionUpdatePayload,
+  AgentSessionDeletePayload,
+  AgentSessionDataPayload,
+} from '@jkauto/core'
+import {
+  chatWithAgent,
+  getAgentContext,
+  listAgentSessions,
+  createAgentSession,
+  updateAgentSession,
+} from '../services/agent/agent.service'
+import {
+  getSessionMessages,
+  getSessionArtifacts,
+  getSessionActions,
+  updateSession,
+} from '../services/agent/session.service'
 import { getSettings } from '../services/settings.service'
 
-const execAsync = promisify(exec)
-
-async function installPlaywrightSkill(projectPath: string): Promise<void> {
-  const tmpDir = `/tmp/playwright-skill-temp-${Date.now()}`
-  const skillTarget = `${projectPath}/.claude/skills`
-
-  try {
-    await execAsync(`git clone https://github.com/lackeyjb/playwright-skill.git "${tmpDir}"`)
-    await execAsync(`mkdir -p "${skillTarget}"`)
-    await execAsync(`cp -r "${tmpDir}/skills/playwright-skill" "${skillTarget}/"`)
-    await execAsync(`cd "${skillTarget}/playwright-skill" && npm run setup`, { cwd: skillTarget })
-  } finally {
-    await execAsync(`rm -rf "${tmpDir}"`).catch(() => {})
-  }
-}
-
 export function registerAgentHandlers(ipcMain: IpcMain): void {
-  ipcMain.handle(IpcChannels.AGENT_CHAT, async (_, payload: AgentChatPayload) => {
+  ipcMain.handle(IpcChannels.AGENT_CHAT, async (event, payload: AgentChatPayload) => {
     const settings = await getSettings()
-    return chatWithAgent(payload, settings.agent)
+    return chatWithAgent(payload, settings.agent, (chunk) => {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send(IpcChannels.AGENT_STREAM_CHUNK, chunk)
+      }
+    })
   })
 
   ipcMain.handle(IpcChannels.AGENT_GET_CONTEXT, async (_, payload: AgentChatPayload) => {
@@ -36,11 +41,51 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
     return { ok: true }
   })
 
-  ipcMain.handle(IpcChannels.AGENT_INSTALL_SKILL, async (_, projectPath: string) => {
-    await installPlaywrightSkill(projectPath)
+  ipcMain.handle(IpcChannels.AGENT_SESSION_LIST, async (_, payload: AgentSessionListPayload) => {
+    return listAgentSessions(payload.projectPath)
   })
 
-  ipcMain.handle(IpcChannels.AGENT_INSTALL_BROWSERS, async () => {
-    await execAsync('npx playwright install chromium --with-deps')
-  })
+  ipcMain.handle(
+    IpcChannels.AGENT_SESSION_CREATE,
+    async (_, payload: AgentSessionCreatePayload) => {
+      return createAgentSession(payload.projectPath, payload.mode, payload.title)
+    },
+  )
+
+  ipcMain.handle(
+    IpcChannels.AGENT_SESSION_UPDATE,
+    async (_, payload: AgentSessionUpdatePayload) => {
+      await updateAgentSession(payload.projectPath, payload.id, payload.patch)
+      return { ok: true }
+    },
+  )
+
+  ipcMain.handle(
+    IpcChannels.AGENT_SESSION_DELETE,
+    async (_, payload: AgentSessionDeletePayload) => {
+      updateSession(payload.projectPath, payload.id, { status: 'archived' })
+      return { ok: true }
+    },
+  )
+
+  ipcMain.handle(
+    IpcChannels.AGENT_SESSION_MESSAGES,
+    async (_, payload: AgentSessionDataPayload) => {
+      return getSessionMessages(payload.projectPath, payload.sessionId)
+    },
+  )
+
+  ipcMain.handle(
+    IpcChannels.AGENT_SESSION_ARTIFACTS,
+    async (_, payload: AgentSessionDataPayload) => {
+      return getSessionArtifacts(payload.projectPath, payload.sessionId)
+    },
+  )
+
+  ipcMain.handle(
+    IpcChannels.AGENT_SESSION_ACTIONS,
+    async (_, payload: AgentSessionDataPayload) => {
+      return getSessionActions(payload.projectPath, payload.sessionId)
+    },
+  )
 }

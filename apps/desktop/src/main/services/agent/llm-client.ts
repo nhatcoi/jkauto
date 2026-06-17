@@ -1,12 +1,14 @@
-import OpenAI from 'openai'
-import type { AgentMessage } from '@jkauto/core'
-import type { McpClient } from './mcp-client'
-import { AGENT_SYSTEM_PROMPT } from './prompt'
+import { streamText, dynamicTool, jsonSchema, type ModelMessage, type LanguageModelUsage, type ToolSet } from 'ai'
+import { createOpenAI } from '@ai-sdk/openai'
+import type { AgentMessage, AgentMessageMeta, AgentSessionMode } from '@jkauto/core'
+import type { McpManager } from './mcp-manager'
+import { getSystemPrompt } from './prompt'
 
 const DEFAULT_BASE_URL = 'http://127.0.0.1:20128/v1'
 const DEFAULT_MODEL = 'v1'
-const DEFAULT_API_KEY = 'sk-67abc7d002e1dde6-35cltj-04a78299'
+const DEFAULT_API_KEY = 'sk-9223e8b9a66db387-iw96z0-515a4eee'
 const MAX_TOOL_ROUNDS = 20
+const MAX_MESSAGES_TO_LLM = 20
 
 export interface AgentConfig {
   baseUrl: string
@@ -18,130 +20,149 @@ export interface AgentLlmResult {
   content: string
   model?: string
   usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number }
+  metadata?: AgentMessageMeta
 }
 
 export function getConfig(override?: Partial<AgentConfig>): AgentConfig {
   return {
-    baseUrl: override?.baseUrl || process.env.JKAUTO_AGENT_BASE_URL || DEFAULT_BASE_URL,
-    apiKey: override?.apiKey || process.env.JKAUTO_AGENT_API_KEY || DEFAULT_API_KEY,
-    model: override?.model || process.env.JKAUTO_AGENT_MODEL || DEFAULT_MODEL,
+    baseUrl: override?.baseUrl || process.env.DEFAULT_BASE_URL || DEFAULT_BASE_URL,
+    apiKey: override?.apiKey || process.env.DEFAULT_API_KEY || DEFAULT_API_KEY,
+    model: override?.model || process.env.DEFAULT_MODEL || DEFAULT_MODEL,
   }
 }
 
-function makeClient(config: AgentConfig): OpenAI {
-  return new OpenAI({ baseURL: config.baseUrl, apiKey: config.apiKey })
-}
-
-type OAIMessage = OpenAI.Chat.Completions.ChatCompletionMessageParam
-
-function buildMessages(
-  history: AgentMessage[],
+function buildSystemPrompt(
+  mode: AgentSessionMode,
   contextSummary: string,
-): OAIMessage[] {
-  return [
-    { role: 'system', content: AGENT_SYSTEM_PROMPT },
-    { role: 'system', content: `Current JKAuto context:\n${contextSummary}` },
-    ...history.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
-  ]
+  projectContext: string,
+  sessionSummary: string | undefined,
+  skills: string[],
+): string {
+  const parts: string[] = [getSystemPrompt(mode)]
+  if (sessionSummary) parts.push(`## Session Memory\n${sessionSummary}`)
+  if (projectContext) parts.push(`## Project Context\n${projectContext}`)
+  parts.push(`## Current App State\n${contextSummary}`)
+  parts.push(...skills)
+  return parts.join('\n\n---\n\n')
 }
 
-// Plain chat — no tools
-export async function sendAgentChat(
+function buildMessages(history: AgentMessage[]): ModelMessage[] {
+  return history
+    .slice(-MAX_MESSAGES_TO_LLM)
+    .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+}
+
+function createFilteredFetch(): typeof fetch {
+  return async (input: Parameters<typeof globalThis.fetch>[0], init?: RequestInit) => {
+    const response = await globalThis.fetch(input, init)
+    if (!response.body || !response.headers.get('content-type')?.includes('text/event-stream')) {
+      return response
+    }
+    const transformer = new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        const text = new TextDecoder().decode(chunk)
+        const filtered = text
+          .split('\n')
+          .filter((line) => line !== 'data: null')
+          .join('\n')
+        controller.enqueue(new TextEncoder().encode(filtered))
+      },
+    })
+    return new Response(response.body.pipeThrough(transformer), {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    })
+  }
+}
+
+function mapUsage(usage: LanguageModelUsage) {
+  return {
+    prompt_tokens: usage.inputTokens ?? 0,
+    completion_tokens: usage.outputTokens ?? 0,
+    total_tokens: (usage.inputTokens ?? 0) + (usage.outputTokens ?? 0),
+  }
+}
+
+async function buildMcpTools(manager: McpManager): Promise<ToolSet> {
+  const mcpTools = await manager.listAllTools()
+  return Object.fromEntries(
+    mcpTools.map((t) => [
+      t.name,
+      dynamicTool({
+        description: t.description,
+        inputSchema: jsonSchema(t.inputSchema),
+        execute: async (args) => {
+          console.log(`[agent] tool call: ${t.name}`, args)
+          const result = await manager.callTool(t.name, args as Record<string, unknown>)
+          console.log(`[agent] tool result: ${t.name} → ${result.content.slice(0, 120)}`)
+          return result.content
+        },
+      }),
+    ]),
+  )
+}
+
+export async function streamAgentChat(
   messages: AgentMessage[],
   contextSummary: string,
+  projectContext: string,
+  sessionSummary: string | undefined,
+  mode: AgentSessionMode,
+  mcpManager: McpManager | null,
+  skills: string[],
   configOverride?: Partial<AgentConfig>,
+  onChunk?: (text: string) => void,
 ): Promise<AgentLlmResult> {
   const config = getConfig(configOverride)
-  const client = makeClient(config)
-
-  const completion = await client.chat.completions.create({
-    model: config.model,
-    messages: buildMessages(messages, contextSummary),
+  const provider = createOpenAI({
+    baseURL: config.baseUrl,
+    apiKey: config.apiKey,
+    fetch: createFilteredFetch(),
   })
 
-  const content = completion.choices[0]?.message?.content
-  if (!content) throw new Error('Agent API returned no assistant message')
+  const tools = mcpManager ? await buildMcpTools(mcpManager) : {}
+  const hasTools = Object.keys(tools).length > 0
+
+  const toolCallsLog: AgentMessageMeta['toolCalls'] = []
+
+  const result = streamText({
+    model: provider(config.model),
+    system: buildSystemPrompt(mode, contextSummary, projectContext, sessionSummary, skills),
+    messages: buildMessages(messages),
+    ...(hasTools && { tools, maxSteps: MAX_TOOL_ROUNDS }),
+    onStepFinish({ toolCalls }) {
+      for (const tc of toolCalls ?? []) {
+        toolCallsLog.push({ name: tc.toolName, args: tc.input })
+      }
+    },
+  })
+
+  let fullText = ''
+  for await (const part of result.fullStream) {
+    if (part.type === 'text-delta') {
+      fullText += part.text
+      onChunk?.(part.text)
+    } else if (part.type === 'error') {
+      throw part.error instanceof Error ? part.error : new Error(String(part.error))
+    }
+  }
+
+  const usage = await result.usage
+  const response = await result.response
+
+  if (!fullText) throw new Error('Agent returned no text (tool-only or empty stream)')
+
+  const mappedUsage = usage ? mapUsage(usage) : undefined
 
   return {
-    content,
-    model: completion.model,
-    usage: completion.usage
-      ? {
-          prompt_tokens: completion.usage.prompt_tokens,
-          completion_tokens: completion.usage.completion_tokens,
-          total_tokens: completion.usage.total_tokens,
-        }
-      : undefined,
+    content: fullText,
+    model: response.modelId,
+    usage: mappedUsage,
+    metadata: {
+      model: response.modelId,
+      usage: mappedUsage,
+      toolCalls: toolCallsLog.length > 0 ? toolCallsLog : undefined,
+    },
   }
-}
-
-// Agentic loop — uses MCP tools until done or max rounds
-export async function sendAgentChatWithTools(
-  messages: AgentMessage[],
-  contextSummary: string,
-  mcpClient: McpClient,
-  configOverride?: Partial<AgentConfig>,
-): Promise<AgentLlmResult> {
-  const config = getConfig(configOverride)
-  const client = makeClient(config)
-
-  const tools = await mcpClient.listTools()
-  const thread: OAIMessage[] = buildMessages(messages, contextSummary)
-
-  let lastContent = ''
-  let lastModel: string | undefined
-  let totalUsage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }
-
-  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-    const completion = await client.chat.completions.create({
-      model: config.model,
-      messages: thread,
-      tools,
-      tool_choice: 'auto',
-    })
-
-    const choice = completion.choices[0]
-    lastModel = completion.model
-    if (completion.usage) {
-      totalUsage.prompt_tokens += completion.usage.prompt_tokens
-      totalUsage.completion_tokens += completion.usage.completion_tokens
-      totalUsage.total_tokens += completion.usage.total_tokens
-    }
-
-    // Append assistant message to thread
-    thread.push(choice.message)
-
-    if (choice.finish_reason !== 'tool_calls' || !choice.message.tool_calls?.length) {
-      // Done — no more tool calls
-      lastContent = choice.message.content ?? ''
-      break
-    }
-
-    // Execute each tool call in parallel
-    const toolResults = await Promise.all(
-      choice.message.tool_calls.map(async (tc) => {
-        let args: Record<string, unknown> = {}
-        try { args = JSON.parse(tc.function.arguments) as Record<string, unknown> } catch {}
-
-        console.log(`[agent] tool call: ${tc.function.name}`, args)
-        const result = await mcpClient.callTool(tc.function.name, args).catch((e) => ({
-          content: `Tool error: ${e instanceof Error ? e.message : String(e)}`,
-          isError: true,
-        }))
-        console.log(`[agent] tool result: ${tc.function.name} → ${result.content.slice(0, 120)}`)
-
-        return {
-          role: 'tool' as const,
-          tool_call_id: tc.id,
-          content: result.content,
-        }
-      }),
-    )
-
-    thread.push(...toolResults)
-  }
-
-  if (!lastContent) throw new Error('Agent loop ended without producing a response')
-
-  return { content: lastContent, model: lastModel, usage: totalUsage }
 }
