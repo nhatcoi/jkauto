@@ -58,10 +58,17 @@ export const IpcChannels = {
   ENV_DELETE: 'env:delete',
 
   AGENT_CHAT: 'agent:chat',
+  AGENT_STREAM_CHUNK: 'agent:stream-chunk',
   AGENT_GET_CONTEXT: 'agent:get-context',
   AGENT_CANCEL: 'agent:cancel',
-  AGENT_INSTALL_SKILL: 'agent:install-skill',
-  AGENT_INSTALL_BROWSERS: 'agent:install-browsers',
+
+  AGENT_SESSION_LIST: 'agent:session:list',
+  AGENT_SESSION_CREATE: 'agent:session:create',
+  AGENT_SESSION_UPDATE: 'agent:session:update',
+  AGENT_SESSION_DELETE: 'agent:session:delete',
+  AGENT_SESSION_MESSAGES: 'agent:session:messages',
+  AGENT_SESSION_ARTIFACTS: 'agent:session:artifacts',
+  AGENT_SESSION_ACTIONS: 'agent:session:actions',
 
   APP_SETTINGS_GET: 'app-settings:get',
   APP_SETTINGS_SET: 'app-settings:set',
@@ -323,11 +330,52 @@ export interface HttpHistorySavePayload {
 }
 
 export type AgentRole = 'system' | 'user' | 'assistant'
+export type AgentSessionMode = 'ask' | 'edit' | 'debug' | 'generate-test'
+
+export interface AgentMessageMeta {
+  model?: string
+  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number }
+  toolCalls?: Array<{ name: string; args: unknown }>
+}
 
 export interface AgentMessage {
   id: string
+  sessionId?: string
   role: Exclude<AgentRole, 'system'>
   content: string
+  createdAt: string
+  metadata?: AgentMessageMeta
+}
+
+export interface AgentSession {
+  id: string
+  projectPath: string
+  title: string
+  mode: AgentSessionMode
+  status: 'active' | 'archived'
+  summary?: string
+  activeTabPath?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AgentArtifact {
+  id: string
+  sessionId: string
+  type: 'apply-steps' | 'generated-test' | 'patch' | 'diagnosis' | 'selector'
+  contentJson: string
+  targetPath?: string
+  createdAt: string
+}
+
+export interface AgentAction {
+  id: string
+  sessionId: string
+  type: 'read_file' | 'write_file' | 'apply_steps' | 'run_test' | 'backup_file' | 'tool_call'
+  status: 'pending' | 'done' | 'error' | 'rolledback'
+  payloadJson: string
+  resultJson?: string
+  backupPath?: string
   createdAt: string
 }
 
@@ -369,9 +417,16 @@ export interface AgentContextSnapshot {
 }
 
 export interface AgentChatPayload {
+  sessionId?: string
   messages: AgentMessage[]
   context?: AgentContextSnapshot
 }
+
+export interface AgentSessionListPayload { projectPath: string }
+export interface AgentSessionCreatePayload { projectPath: string; mode?: AgentSessionMode; title?: string }
+export interface AgentSessionUpdatePayload { projectPath: string; id: string; patch: Partial<Pick<AgentSession, 'title' | 'mode' | 'status' | 'summary'>> }
+export interface AgentSessionDeletePayload { projectPath: string; id: string }
+export interface AgentSessionDataPayload { projectPath: string; sessionId: string }
 
 export interface AvdEntry {
   avdName: string
@@ -547,6 +602,7 @@ export interface AgentChatResult {
     completion_tokens: number
     total_tokens: number
   }
+  sessionId?: string
 }
 
 export interface AgentContextResult {
