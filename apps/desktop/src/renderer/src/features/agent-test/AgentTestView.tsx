@@ -1,5 +1,8 @@
 import { Bot } from 'lucide-react'
 import { useProjectStore } from '@/store/project.store'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { AgentSetupTab } from './AgentSetupTab'
+import { TestRunnerTab } from './TestRunnerTab'
 
 export function AgentTestView() {
   const { activeProject } = useProjectStore()
@@ -24,9 +27,24 @@ export function AgentTestView() {
         </div>
       </div>
 
-      <div className="flex flex-1 items-center justify-center text-xs text-muted-foreground">
-        Agent Test UI removed. Ready to rebuild.
-      </div>
+      <Tabs defaultValue="runner" className="flex flex-col flex-1 min-h-0">
+        <TabsList className="w-full rounded-none border-b border-border bg-panel/50 h-9 shrink-0 justify-start px-2 gap-0">
+          <TabsTrigger value="runner" className="text-xs h-7 px-3">
+            Test Runner
+          </TabsTrigger>
+          <TabsTrigger value="setup" className="text-xs h-7 px-3">
+            Agent Setup
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="runner" className="flex-1 min-h-0 overflow-hidden m-0">
+          <TestRunnerTab />
+        </TabsContent>
+
+        <TabsContent value="setup" className="flex-1 min-h-0 overflow-hidden m-0">
+          <AgentSetupTab />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

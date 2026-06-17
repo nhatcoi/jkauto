@@ -3,8 +3,8 @@ import { z } from 'zod'
 export const AppSettingsSchema = z.object({
   agent: z
     .object({
-      baseUrl: z.string().default('http://127.0.0.1:3000/v1'),
-      apiKey: z.string().default(''),
+      baseUrl: z.string().default('http://127.0.0.1:20128/v1'),
+      apiKey: z.string().default('sk-67abc7d002e1dde6-35cltj-04a78299'),
       model: z.string().default('v1'),
     })
     .default({}),
