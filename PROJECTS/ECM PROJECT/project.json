@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "37a66cd3-c82f-4846-960d-4e7f3afc1e51",
+  "name": "ECM PROJECT",
+  "type": "web",
+  "icon": "Monitor",
+  "description": "ECM PROJECT",
+  "repoUrl": "",
+  "format": "yaml",
+  "createdAt": "2026-06-17T07:42:41.055Z",
+  "updatedAt": "2026-06-17T07:42:41.055Z"
+}

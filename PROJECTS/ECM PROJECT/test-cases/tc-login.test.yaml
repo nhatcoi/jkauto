@@ -1,0 +1,23 @@
+schemaVersion: 1
+id: e41a4078-8cf1-4663-aadc-2153ef644cf1
+name: TC - Login
+runner: playwright
+steps:
+  - id: eae30ece-e400-421a-8fe2-7f0eade3a8e3
+    keyword: navigate-to
+    input: https://www.saucedemo.com/
+  - id: 6b5ac1f5-18c2-4eb2-8527-8a7137872cde
+    keyword: type-text
+    objectRef: '[data-test="username"]'
+    input: standard_user
+  - id: 4fb6ef94-74b0-484b-b663-4a075418f47f
+    keyword: type-text
+    objectRef: '[data-test="password"]'
+    input: secret_sauce
+  - id: f549fc9e-b596-44bd-beeb-1d503013e433
+    keyword: click
+    objectRef: '[data-test="login-button"]'
+  - id: 635e1c50-6d95-4c81-ae65-3e7f10402fbf
+    keyword: assert-text
+    objectRef: .title
+    expected: Products

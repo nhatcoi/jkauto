@@ -1,0 +1,9 @@
+{
+  "type": "module",
+  "scripts": {
+    "test:saucedemo": "node opencode-saucedemo-test.js"
+  },
+  "dependencies": {
+    "@opencode-ai/sdk": "latest"
+  }
+}
