@@ -10,7 +10,7 @@ Usage:
 
 Options:
   --scope project|global       Install into project-local or user-global context. Default: project.
-  --agent claude|agents|codex|all
+  --agent claude|agents|codex|other|all
                               Target loader. Default: all.
   --mode copy|symlink          Install by copying or symlinking. Default: copy.
   --project DIR                Project root for project scope. Default: current directory.
@@ -22,9 +22,11 @@ Targets:
   project + claude  -> <project>/.claude/skills
   project + agents  -> <project>/.agents/skills
   project + codex   -> <project>/.agents/skills
+  project + other   -> <project>/.agents/skills
   global  + claude  -> ~/.claude/skills
   global  + agents  -> ~/.agents/skills
   global  + codex   -> ${CODEX_HOME:-~/.codex}/skills
+  global  + other   -> ~/.agents/skills and ${CODEX_HOME:-~/.codex}/skills
 USAGE
 }
 
@@ -60,7 +62,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$scope" in project|global) ;; *) echo "--scope must be project or global" >&2; exit 2 ;; esac
-case "$agent" in claude|agents|codex|all) ;; *) echo "--agent must be claude, agents, codex, or all" >&2; exit 2 ;; esac
+case "$agent" in claude|agents|codex|other|all) ;; *) echo "--agent must be claude, agents, codex, other, or all" >&2; exit 2 ;; esac
 case "$mode" in copy|symlink) ;; *) echo "--mode must be copy or symlink" >&2; exit 2 ;; esac
 
 skills_src="$source_dir/skills"
@@ -84,11 +86,11 @@ add_target() {
 
 if [[ "$scope" == "project" ]]; then
   [[ "$agent" == "claude" || "$agent" == "all" ]] && add_target "$abs_project/.claude/skills"
-  [[ "$agent" == "agents" || "$agent" == "codex" || "$agent" == "all" ]] && add_target "$abs_project/.agents/skills"
+  [[ "$agent" == "agents" || "$agent" == "codex" || "$agent" == "other" || "$agent" == "all" ]] && add_target "$abs_project/.agents/skills"
 else
   [[ "$agent" == "claude" || "$agent" == "all" ]] && add_target "$home_dir/.claude/skills"
-  [[ "$agent" == "agents" || "$agent" == "all" ]] && add_target "$home_dir/.agents/skills"
-  [[ "$agent" == "codex" || "$agent" == "all" ]] && add_target "$codex_home/skills"
+  [[ "$agent" == "agents" || "$agent" == "other" || "$agent" == "all" ]] && add_target "$home_dir/.agents/skills"
+  [[ "$agent" == "codex" || "$agent" == "other" || "$agent" == "all" ]] && add_target "$codex_home/skills"
 fi
 
 run() {
