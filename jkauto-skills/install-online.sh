@@ -60,8 +60,8 @@ prompt_scope() {
   while [[ -z "$scope" ]]; do
     cat <<'MENU'
 Install scope:
-  1) global  - ~/.claude/skills, ~/.agents/skills, ~/.codex/skills
-  2) project - ./.claude/skills, ./.agents/skills
+  1) global
+  2) project
 MENU
     read -r -p "Choose scope [1-2]: " choice </dev/tty
     case "$choice" in
