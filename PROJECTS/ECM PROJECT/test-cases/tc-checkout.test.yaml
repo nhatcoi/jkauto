@@ -3,33 +3,30 @@ id: 49018cf0-de5c-4b5e-8cbf-a4a8966a0b62
 name: TC - Checkout
 runner: playwright
 steps:
-  - id: c23c27d6-e171-4223-b24d-3e6f4e1236af
-    keyword: call-test-case
-    description: "Call: TC - Login"
-    input: /home/nhatcoi/Documents/personal/jkauto/PROJECTS/ECM
-      PROJECT/test-cases/tc-login.test.yaml
-  - id: 4c7c09ea-ed9d-4ace-99dc-fec0a37f4ad6
+  - id: 7a660561-23e6-4b0d-9393-a82d554a1724
+    keyword: navigate-to
+    description: Open SauceDemo login page
+    input: https://www.saucedemo.com/
+  - id: 7fc2933b-7a66-42af-8150-f548fb45367f
+    keyword: type-text
+    description: Enter username
+    objectRef: '[data-test="username"]'
+    input: standard_user
+  - id: 752ee19d-c7ad-4138-839d-ca387f1325bc
+    keyword: type-text
+    description: Enter password
+    objectRef: '[data-test="password"]'
+    input: secret_sauce
+  - id: 45b30126-b8fb-4916-9c2d-c7711c9ab97f
+    keyword: click
+    description: Click login button
+    objectRef: '[data-test="login-button"]'
+  - id: 38fb382d-51c8-4cd9-a753-0df8f3c35ac0
+    keyword: assert-url-contains
+    description: Verify inventory page URL
+    expected: /inventory.html
+  - id: 1af78004-a260-45e4-a426-1325701a22e7
     keyword: assert-text
+    description: Verify Products title
     objectRef: .title
     expected: Products
-  - id: e963c748-83a5-4561-8a38-8f1fe2845b65
-    keyword: click
-    objectRef: .shopping_cart_link
-  - id: d88473a2-9010-44aa-a689-60c10a1f59f0
-    keyword: click
-    objectRef: '[data-test="checkout"]'
-  - id: 9872db5f-565e-49f9-865e-e1f3512fa81d
-    keyword: type-text
-    objectRef: '[data-test="firstName"]'
-    input: John
-  - id: a1826c06-5d80-444b-9c6e-d0fe5aaa7777
-    keyword: type-text
-    objectRef: '[data-test="lastName"]'
-    input: Doe
-  - id: ed568f5e-f1b9-453e-a8fd-f1c553246e5d
-    keyword: type-text
-    objectRef: '[data-test="postalCode"]'
-    input: "10000"
-  - id: 90add0f4-4113-4f07-9ef7-f0a517a701d4
-    keyword: click
-    objectRef: '[data-test="continue"]'
