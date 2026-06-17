@@ -1,0 +1,98 @@
+import { create } from 'zustand'
+import { IpcChannels } from '@jkauto/core'
+import type { AgentSession, AgentSessionMode, AgentArtifact, AgentAction } from '@jkauto/core'
+import { invoke } from '@/lib/utils'
+
+interface SessionStore {
+  sessions: AgentSession[]
+  activeSessionId: string | null
+  artifacts: AgentArtifact[]
+  actions: AgentAction[]
+  loading: boolean
+
+  loadSessions: (projectPath: string) => Promise<void>
+  createSession: (projectPath: string, mode?: AgentSessionMode) => Promise<AgentSession>
+  selectSession: (projectPath: string, id: string) => Promise<void>
+  updateSession: (
+    projectPath: string,
+    id: string,
+    patch: Partial<Pick<AgentSession, 'title' | 'mode' | 'status' | 'summary'>>,
+  ) => Promise<void>
+  deleteSession: (projectPath: string, id: string) => Promise<void>
+  refreshArtifacts: (projectPath: string, sessionId: string) => Promise<void>
+  refreshActions: (projectPath: string, sessionId: string) => Promise<void>
+  reset: () => void
+}
+
+export const useSessionStore = create<SessionStore>((set, get) => ({
+  sessions: [],
+  activeSessionId: null,
+  artifacts: [],
+  actions: [],
+  loading: false,
+
+  loadSessions: async (projectPath) => {
+    set({ loading: true })
+    try {
+      const sessions = await invoke<AgentSession[]>(IpcChannels.AGENT_SESSION_LIST, { projectPath })
+      set({ sessions, loading: false })
+    } catch {
+      set({ loading: false })
+    }
+  },
+
+  createSession: async (projectPath, mode = 'ask') => {
+    const session = await invoke<AgentSession>(IpcChannels.AGENT_SESSION_CREATE, {
+      projectPath,
+      mode,
+    })
+    set((s) => ({ sessions: [session, ...s.sessions], activeSessionId: session.id }))
+    return session
+  },
+
+  selectSession: async (projectPath, id) => {
+    set({ activeSessionId: id, artifacts: [], actions: [] })
+    await Promise.all([
+      get().refreshArtifacts(projectPath, id),
+      get().refreshActions(projectPath, id),
+    ])
+  },
+
+  updateSession: async (projectPath, id, patch) => {
+    await invoke(IpcChannels.AGENT_SESSION_UPDATE, { projectPath, id, patch })
+    set((s) => ({
+      sessions: s.sessions.map((sess) =>
+        sess.id === id ? { ...sess, ...patch, updatedAt: new Date().toISOString() } : sess,
+      ),
+    }))
+  },
+
+  deleteSession: async (projectPath, id) => {
+    await invoke(IpcChannels.AGENT_SESSION_DELETE, { projectPath, id })
+    const { sessions, activeSessionId } = get()
+    const remaining = sessions.filter((s) => s.id !== id)
+    set({
+      sessions: remaining,
+      activeSessionId: activeSessionId === id ? (remaining[0]?.id ?? null) : activeSessionId,
+    })
+  },
+
+  refreshArtifacts: async (projectPath, sessionId) => {
+    const artifacts = await invoke<AgentArtifact[]>(IpcChannels.AGENT_SESSION_ARTIFACTS, {
+      projectPath,
+      sessionId,
+    })
+    set({ artifacts })
+  },
+
+  refreshActions: async (projectPath, sessionId) => {
+    const actions = await invoke<AgentAction[]>(IpcChannels.AGENT_SESSION_ACTIONS, {
+      projectPath,
+      sessionId,
+    })
+    set({ actions })
+  },
+
+  reset: () =>
+    set({ sessions: [], activeSessionId: null, artifacts: [], actions: [], loading: false }),
+}))
