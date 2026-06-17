@@ -20,6 +20,9 @@ const watchers = new Map<string, FSWatcher>()
 
 const SKIP_DIRS = new Set(['.autotest', '.git', 'node_modules'])
 const SKIP_FILES = new Set([EXPLORER_META_FILE])
+const REQUIRED_FEATURE_DIRS: Array<{ key: string; name: string }> = [
+  { key: 'agent-test', name: 'Agent Test' },
+]
 
 type ExplorerSettings = AppSettings['explorer']
 
@@ -150,6 +153,16 @@ export function registerFsHandlers(ipcMain: IpcMain): void {
 
   ipcMain.handle(IpcChannels.FS_TREE, async (_, rootPath: string) => {
     const settings = await getSettings()
+    for (const dir of REQUIRED_FEATURE_DIRS) {
+      const dirPath = path.join(rootPath, dir.key)
+      try {
+        await fs.mkdir(dirPath, { recursive: true })
+        const existingName = await readExplorerMetadataName(dirPath)
+        if (!existingName) await writeExplorerMetadata(dirPath, dir.name)
+      } catch {
+        // Keep tree loading resilient when a project path is read-only or stale.
+      }
+    }
     return buildTree(rootPath, rootPath, settings.explorer)
   })
 

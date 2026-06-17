@@ -24,6 +24,7 @@ import {
   Braces,
   Puzzle,
   BarChart2,
+  Bot,
 } from 'lucide-react'
 import {
   ContextMenu,
@@ -36,7 +37,7 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
-import { EXPLORER_KEYMAPS, matchesBinding, REPORTS_TAB_PATH, KEYWORDS_TAB_PATH } from '@/shared/keymaps'
+import { AGENT_TEST_TAB_PATH, EXPLORER_KEYMAPS, matchesBinding, REPORTS_TAB_PATH, KEYWORDS_TAB_PATH } from '@/shared/keymaps'
 import { IpcChannels } from '@jkauto/core'
 import type { FsTreeNode } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
@@ -118,6 +119,7 @@ function getFileIcon(node: FsTreeNode): React.ElementType {
 
 const FEATURE_FOLDER_ICONS: Record<string, React.ElementType> = {
   'test-cases': TestTube2,
+  'agent-test': Bot,
   'test-suites': Layers,
   'api-request': Box,
   'api-requests': Activity,
@@ -450,6 +452,9 @@ function NodeRow({
       }
       if (node.id === 'keywords') {
         openTab(KEYWORDS_TAB_PATH, 'Keywords', projectPath)
+      }
+      if (node.id === 'agent-test') {
+        openTab(AGENT_TEST_TAB_PATH, 'Agent Test', projectPath)
       }
     } else {
       openTab(node.data.path, node.data.displayName ?? node.data.name, projectPath)

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { X, FileText, Globe, Database, Layers, BarChart2, Braces } from 'lucide-react'
+import { X, FileText, Globe, Database, Layers, BarChart2, Braces, Bot } from 'lucide-react'
 import { useProjectStore } from '@/store/project.store'
 import { IpcChannels } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
@@ -11,8 +11,9 @@ import { SuiteEditor } from '@/features/test-suites/SuiteEditor'
 import { KeywordEditor } from '@/features/keywords/KeywordEditor'
 import { KeywordsView } from '@/features/keywords/KeywordsView'
 import { ReportsView } from '@/features/reports/ReportsView'
+import { AgentTestView } from '@/features/agent-test/AgentTestView'
 import { useTabDnd } from '@/hooks/useTabDnd'
-import { REPORTS_TAB_PATH, KEYWORDS_TAB_PATH } from '@/shared/keymaps'
+import { AGENT_TEST_TAB_PATH, REPORTS_TAB_PATH, KEYWORDS_TAB_PATH } from '@/shared/keymaps'
 
 function isTestCase(path: string) {
   return path.endsWith('.test.json') || path.endsWith('.test.yaml') || path.endsWith('.test.yml')
@@ -37,6 +38,7 @@ function isKeywords(path: string) {
 function getTabIcon(path: string): React.ElementType {
   if (path === REPORTS_TAB_PATH) return BarChart2
   if (path === KEYWORDS_TAB_PATH) return Braces
+  if (path === AGENT_TEST_TAB_PATH) return Bot
   if (isApiRequest(path)) return Globe
   if (isObjectRepo(path)) return Database
   if (isTestSuite(path)) return Layers
@@ -80,6 +82,7 @@ function FileContent({ path }: { path: string }) {
 function TabContent({ path }: { path: string }) {
   if (path === REPORTS_TAB_PATH) return <ReportsView />
   if (path === KEYWORDS_TAB_PATH) return <KeywordsView />
+  if (path === AGENT_TEST_TAB_PATH) return <AgentTestView />
   if (isTestCase(path)) return <TestCaseEditor key={path} filePath={path} />
   if (isTestSuite(path)) return <SuiteEditor key={path} filePath={path} />
   if (isApiRequest(path)) return <RequestEditor key={path} filePath={path} />

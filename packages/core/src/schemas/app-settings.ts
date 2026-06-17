@@ -31,12 +31,14 @@ export const AppSettingsSchema = z.object({
     .object({
       featureOrder: z.array(z.string()).default([
         'test-cases',
+        'agent-test',
         'test-suites',
         'api-request',
         'profiles',
       ]),
       featureAliases: z.record(z.string()).default({
         'test-cases': 'Test Cases',
+        'agent-test': 'Agent Test',
         'test-suites': 'Test Suites',
         'api-request': 'API Requests',
         profiles: 'Profiles',
