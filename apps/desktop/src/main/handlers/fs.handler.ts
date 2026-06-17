@@ -20,9 +20,7 @@ const watchers = new Map<string, FSWatcher>()
 
 const SKIP_DIRS = new Set(['.autotest', '.git', 'node_modules'])
 const SKIP_FILES = new Set([EXPLORER_META_FILE])
-const REQUIRED_FEATURE_DIRS: Array<{ key: string; name: string }> = [
-  { key: 'agent-test', name: 'Agent Test' },
-]
+const REQUIRED_FEATURE_DIRS: Array<{ key: string; name: string }> = []
 
 type ExplorerSettings = AppSettings['explorer']
 
