@@ -19,11 +19,11 @@ Options:
   -h, --help                   Show this help.
 
 Targets:
-  project + claude  -> <project>/.claude/skills
+  project + claude  -> <project>/.claude/skills and <project>/.claude/commands
   project + agents  -> <project>/.agents/skills
   project + codex   -> <project>/.agents/skills
   project + other   -> <project>/.agents/skills
-  global  + claude  -> ~/.claude/skills
+  global  + claude  -> ~/.claude/skills and ~/.claude/commands
   global  + agents  -> ~/.agents/skills
   global  + codex   -> ${CODEX_HOME:-~/.codex}/skills
   global  + other   -> ~/.agents/skills and ${CODEX_HOME:-~/.codex}/skills
@@ -70,12 +70,14 @@ if [[ ! -d "$skills_src" ]]; then
   echo "Skills source not found: $skills_src" >&2
   exit 1
 fi
+commands_src="$source_dir/commands"
 
 abs_project="$(cd "$project_dir" && pwd)"
 home_dir="${HOME:?HOME is required}"
 codex_home="${CODEX_HOME:-$home_dir/.codex}"
 
 targets=()
+command_targets=()
 add_target() {
   local dir="$1"
   for existing in "${targets[@]:-}"; do
@@ -83,12 +85,25 @@ add_target() {
   done
   targets+=("$dir")
 }
+add_command_target() {
+  local dir="$1"
+  for existing in "${command_targets[@]:-}"; do
+    [[ "$existing" == "$dir" ]] && return
+  done
+  command_targets+=("$dir")
+}
 
 if [[ "$scope" == "project" ]]; then
-  [[ "$agent" == "claude" || "$agent" == "all" ]] && add_target "$abs_project/.claude/skills"
+  if [[ "$agent" == "claude" || "$agent" == "all" ]]; then
+    add_target "$abs_project/.claude/skills"
+    add_command_target "$abs_project/.claude/commands"
+  fi
   [[ "$agent" == "agents" || "$agent" == "codex" || "$agent" == "other" || "$agent" == "all" ]] && add_target "$abs_project/.agents/skills"
 else
-  [[ "$agent" == "claude" || "$agent" == "all" ]] && add_target "$home_dir/.claude/skills"
+  if [[ "$agent" == "claude" || "$agent" == "all" ]]; then
+    add_target "$home_dir/.claude/skills"
+    add_command_target "$home_dir/.claude/commands"
+  fi
   [[ "$agent" == "agents" || "$agent" == "other" || "$agent" == "all" ]] && add_target "$home_dir/.agents/skills"
   [[ "$agent" == "codex" || "$agent" == "other" || "$agent" == "all" ]] && add_target "$codex_home/skills"
 fi
@@ -131,7 +146,25 @@ for target in "${targets[@]}"; do
   done
 done
 
+command_count=0
+if [[ -d "$commands_src" ]]; then
+  for target in "${command_targets[@]}"; do
+    run mkdir -p "$target"
+    for command in "$commands_src"/*.md; do
+      [[ -f "$command" ]] || continue
+      run cp "$command" "$target/$(basename "$command")"
+      command_count=$((command_count + 1))
+    done
+  done
+fi
+
 echo "Installed $count skill target(s)."
 for target in "${targets[@]}"; do
   echo "- $target"
 done
+if [[ "$command_count" -gt 0 ]]; then
+  echo "Installed $command_count Claude command(s)."
+  for target in "${command_targets[@]}"; do
+    echo "- $target"
+  done
+fi

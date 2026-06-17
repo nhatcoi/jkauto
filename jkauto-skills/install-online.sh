@@ -112,6 +112,9 @@ trap cleanup EXIT
 
 files=(
   "scripts/install-jkauto-skills.sh"
+  "commands/jkauto-debug.md"
+  "commands/jkauto-keywords.md"
+  "commands/jkauto-testcase.md"
   "skills/jkauto-keywords/SKILL.md"
   "skills/jkauto-keywords/references/keyword-reference.md"
   "skills/jkauto-keywords/references/maestro-mapping.md"
