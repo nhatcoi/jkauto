@@ -27,7 +27,7 @@ function isObjectRepo(path: string) {
 }
 
 function isTestSuite(path: string) {
-  return path.endsWith('.suite.json') || path.endsWith('.suite.yaml')
+  return path.endsWith('.suite.yaml')
 }
 
 function isKeywords(path: string) {

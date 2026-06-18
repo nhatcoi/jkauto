@@ -80,8 +80,8 @@ function toExplorerKey(value: string, fallback = 'item'): string {
 }
 
 const KNOWN_SUFFIXES = [
-  '.test.json', '.test.yaml', '.test.yml',
-  '.suite.json', '.suite.yaml',
+  '.test.yaml', '.test.yml',
+  '.suite.yaml',
   '.objects.json', '.objects.yaml',
   '.keywords.json', '.keywords.yaml',
   '.request.json', '.request.yaml',
@@ -108,7 +108,7 @@ function stripKnownExtension(name: string, type: NewItemType): string {
 function getFileIcon(node: FsTreeNode): React.ElementType {
   const name = node.name.toLowerCase()
   if (name.endsWith('.test.json') || name.endsWith('.test.yaml') || name.endsWith('.test.yml')) return FlaskConical
-  if (name.endsWith('.suite.json') || name.endsWith('.suite.yaml')) return ListChecks
+  if (name.endsWith('.suite.yaml')) return ListChecks
   if (name.endsWith('.objects.json') || name.endsWith('.objects.yaml')) return Database
   if (name.endsWith('.keywords.json') || name.endsWith('.keywords.yaml')) return Code2
   if (name.endsWith('.request.json')) return Globe
@@ -677,23 +677,19 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
       })
       await invoke(IpcChannels.FS_CREATE_FILE, pathJoin(dir, fileName), content)
     } else if (type === 'suite') {
-      const fileName = `${key}.suite.json`
+      const fileName = `${key}.suite.yaml`
       const now = new Date().toISOString()
-      const content = JSON.stringify(
-        {
-          schemaVersion: 1,
-          id: randomUUID(),
-          name: displayName,
-          description: '',
-          profile: 'default',
-          continueOnFailure: false,
-          items: [],
-          createdAt: now,
-          updatedAt: now,
-        },
-        null,
-        2,
-      )
+      const content = yamlStringify({
+        schemaVersion: 1,
+        id: randomUUID(),
+        name: displayName,
+        description: '',
+        profile: 'default',
+        continueOnFailure: false,
+        items: [],
+        createdAt: now,
+        updatedAt: now,
+      })
       await invoke(IpcChannels.FS_CREATE_FILE, pathJoin(dir, fileName), content)
     } else if (type === 'api-request') {
       const fileName = `${key}.request.json`

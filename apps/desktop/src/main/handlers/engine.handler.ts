@@ -126,6 +126,27 @@ async function readTestCase(filePath: string): Promise<TestCase> {
   return normalizeTestCase(yamlParse(raw) as Partial<TestCase>)
 }
 
+async function findTestCaseById(projectPath: string, id: string): Promise<{ filePath: string; testCase: TestCase } | null> {
+  async function scan(dir: string): Promise<{ filePath: string; testCase: TestCase } | null> {
+    let entries: Awaited<ReturnType<typeof fs.readdir>>
+    try { entries = await fs.readdir(dir, { withFileTypes: true }) } catch { return null }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        const found = await scan(full)
+        if (found) return found
+      } else if (entry.name.endsWith('.test.yaml') || entry.name.endsWith('.test.yml')) {
+        try {
+          const tc = await readTestCase(full)
+          if (tc.id === id) return { filePath: full, testCase: tc }
+        } catch { /* skip unreadable */ }
+      }
+    }
+    return null
+  }
+  return scan(projectPath)
+}
+
 function sendSuiteEvent(webContents: WebContents, event: SuiteEvent): void {
   if (!webContents.isDestroyed()) {
     webContents.send(IpcChannels.ENGINE_SUITE_EVENT, event)
@@ -285,9 +306,33 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
         let testCase: TestCase
         const caseStartedAt = Date.now()
         try {
-          testCase = await readTestCase(item.testCasePath)
-        } catch {
-          const message = `Cannot read test case: ${item.testCasePath}`
+          const resolvedPath = path.isAbsolute(item.testCasePath)
+            ? item.testCasePath
+            : projectPath ? path.join(projectPath, item.testCasePath) : item.testCasePath
+          try {
+            testCase = await readTestCase(resolvedPath)
+          } catch {
+            // path stale (moved/renamed) — fallback scan by ID
+            if (projectPath && item.testCaseId) {
+              const found = await findTestCaseById(projectPath, item.testCaseId)
+              if (found) {
+                testCase = found.testCase
+                // auto-heal: update path hint in suite file
+                const relFound = found.filePath.startsWith(projectPath + '/')
+                  ? found.filePath.slice(projectPath.length + 1)
+                  : found.filePath
+                item.testCasePath = relFound
+                const healedSuite = { ...suite, items: suite.items.map(i => i === item ? { ...i, testCasePath: relFound } : i) }
+                await fs.writeFile(filePath, (await import('yaml')).stringify(healedSuite), 'utf-8')
+              } else {
+                throw new Error(`Cannot find test case by id: ${item.testCaseId}`)
+              }
+            } else {
+              throw new Error(`Cannot read test case: ${resolvedPath}`)
+            }
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : `Cannot read test case: ${item.testCasePath}`
           failedSteps++
           failedCases++
           totalSteps++

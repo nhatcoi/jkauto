@@ -105,11 +105,21 @@ export function useSuite(filePath: string) {
       setError('')
       const raw = await invoke<string>(IpcChannels.FS_READ_FILE, filePath)
       const parsed = normalizeSuite(yamlParse(raw), filePath)
-      suiteHistory.setInitial(parsed)
+      const projectRoot = activeProject?.path
+      const resolved = projectRoot ? {
+        ...parsed,
+        items: parsed.items.map(item => ({
+          ...item,
+          testCasePath: item.testCasePath.startsWith('/')
+            ? item.testCasePath
+            : `${projectRoot}/${item.testCasePath}`,
+        })),
+      } : parsed
+      suiteHistory.setInitial(resolved)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load suite')
     }
-  }, [filePath, suiteHistory.setInitial])
+  }, [filePath, activeProject, suiteHistory.setInitial])
 
   const loadTestCases = useCallback(async () => {
     if (!activeProject) return
@@ -128,19 +138,22 @@ export function useSuite(filePath: string) {
   }, [filePath, markTabDirty, suiteHistory.update])
 
   const saveSuiteToFile = useCallback(async (current: TestSuite): Promise<TestSuite> => {
+    const projectRoot = activeProject?.path
+    const toRelative = (p: string) =>
+      projectRoot && p.startsWith(projectRoot + '/') ? p.slice(projectRoot.length + 1) : p
     const normalized = {
       ...current,
       items: [...current.items]
         .sort((a, b) => a.order - b.order)
-        .map((item, order) => ({ ...item, order })),
+        .map((item, order) => ({ ...item, order, testCasePath: toRelative(item.testCasePath) })),
       updatedAt: new Date().toISOString(),
     }
     const content = yamlStringify(normalized)
     await invoke(IpcChannels.FS_WRITE_FILE, filePath, content)
-    suiteHistory.setInitial(normalized)
+    suiteHistory.setInitial(current)
     markTabDirty(filePath, false)
-    return normalized
-  }, [filePath, markTabDirty, suiteHistory.setInitial])
+    return current
+  }, [filePath, activeProject, markTabDirty, suiteHistory.setInitial])
 
   const save = useCallback(async () => {
     const current = suiteRef.current
