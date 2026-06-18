@@ -1,4 +1,5 @@
 import type { IpcMain, WebContents } from 'electron'
+import type { Dirent } from 'node:fs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -128,7 +129,7 @@ async function readTestCase(filePath: string): Promise<TestCase> {
 
 async function findTestCaseById(projectPath: string, id: string): Promise<{ filePath: string; testCase: TestCase } | null> {
   async function scan(dir: string): Promise<{ filePath: string; testCase: TestCase } | null> {
-    let entries: Awaited<ReturnType<typeof fs.readdir>>
+    let entries: Dirent[]
     try { entries = await fs.readdir(dir, { withFileTypes: true }) } catch { return null }
     for (const entry of entries) {
       const full = path.join(dir, entry.name)
