@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { parse as yamlParse, stringify as yamlStringify } from 'yaml'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
@@ -36,7 +37,7 @@ export async function createJkautoMcpClient(projectPath: string): Promise<Client
     tools: [
       {
         name: 'list_test_cases',
-        description: 'List all test case files (.test.json/.test.yaml) in the project',
+        description: 'List all test case files (.test.yaml) in the project',
         inputSchema: { type: 'object' as const, properties: {} },
       },
       {
@@ -52,11 +53,11 @@ export async function createJkautoMcpClient(projectPath: string): Promise<Client
       },
       {
         name: 'save_test_case_steps',
-        description: 'Overwrite the steps array in a JSON test case file',
+        description: 'Overwrite the steps array in a YAML test case file',
         inputSchema: {
           type: 'object' as const,
           properties: {
-            filePath: { type: 'string', description: 'Absolute path to .test.json file' },
+            filePath: { type: 'string', description: 'Absolute path to .test.yaml file' },
             steps: { type: 'array', description: 'Array of JKAuto step objects' },
           },
           required: ['filePath', 'steps'],
@@ -85,7 +86,6 @@ export async function createJkautoMcpClient(projectPath: string): Promise<Client
           const files = await findFiles(
             projectPath,
             (f) =>
-              f.endsWith('.test.json') ||
               f.endsWith('.test.yaml') ||
               f.endsWith('.test.yml'),
           )
@@ -100,10 +100,10 @@ export async function createJkautoMcpClient(projectPath: string): Promise<Client
         case 'save_test_case_steps': {
           const filePath = a.filePath as string
           const raw = await fs.readFile(filePath, 'utf-8')
-          const tc = JSON.parse(raw) as Record<string, unknown>
+          const tc = yamlParse(raw) as Record<string, unknown>
           tc.steps = a.steps
           tc.updatedAt = new Date().toISOString()
-          await fs.writeFile(filePath, JSON.stringify(tc, null, 2), 'utf-8')
+          await fs.writeFile(filePath, yamlStringify(tc), 'utf-8')
           return { content: [{ type: 'text' as const, text: `Saved ${filePath}` }] }
         }
 

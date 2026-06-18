@@ -6,7 +6,6 @@ import { getSystemPrompt } from './prompt'
 
 const DEFAULT_BASE_URL = 'http://127.0.0.1:20128/v1'
 const DEFAULT_MODEL = 'v1'
-const DEFAULT_API_KEY = 'sk-9223e8b9a66db387-iw96z0-515a4eee'
 const MAX_TOOL_ROUNDS = 20
 const MAX_MESSAGES_TO_LLM = 20
 
@@ -26,7 +25,7 @@ export interface AgentLlmResult {
 export function getConfig(override?: Partial<AgentConfig>): AgentConfig {
   return {
     baseUrl: override?.baseUrl || process.env.DEFAULT_BASE_URL || DEFAULT_BASE_URL,
-    apiKey: override?.apiKey || process.env.DEFAULT_API_KEY || DEFAULT_API_KEY,
+    apiKey: override?.apiKey || process.env.DEFAULT_API_KEY || '',
     model: override?.model || process.env.DEFAULT_MODEL || DEFAULT_MODEL,
   }
 }

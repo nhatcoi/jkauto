@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "0bb2bf8d-04c4-4a14-b7bb-f6023ac10e93",
+  "name": "Register new user",
+  "description": "",
+  "method": "POST",
+  "url": "{{baseUrl}}/auth/register",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "none"
+  },
+  "body": {
+    "type": "raw-json",
+    "content": "{\n  \"username\": \"\",\n  \"email\": \"\",\n  \"password\": \"\",\n  \"role\": \"viewer\"\n}"
+  },
+  "assertions": [
+    {
+      "id": "5d6b3fa3-7aae-45cd-a647-e627b8fbc195",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

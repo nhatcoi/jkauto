@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "a011091c-c769-4681-88fe-5a1cd018064e",
+  "name": "Create folder",
+  "description": "",
+  "method": "POST",
+  "url": "{{baseUrl}}/folders",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "raw-json",
+    "content": "{\n  \"name\": \"\",\n  \"parentId\": \"\"\n}"
+  },
+  "assertions": [
+    {
+      "id": "dc398235-26cc-45da-bcd4-cb6d025451e1",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

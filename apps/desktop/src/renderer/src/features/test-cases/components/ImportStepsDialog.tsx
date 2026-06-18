@@ -12,7 +12,7 @@ import { parseImportedSteps } from '../utils/import-parser'
 import type { TestStep } from '../utils/import-parser'
 
 const TABS = [
-  { id: 'json', label: 'JSON / YAML', desc: 'App format — JSON or YAML array of steps' },
+  { id: 'yaml', label: 'YAML', desc: 'App format — YAML array of steps' },
   { id: 'csv', label: 'CSV', desc: 'App format — CSV file with headers (keyword, objectRef, input, expected, description)' },
   { id: 'selenium', label: 'Selenium IDE', desc: 'Selenium IDE (.side) format' },
   { id: 'playwright', label: 'Playwright', desc: 'Playwright test script (.js/.ts)' },
@@ -54,7 +54,7 @@ interface ImportStepsDialogProps {
 }
 
 export function ImportStepsDialog({ open, onOpenChange, onImport }: ImportStepsDialogProps) {
-  const [activeTab, setActiveTab] = useState('json')
+  const [activeTab, setActiveTab] = useState('yaml')
   const [content, setContent] = useState('')
   const [isDragging, setIsDragging] = useState(false)
   const [previewSteps, setPreviewSteps] = useState<TestStep[]>([])
@@ -120,8 +120,8 @@ export function ImportStepsDialog({ open, onOpenChange, onImport }: ImportStepsD
       const name = file.name.toLowerCase()
       if (name.endsWith('.side')) {
         setActiveTab('selenium')
-      } else if (name.endsWith('.json') || name.endsWith('.yaml') || name.endsWith('.yml')) {
-        setActiveTab('json')
+      } else if (name.endsWith('.yaml') || name.endsWith('.yml')) {
+        setActiveTab('yaml')
       } else if (name.endsWith('.csv')) {
         setActiveTab('csv')
       } else {
@@ -192,7 +192,7 @@ export function ImportStepsDialog({ open, onOpenChange, onImport }: ImportStepsD
               ref={fileInputRef}
               onChange={handleFileChange}
               className="hidden"
-              accept=".json,.yaml,.yml,.side,.js,.ts,.csv"
+              accept=".yaml,.yml,.side,.js,.ts,.csv"
             />
             <Upload className="w-6 h-6 text-muted-foreground/60" />
             <span className="text-xs font-medium">Drop file here or click to browse</span>

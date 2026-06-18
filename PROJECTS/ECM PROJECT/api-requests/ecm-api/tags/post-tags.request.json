@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "6082bde7-52b8-4e7c-9ef8-45b78e713f5e",
+  "name": "Create tag",
+  "description": "",
+  "method": "POST",
+  "url": "{{baseUrl}}/tags",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "raw-json",
+    "content": "{\n  \"name\": \"\",\n  \"color\": \"#718096\"\n}"
+  },
+  "assertions": [
+    {
+      "id": "3af35d8c-4790-4a25-926e-f5bdf0f2b093",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

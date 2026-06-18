@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "b54c5efa-110f-4308-87f6-5e3cd1bf5496",
+  "name": "Create document",
+  "description": "",
+  "method": "POST",
+  "url": "{{baseUrl}}/documents",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "raw-json",
+    "content": "{\n  \"title\": \"\",\n  \"description\": \"\",\n  \"folderId\": \"\",\n  \"tagIds\": [],\n  \"status\": \"draft\"\n}"
+  },
+  "assertions": [
+    {
+      "id": "fe10b26a-92d5-4157-b024-a0bfcd9c26f2",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

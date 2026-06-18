@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "id": "8ceef5c5-9742-4e82-9321-e4c9cff4276f",
+  "name": "List all users (admin only)",
+  "description": "",
+  "method": "GET",
+  "url": "{{baseUrl}}/users",
+  "params": [
+    {
+      "key": "role",
+      "value": "",
+      "enabled": false
+    },
+    {
+      "key": "page",
+      "value": "1",
+      "enabled": false
+    },
+    {
+      "key": "limit",
+      "value": "20",
+      "enabled": false
+    }
+  ],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "0969bd63-334e-45ea-9e91-76cb43f1d5ad",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

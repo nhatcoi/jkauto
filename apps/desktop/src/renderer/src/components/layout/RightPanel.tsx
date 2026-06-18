@@ -1,21 +1,25 @@
 import { useState } from "react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
-import { BrainCircuit, ListTodo, Smartphone } from "lucide-react";
+import { BrainCircuit, ListTodo, Smartphone, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTabDnd, moveItem } from "@/hooks/useTabDnd";
 import { AgentPanel } from "@/features/agent/AgentPanel";
 import { AppiumPanel } from "@/features/appium/AppiumPanel";
+import { AutogenPanel } from "@/features/autogen-test/AutogenPanel";
+import { useProjectStore } from "@/store/project.store";
 
-type TabId = "jobs" | "agent" | "appium";
+type TabId = "jobs" | "agent" | "autogen" | "appium";
 
 const TAB_META: Record<TabId, { label: string; icon: typeof ListTodo }> = {
   jobs: { label: "Jobs", icon: ListTodo },
   agent: { label: "AI Agent", icon: BrainCircuit },
+  autogen: { label: "Gen Tests", icon: Sparkles },
   appium: { label: "Appium", icon: Smartphone },
 };
 
 export function RightPanel() {
-  const [order, setOrder] = useState<TabId[]>(["jobs", "agent", "appium"]);
+  const [order, setOrder] = useState<TabId[]>(["jobs", "agent", "autogen", "appium"]);
+  const { activeProject } = useProjectStore();
   const { getTabProps, overIndex } = useTabDnd((from, to) =>
     setOrder((prev) => moveItem(prev, from, to)),
   );
@@ -55,6 +59,13 @@ export function RightPanel() {
         className="data-[state=active]:flex flex-col flex-1 min-h-0 overflow-hidden"
       >
         <AgentPanel />
+      </TabsPrimitive.Content>
+
+      <TabsPrimitive.Content
+        value="autogen"
+        className="data-[state=active]:flex flex-col flex-1 min-h-0 overflow-hidden"
+      >
+        <AutogenPanel projectPath={activeProject?.path ?? ''} />
       </TabsPrimitive.Content>
 
       <TabsPrimitive.Content

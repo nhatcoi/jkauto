@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "f9fe2b99-cf1e-4eef-9c38-ceaa4fb034fc",
+  "name": "Get download info for document version",
+  "description": " [Path params: {id}]",
+  "method": "GET",
+  "url": "{{baseUrl}}/documents/{id}/download",
+  "params": [
+    {
+      "key": "version",
+      "value": "",
+      "enabled": false
+    }
+  ],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "c4521a24-076a-44ce-8a47-fc1eabf5f25b",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

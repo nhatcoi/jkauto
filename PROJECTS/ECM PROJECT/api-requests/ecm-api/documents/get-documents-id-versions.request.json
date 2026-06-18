@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "c3df462f-6cee-4082-acd2-4a833169c9c3",
+  "name": "Get version history",
+  "description": " [Path params: {id}]",
+  "method": "GET",
+  "url": "{{baseUrl}}/documents/{id}/versions",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "c230a478-b4f5-41fe-86bc-7a73235defe7",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

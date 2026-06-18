@@ -15,7 +15,7 @@ export interface TestCaseOption {
 }
 
 function isTestCasePath(path: string) {
-  return path.endsWith('.test.json') || path.endsWith('.test.yaml') || path.endsWith('.test.yml')
+  return path.endsWith('.test.yaml') || path.endsWith('.test.yml')
 }
 
 function collectTestCasePaths(nodes: FsTreeNode[]): string[] {
@@ -32,7 +32,7 @@ function basename(path: string) {
 }
 
 export function stripTestCaseExtension(path: string) {
-  return basename(path).replace(/\.test\.(json|ya?ml)$/i, '')
+  return basename(path).replace(/\.test\.ya?ml$/i, '')
 }
 
 function normalizeSuite(raw: Partial<TestSuite> & { testCaseIds?: string[] }, filePath: string): TestSuite {
@@ -48,7 +48,7 @@ function normalizeSuite(raw: Partial<TestSuite> & { testCaseIds?: string[] }, fi
   return {
     schemaVersion: 1,
     id: raw.id ?? crypto.randomUUID(),
-    name: raw.name ?? basename(filePath).replace(/\.suite\.(json|ya?ml)$/i, ''),
+    name: raw.name ?? basename(filePath).replace(/\.suite\.ya?ml$/i, ''),
     description: raw.description ?? '',
     profile: raw.profile ?? 'default',
     continueOnFailure: raw.continueOnFailure ?? false,
@@ -67,7 +67,7 @@ function normalizeSuite(raw: Partial<TestSuite> & { testCaseIds?: string[] }, fi
 async function readTestCaseOption(path: string): Promise<TestCaseOption> {
   try {
     const raw = await invoke<string>(IpcChannels.FS_READ_FILE, path)
-    const parsed = (path.endsWith('.yaml') || path.endsWith('.yml') ? yamlParse(raw) : JSON.parse(raw)) as Partial<TestCase>
+    const parsed = yamlParse(raw) as Partial<TestCase>
     return { id: parsed.id ?? path, name: parsed.name ?? stripTestCaseExtension(path), path }
   } catch {
     return { id: path, name: stripTestCaseExtension(path), path }
@@ -83,8 +83,6 @@ export function useSuite(filePath: string) {
   const [error, setError] = useState('')
   const suiteRef = useRef<TestSuite | null>(null)
   suiteRef.current = suite
-
-  const isYaml = filePath.endsWith('.yaml') || filePath.endsWith('.yml')
 
   const sortedItems = useMemo(
     () => [...(suite?.items ?? [])].sort((a, b) => a.order - b.order),
@@ -106,12 +104,12 @@ export function useSuite(filePath: string) {
     try {
       setError('')
       const raw = await invoke<string>(IpcChannels.FS_READ_FILE, filePath)
-      const parsed = normalizeSuite(isYaml ? yamlParse(raw) : JSON.parse(raw), filePath)
+      const parsed = normalizeSuite(yamlParse(raw), filePath)
       suiteHistory.setInitial(parsed)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load suite')
     }
-  }, [filePath, isYaml, suiteHistory.setInitial])
+  }, [filePath, suiteHistory.setInitial])
 
   const loadTestCases = useCallback(async () => {
     if (!activeProject) return
@@ -137,12 +135,12 @@ export function useSuite(filePath: string) {
         .map((item, order) => ({ ...item, order })),
       updatedAt: new Date().toISOString(),
     }
-    const content = isYaml ? yamlStringify(normalized) : JSON.stringify(normalized, null, 2)
+    const content = yamlStringify(normalized)
     await invoke(IpcChannels.FS_WRITE_FILE, filePath, content)
     suiteHistory.setInitial(normalized)
     markTabDirty(filePath, false)
     return normalized
-  }, [filePath, isYaml, markTabDirty, suiteHistory.setInitial])
+  }, [filePath, markTabDirty, suiteHistory.setInitial])
 
   const save = useCallback(async () => {
     const current = suiteRef.current

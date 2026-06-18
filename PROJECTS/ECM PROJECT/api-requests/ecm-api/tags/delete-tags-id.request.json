@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "161d431a-8b4f-4944-87e2-0bcc626b73c5",
+  "name": "Delete tag",
+  "description": " [Path params: {id}]",
+  "method": "DELETE",
+  "url": "{{baseUrl}}/tags/{id}",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "5dbcafaa-2b89-420a-b975-f88972315a3e",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

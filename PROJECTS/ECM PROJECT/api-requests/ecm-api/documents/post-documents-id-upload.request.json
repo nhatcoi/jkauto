@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "5af796e0-e0c2-4e6d-98d7-3f0142c432b1",
+  "name": "Upload new document version",
+  "description": " [Path params: {id}]",
+  "method": "POST",
+  "url": "{{baseUrl}}/documents/{id}/upload",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "raw-json",
+    "content": "{\n  \"filename\": \"\",\n  \"mimeType\": \"\",\n  \"size\": 0\n}"
+  },
+  "assertions": [
+    {
+      "id": "a1697242-8ebc-4d9c-9ee4-4e2e2224a9e7",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

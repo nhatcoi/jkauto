@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "39ff93ac-91b3-420e-8278-ae9d3c17c0ee",
+  "name": "Logout and revoke refresh token",
+  "description": "",
+  "method": "POST",
+  "url": "{{baseUrl}}/auth/logout",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "raw-json",
+    "content": "{\n  \"refreshToken\": \"\"\n}"
+  },
+  "assertions": [
+    {
+      "id": "49fcea09-d277-4ca8-bd77-8e6fe27d976d",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

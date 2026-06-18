@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "8ef2b58d-9442-4079-b51f-d58d32c307a3",
+  "name": "List all roles (admin only)",
+  "description": "",
+  "method": "GET",
+  "url": "{{baseUrl}}/roles",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "9e0b422b-9b56-4d39-89a6-beef2cf2779e",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

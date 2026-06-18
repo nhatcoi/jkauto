@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "257d83c1-ccf0-4d0c-87fd-5b1f2658000c",
+  "name": "Delete folder (soft delete)",
+  "description": " [Path params: {id}]",
+  "method": "DELETE",
+  "url": "{{baseUrl}}/folders/{id}",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "c210f0e8-c6df-4b38-a02d-5b94b4aa4dc1",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

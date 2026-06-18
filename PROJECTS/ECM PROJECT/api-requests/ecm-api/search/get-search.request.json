@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "id": "6b436b0c-7467-433b-911b-9fd38116da97",
+  "name": "Search documents and folders",
+  "description": "",
+  "method": "GET",
+  "url": "{{baseUrl}}/search",
+  "params": [
+    {
+      "key": "q",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "type",
+      "value": "all",
+      "enabled": false
+    },
+    {
+      "key": "status",
+      "value": "",
+      "enabled": false
+    },
+    {
+      "key": "folderId",
+      "value": "",
+      "enabled": false
+    },
+    {
+      "key": "tagId",
+      "value": "",
+      "enabled": false
+    },
+    {
+      "key": "page",
+      "value": "1",
+      "enabled": false
+    },
+    {
+      "key": "limit",
+      "value": "20",
+      "enabled": false
+    }
+  ],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "8ac68928-82c3-4db0-af47-c4c5adafc7ba",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

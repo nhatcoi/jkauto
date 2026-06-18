@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "2fe6db08-c5fc-4a1d-8231-69546f0c4ca2",
+  "name": "Delete user (admin only, soft delete)",
+  "description": " [Path params: {id}]",
+  "method": "DELETE",
+  "url": "{{baseUrl}}/users/{id}",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "1d2bafde-e04e-44d9-afcb-b14f36fceee0",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

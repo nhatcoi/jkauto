@@ -127,6 +127,13 @@ export const IpcChannels = {
   MAESTRO_LOG: 'maestro:log',
 
   MENU_EVENT: 'menu-event',
+
+  AUTOGEN_START_INDEX: 'autogen:start-index',
+  AUTOGEN_INDEX_PROGRESS: 'autogen:index-progress',
+  AUTOGEN_GET_CODE_MAP: 'autogen:get-code-map',
+  AUTOGEN_GENERATE: 'autogen:generate',
+  AUTOGEN_GENERATE_PROGRESS: 'autogen:generate-progress',
+  AUTOGEN_CANCEL: 'autogen:cancel',
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]

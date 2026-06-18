@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "1131bd24-3ddf-4492-bac8-871fda809af1",
+  "name": "Update tag",
+  "description": " [Path params: {id}]",
+  "method": "PUT",
+  "url": "{{baseUrl}}/tags/{id}",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "raw-json",
+    "content": "{\n  \"name\": \"\",\n  \"color\": \"\"\n}"
+  },
+  "assertions": [
+    {
+      "id": "93e00987-267e-405e-9e80-593b2934c123",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

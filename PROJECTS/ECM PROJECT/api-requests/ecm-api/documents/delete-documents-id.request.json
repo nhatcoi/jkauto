@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "2a077b5e-1c97-49bf-a103-a0a7b1f5c2f1",
+  "name": "Delete document (soft delete)",
+  "description": " [Path params: {id}]",
+  "method": "DELETE",
+  "url": "{{baseUrl}}/documents/{id}",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "f43ba815-1ca5-4c05-bd33-0dc7c46c5e26",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

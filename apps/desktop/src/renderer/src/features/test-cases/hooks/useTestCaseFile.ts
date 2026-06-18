@@ -109,8 +109,7 @@ export function useTestCaseFile(filePath: string) {
     try {
       setError("");
       const raw = await invoke<string>(IpcChannels.FS_READ_FILE, filePath);
-      const isYaml = filePath.endsWith(".yaml") || filePath.endsWith(".yml");
-      const parsed = (isYaml ? yamlParse(raw) : JSON.parse(raw)) as Partial<TestCase>;
+      const parsed = yamlParse(raw) as Partial<TestCase>;
       tcHistory.setInitial(normalizeTestCase(parsed));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");

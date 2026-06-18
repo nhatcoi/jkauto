@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "e5da16e2-b662-40ce-b068-223c592e801c",
+  "name": "Create role (admin only)",
+  "description": "",
+  "method": "POST",
+  "url": "{{baseUrl}}/roles",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "raw-json",
+    "content": "{\n  \"name\": \"\",\n  \"permissions\": []\n}"
+  },
+  "assertions": [
+    {
+      "id": "dbedd095-6683-4476-84c9-edec5ad1d4ea",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

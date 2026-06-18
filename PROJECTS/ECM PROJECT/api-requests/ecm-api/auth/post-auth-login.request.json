@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "066762e9-2a2f-40e6-a2ae-109e1a4be8e3",
+  "name": "Login and get JWT tokens",
+  "description": "",
+  "method": "POST",
+  "url": "{{baseUrl}}/auth/login",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "none"
+  },
+  "body": {
+    "type": "raw-json",
+    "content": "{\n  \"username\": \"\",\n  \"password\": \"\"\n}"
+  },
+  "assertions": [
+    {
+      "id": "275fef6a-a554-460d-b67b-e220379ef48b",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+# @jkauto/indexer package
+
+Core codebase analysis package — runs in Electron main process only. Never import in renderer.
+
+## Parsers
+
+- **parsers/ast-ts.ts:** `@typescript-eslint/typescript-estree` AST — extracts `data-testid`, `aria-label`, `<input>` fields, component names from `.tsx/.jsx/.ts/.js`. Handles dynamic testid expressions (template literals, member expressions).
+- **parsers/elements.ts:** Regex fallback for JSX elements — faster but misses dynamic attrs.
+- **parsers/routes.ts:** Route extraction per framework — Next.js (app/ + pages/), React Router (path= regex), Angular (app-routing.module.ts).
+- **parsers/openapi.ts:** `swagger-parser` → `ApiEndpoint[]` from OpenAPI/Swagger spec.
+- **parsers/java.ts:** Regex — Spring `@GetMapping/@PostMapping` etc., class-level `@RequestMapping` base path.
+- **parsers/go.ts:** Regex — Gin/Echo/Fiber/Chi route registration, stdlib `HandleFunc`.
+- **parsers/python.ts:** Regex — Flask `@app.route`, FastAPI `@app.get/post`, Django `path()`.
+- **parsers/rust.ts:** Regex — Actix `#[get]`, Axum `.route()`, Rocket `#[get=]`.
+
+## Core modules
+
+- **cloner.ts:** `simple-git` shallow clone (`--depth 1 --filter=blob:none`). Cache at `.autotest/repo-cache/<base64url-hash>`. Pull if `.git` exists.
+- **detector.ts:** Detect framework + language from `package.json`, `pom.xml`, `build.gradle`, `go.mod`, `Cargo.toml`, `composer.json`, `requirements.txt`.
+- **indexer.ts:** Orchestrator — detect → routes → AST parse → lang-specific parse → OpenAPI → return `CodeMap`. Emits `IndexProgress` at each phase.
+- **context-builder.ts:** RAG context assembly. BM25-style keyword scoring. Token budget: 12k tokens. Top-K ranked chunks by relevance to user query.

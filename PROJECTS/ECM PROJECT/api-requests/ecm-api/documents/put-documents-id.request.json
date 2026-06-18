@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "f38d3252-2c9e-4179-84c7-19b96c6b81a7",
+  "name": "Update document metadata",
+  "description": " [Path params: {id}]",
+  "method": "PUT",
+  "url": "{{baseUrl}}/documents/{id}",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "raw-json",
+    "content": "{\n  \"title\": \"\",\n  \"description\": \"\",\n  \"folderId\": \"\",\n  \"tagIds\": [],\n  \"status\": \"\"\n}"
+  },
+  "assertions": [
+    {
+      "id": "f03a9f08-b3dd-452c-99d4-47e0ec875fe5",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

@@ -10,7 +10,7 @@ function compactJson(value: unknown): string {
 
 function looksLikeTestCase(filePath: string): boolean {
   const base = path.basename(filePath).toLowerCase()
-  return base.endsWith('.test.json') || base.endsWith('.test.yaml') || base.endsWith('.test.yml')
+  return base.endsWith('.test.yaml') || base.endsWith('.test.yml')
 }
 
 async function readActiveFileContext(snapshot?: AgentContextSnapshot): Promise<string | null> {

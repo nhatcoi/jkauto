@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "b677c161-e9d3-40ae-b390-9e9e86e96e7d",
+  "name": "Update user",
+  "description": " [Path params: {id}]",
+  "method": "PUT",
+  "url": "{{baseUrl}}/users/{id}",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "raw-json",
+    "content": "{\n  \"email\": \"\",\n  \"role\": \"\"\n}"
+  },
+  "assertions": [
+    {
+      "id": "6e8c45cd-cf7d-468c-a6ab-bed85505c635",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
 import { X, Camera, ExternalLink } from 'lucide-react'
-declare global { interface Window { api: { openExternal: (url: string) => void } } }
 import { cn } from '@/lib/utils'
 
 interface Props {

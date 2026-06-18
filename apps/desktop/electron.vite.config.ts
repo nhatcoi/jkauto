@@ -4,17 +4,18 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin({ exclude: ['@jkauto/engine', '@jkauto/core'] })],
+    plugins: [externalizeDepsPlugin({ exclude: ['@jkauto/engine', '@jkauto/core', '@jkauto/indexer'] })],
     resolve: {
       alias: {
         '@main': resolve('src/main'),
         '@jkauto/engine': resolve('../../packages/engine/src/index.ts'),
         '@jkauto/core': resolve('../../packages/core/src/index.ts'),
+        '@jkauto/indexer': resolve('../../packages/indexer/src/index.ts'),
       },
     },
     build: {
       watch: {
-        include: ['src/main/**', '../../packages/engine/src/**', '../../packages/core/src/**'],
+        include: ['src/main/**', '../../packages/engine/src/**', '../../packages/core/src/**', '../../packages/indexer/src/**'],
       },
     },
   },
@@ -26,6 +27,7 @@ export default defineConfig({
       alias: {
         '@renderer': resolve('src/renderer/src'),
         '@': resolve('src/renderer/src'),
+        '@jkauto/core': resolve('../../packages/core/src/index.ts'),
       },
     },
     plugins: [react()],

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "6b94244a-c98b-4be6-9f12-dc6086f76741",
+  "name": "List all tags",
+  "description": "",
+  "method": "GET",
+  "url": "{{baseUrl}}/tags",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "761aa665-a096-4a6f-af4d-44c20d90b44a",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

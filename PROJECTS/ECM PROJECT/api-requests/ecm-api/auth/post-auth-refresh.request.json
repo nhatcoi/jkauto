@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "c73e2842-b8c3-452f-97c1-9149e43f2a4c",
+  "name": "Refresh access token",
+  "description": "",
+  "method": "POST",
+  "url": "{{baseUrl}}/auth/refresh",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "none"
+  },
+  "body": {
+    "type": "raw-json",
+    "content": "{\n  \"refreshToken\": \"\"\n}"
+  },
+  "assertions": [
+    {
+      "id": "7715305d-6bc5-4b83-8ea2-f61868b739ef",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

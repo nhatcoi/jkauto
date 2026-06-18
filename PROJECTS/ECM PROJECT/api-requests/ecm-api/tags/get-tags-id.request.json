@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "9fe3d274-614f-4a8f-948c-c5b6b5d0763c",
+  "name": "Get tag by ID",
+  "description": " [Path params: {id}]",
+  "method": "GET",
+  "url": "{{baseUrl}}/tags/{id}",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "558921e3-2f63-4a48-b254-7a859f708405",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "284167d2-39ac-49b1-8c92-4eee3c1e913c",
+  "name": "System statistics",
+  "description": "",
+  "method": "GET",
+  "url": "{{baseUrl}}/stats",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "8a466a22-3c72-402b-8b47-5a2f844f6c05",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

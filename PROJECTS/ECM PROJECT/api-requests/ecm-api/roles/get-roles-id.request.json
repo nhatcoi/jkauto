@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "fc2dcf05-870f-4135-822f-b1a144f9c516",
+  "name": "Get role by ID",
+  "description": " [Path params: {id}]",
+  "method": "GET",
+  "url": "{{baseUrl}}/roles/{id}",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "748478f9-97ad-4f15-a03e-5e6764359c5a",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "ee6f4a4e-1b23-47d2-a14e-15fd85ee19a2",
+  "name": "List all folders",
+  "description": "",
+  "method": "GET",
+  "url": "{{baseUrl}}/folders",
+  "params": [
+    {
+      "key": "parentId",
+      "value": "",
+      "enabled": false
+    }
+  ],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "1d15b0dc-bfb8-474a-a4b1-64b60d982ffb",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

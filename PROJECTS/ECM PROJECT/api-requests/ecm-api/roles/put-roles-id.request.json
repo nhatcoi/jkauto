@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "f753c60e-7f0e-4c7d-b5a2-3b6fd4a653cc",
+  "name": "Update role permissions (admin only)",
+  "description": " [Path params: {id}]",
+  "method": "PUT",
+  "url": "{{baseUrl}}/roles/{id}",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "raw-json",
+    "content": "{\n  \"name\": \"\",\n  \"permissions\": []\n}"
+  },
+  "assertions": [
+    {
+      "id": "1372b6d4-4813-46b8-a820-5a4293576e24",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

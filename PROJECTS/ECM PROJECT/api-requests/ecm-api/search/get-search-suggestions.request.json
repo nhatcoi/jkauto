@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "14f931a4-c583-4258-b9ef-3eb756bc039a",
+  "name": "Get search suggestions (autocomplete)",
+  "description": "",
+  "method": "GET",
+  "url": "{{baseUrl}}/search/suggestions",
+  "params": [
+    {
+      "key": "q",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "limit",
+      "value": "5",
+      "enabled": false
+    }
+  ],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "c084c58b-32df-4dd1-8fa7-deb6c4933949",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

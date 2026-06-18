@@ -32,7 +32,7 @@ export async function buildProjectContext(projectPath: string): Promise<string> 
 
   const [keywordFiles, testCaseFiles, profileFiles] = await Promise.all([
     listFiles(path.join(projectPath, 'keywords'), ['.keywords.json', '.keywords.yaml']),
-    listFiles(path.join(projectPath, 'test-cases'), ['.test.json', '.test.yaml', '.test.yml']),
+    listFiles(path.join(projectPath, 'test-cases'), ['.test.yaml', '.test.yml']),
     listFiles(path.join(projectPath, 'profiles'), ['.env.json']),
   ])
 

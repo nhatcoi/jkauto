@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "08eec9dc-a7e7-470a-98a7-d4e35d895443",
+  "name": "List documents in folder",
+  "description": " [Path params: {id}]",
+  "method": "GET",
+  "url": "{{baseUrl}}/folders/{id}/documents",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "59af0419-a04a-466f-851e-73b661060a06",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

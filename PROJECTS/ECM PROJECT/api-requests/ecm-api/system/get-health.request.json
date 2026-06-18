@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "bed23531-23d6-4411-8a37-ce91e89e0df3",
+  "name": "Health check",
+  "description": "",
+  "method": "GET",
+  "url": "{{baseUrl}}/health",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "none"
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "fcb65b81-923c-4f93-bc5b-a485098a5327",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

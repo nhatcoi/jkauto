@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "c7d08bad-a78f-44b0-b4a1-30849bab9a43",
+  "name": "Get document by ID",
+  "description": " [Path params: {id}]",
+  "method": "GET",
+  "url": "{{baseUrl}}/documents/{id}",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "aa38ad05-9be4-4f45-b1dd-b873d3a24e59",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

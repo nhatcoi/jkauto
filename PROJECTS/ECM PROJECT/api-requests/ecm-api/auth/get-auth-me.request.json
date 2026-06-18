@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "da4f8625-d137-45ba-8a41-bd4f8382c7e3",
+  "name": "Get current authenticated user",
+  "description": "",
+  "method": "GET",
+  "url": "{{baseUrl}}/auth/me",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "25cbe130-3332-41a6-b9e0-e63191a3620c",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

@@ -6,8 +6,20 @@
 // frozen. GUI-launched Electron does not inherit the shell env, so we must seed
 // the var synchronously here — before the engine (and thus Playwright) is imported.
 import { app } from 'electron'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+
+const envPaths = [
+  join(app.getAppPath(), '.env'),
+  join(process.cwd(), 'apps', 'desktop', '.env'),
+  join(process.cwd(), '.env'),
+]
+
+for (const envPath of envPaths) {
+  if (!existsSync(envPath)) continue
+  process.loadEnvFile(envPath)
+  break
+}
 
 if (!process.env['PLAYWRIGHT_BROWSERS_PATH']) {
   try {

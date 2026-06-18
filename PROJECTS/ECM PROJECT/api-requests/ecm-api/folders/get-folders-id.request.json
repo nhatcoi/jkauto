@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "9ad13464-bfa6-49cf-9540-38e96c157bf0",
+  "name": "Get folder by ID",
+  "description": " [Path params: {id}]",
+  "method": "GET",
+  "url": "{{baseUrl}}/folders/{id}",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "683c7d9e-8512-46cb-b4bc-c6ff17a45fba",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

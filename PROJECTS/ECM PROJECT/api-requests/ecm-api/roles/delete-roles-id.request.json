@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "9c11c33b-a6a2-4cf0-bd59-144726fd151b",
+  "name": "Delete role (admin only)",
+  "description": " [Path params: {id}]",
+  "method": "DELETE",
+  "url": "{{baseUrl}}/roles/{id}",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "e72bbd54-577f-4be2-86a6-795a4d218083",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

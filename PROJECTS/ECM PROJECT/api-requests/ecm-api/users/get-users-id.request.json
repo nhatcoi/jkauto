@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "7d496a33-c6d5-49b8-afef-2a9eb3b2d292",
+  "name": "Get user by ID",
+  "description": " [Path params: {id}]",
+  "method": "GET",
+  "url": "{{baseUrl}}/users/{id}",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "dc111197-e78a-4886-ab51-d1fb57f59045",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

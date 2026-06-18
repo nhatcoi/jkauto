@@ -17,14 +17,14 @@ interface TestCaseEntry {
 }
 
 function isTestCasePath(p: string) {
-  return p.endsWith('.test.json') || p.endsWith('.test.yaml') || p.endsWith('.test.yml')
+  return p.endsWith('.test.yaml') || p.endsWith('.test.yml')
 }
 
 function collectEntries(nodes: FsTreeNode[]): TestCaseEntry[] {
   const result: TestCaseEntry[] = []
   for (const node of nodes) {
     if (node.type === 'file' && isTestCasePath(node.path)) {
-      const name = node.displayName ?? node.name.replace(/\.test\.(json|ya?ml)$/i, '')
+      const name = node.displayName ?? node.name.replace(/\.test\.ya?ml$/i, '')
       result.push({ path: node.path, name })
     }
     if (node.children) result.push(...collectEntries(node.children))

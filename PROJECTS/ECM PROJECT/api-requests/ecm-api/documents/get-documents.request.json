@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "id": "86999bed-58ff-4a5a-91d1-f0ad863bb76b",
+  "name": "List documents",
+  "description": "",
+  "method": "GET",
+  "url": "{{baseUrl}}/documents",
+  "params": [
+    {
+      "key": "folderId",
+      "value": "",
+      "enabled": false
+    },
+    {
+      "key": "status",
+      "value": "",
+      "enabled": false
+    },
+    {
+      "key": "tagId",
+      "value": "",
+      "enabled": false
+    },
+    {
+      "key": "page",
+      "value": "1",
+      "enabled": false
+    },
+    {
+      "key": "limit",
+      "value": "20",
+      "enabled": false
+    }
+  ],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "5cd5296d-55b0-419b-9e86-bd97ac03c686",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

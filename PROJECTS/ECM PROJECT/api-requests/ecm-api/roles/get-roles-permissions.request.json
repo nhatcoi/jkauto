@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "4cde9c14-9661-4307-b7cf-3b71dcc3aaf3",
+  "name": "List all available permissions",
+  "description": "",
+  "method": "GET",
+  "url": "{{baseUrl}}/roles/permissions",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "ab82a744-e96d-4ed8-bd57-fb46d7e174a0",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}

@@ -123,8 +123,7 @@ function normalizeSuite(suiteData: Partial<TestSuite> & { testCaseIds?: string[]
 
 async function readTestCase(filePath: string): Promise<TestCase> {
   const raw = await fs.readFile(filePath, 'utf-8')
-  const isYaml = filePath.endsWith('.yaml') || filePath.endsWith('.yml')
-  return normalizeTestCase((isYaml ? yamlParse(raw) : JSON.parse(raw)) as Partial<TestCase>)
+  return normalizeTestCase(yamlParse(raw) as Partial<TestCase>)
 }
 
 function sendSuiteEvent(webContents: WebContents, event: SuiteEvent): void {
@@ -233,7 +232,7 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
     applyBrowsersPath(settings)
 
     const raw = await fs.readFile(filePath, 'utf-8')
-    const suite = normalizeSuite(JSON.parse(raw))
+    const suite = normalizeSuite(yamlParse(raw))
     const objectRepositories = projectPath ? await loadObjectRepositories(projectPath) : []
     const enabledItems = suite.items
       .filter((item) => item.enabled)

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "fd037a65-b7c7-4263-ae32-6d8b4dee9114",
+  "name": "List child folders",
+  "description": " [Path params: {id}]",
+  "method": "GET",
+  "url": "{{baseUrl}}/folders/{id}/children",
+  "params": [],
+  "headers": [],
+  "auth": {
+    "type": "bearer",
+    "token": ""
+  },
+  "body": {
+    "type": "none"
+  },
+  "assertions": [
+    {
+      "id": "2ccebe33-abc4-406a-86c2-4d8ff63c01de",
+      "target": "status",
+      "op": "eq",
+      "expected": "200"
+    }
+  ]
+}
