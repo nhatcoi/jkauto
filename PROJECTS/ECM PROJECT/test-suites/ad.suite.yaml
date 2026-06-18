@@ -1,0 +1,14 @@
+schemaVersion: 1
+id: 4427699c-9870-4f73-93b7-789de37bc436
+name: ad
+description: ""
+profile: default
+continueOnFailure: false
+sharedBrowser: false
+items:
+  - testCaseId: 49018cf0-de5c-4b5e-8cbf-a4a8966a0b62
+    testCasePath: test-cases/adas/tc-checkout.test.yaml
+    enabled: true
+    order: 0
+createdAt: 2026-06-18T09:13:46.876Z
+updatedAt: 2026-06-18T09:22:25.733Z
