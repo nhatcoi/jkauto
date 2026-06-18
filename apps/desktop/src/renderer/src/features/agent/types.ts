@@ -21,3 +21,9 @@ export type {
 }
 
 export type AgentSendState = 'idle' | 'sending' | 'error'
+
+export interface AgentThinkingStep {
+  name: string
+  args?: Record<string, unknown>
+  result?: string
+}

@@ -9,7 +9,7 @@ import type {
 } from '@jkauto/core'
 import { buildAgentContext } from './context-builder'
 import { streamAgentChat } from './llm-client'
-import type { AgentConfig } from './llm-client'
+import type { AgentConfig, AgentToolEvent } from './llm-client'
 import { McpManager } from './mcp-manager'
 import type { McpServerConfig, McpEditMode } from './mcp-manager'
 import { buildProjectContext } from './project-context'
@@ -29,6 +29,17 @@ interface ServiceAgentConfig extends Partial<AgentConfig> {
   mcpServers?: McpServerConfig[]
   skillPaths?: string[]
   editMode?: McpEditMode
+}
+
+// Cache McpManager per projectPath — avoid 60s reconnect on every chat message
+const managerCache = new Map<string, McpManager>()
+
+export async function disposeProjectManager(projectPath: string): Promise<void> {
+  const manager = managerCache.get(projectPath)
+  if (manager) {
+    managerCache.delete(projectPath)
+    await manager.dispose()
+  }
 }
 
 async function loadSkills(skillPaths: string[]): Promise<string[]> {
@@ -102,22 +113,16 @@ export async function chatWithAgent(
   payload: AgentChatPayload,
   agentConfig?: ServiceAgentConfig,
   onChunk?: (text: string) => void,
+  onToolEvent?: (event: AgentToolEvent) => void,
 ): Promise<AgentChatResult> {
   const context = await getAgentContext(payload)
   const projectPath = getProjectPath(payload)
   const skills = await loadSkills(agentConfig?.skillPaths ?? [])
   const editMode = agentConfig?.editMode ?? 'ask'
 
-  // Resolve session
-  let sessionId = payload.sessionId
-  let session: AgentSession | null = null
-  if (projectPath && sessionId) {
-    session = getSession(projectPath, sessionId)
-  }
-  if (!session && projectPath) {
-    session = createSession(projectPath, 'ask')
-    sessionId = session.id
-  }
+  // Resolve session — frontend always provides sessionId (created lazily on first message)
+  const sessionId = payload.sessionId
+  const session = projectPath && sessionId ? getSession(projectPath, sessionId) : null
   const sessionMode: AgentSessionMode = session?.mode ?? 'ask'
 
   // Load historical messages from DB for context (use as source of truth)
@@ -150,53 +155,55 @@ export async function chatWithAgent(
   let usage: AgentChatResult['usage']
 
   if (projectPath) {
-    const manager = new McpManager()
-    try {
+    let manager = managerCache.get(projectPath)
+    if (!manager) {
+      manager = new McpManager()
       await manager.setup(
         projectPath,
         agentConfig?.mcpServers ?? [],
         editMode,
         sessionId ?? '',
       )
-      const result = await streamAgentChat(
-        messagesForLlm,
-        context.summary,
-        projectContext,
-        session?.summary,
-        sessionMode,
-        manager,
-        skills,
-        agentConfig,
-        onChunk,
-      )
-      content = result.content
-      model = result.model
-      usage = result.usage
+      managerCache.set(projectPath, manager)
+    }
 
-      // Save assistant message
-      if (projectPath && sessionId) {
-        const assistantMsg = {
-          id: randomUUID(),
-          sessionId,
-          role: 'assistant' as const,
-          content,
-          createdAt: new Date().toISOString(),
-          metadata: result.metadata,
-        }
-        saveMessage(projectPath, assistantMsg)
+    const result = await streamAgentChat(
+      messagesForLlm,
+      context.summary,
+      projectContext,
+      session?.summary,
+      sessionMode,
+      manager,
+      skills,
+      agentConfig,
+      onChunk,
+      onToolEvent,
+    )
+    content = result.content
+    model = result.model
+    usage = result.usage
 
-        // Extract + save artifacts
-        const activeTabPath = payload.context?.activeTab?.path
-        const artifacts = extractApplyStepsArtifacts(content, sessionId, activeTabPath)
-        for (const artifact of artifacts) {
-          saveArtifact(projectPath, artifact)
-        }
-
-        // Update session timestamp
-        updateSession(projectPath, sessionId, {})
+    // Save assistant message
+    if (projectPath && sessionId) {
+      const assistantMsg = {
+        id: randomUUID(),
+        sessionId,
+        role: 'assistant' as const,
+        content,
+        createdAt: new Date().toISOString(),
+        metadata: result.metadata,
       }
-    } finally {
-      await manager.dispose()
+      saveMessage(projectPath, assistantMsg)
+
+      // Extract + save artifacts
+      const activeTabPath = payload.context?.activeTab?.path
+      const artifacts = extractApplyStepsArtifacts(content, sessionId, activeTabPath)
+      for (const artifact of artifacts) {
+        saveArtifact(projectPath, artifact)
+      }
+
+      // Update session timestamp
+      updateSession(projectPath, sessionId, {})
     }
   } else {
     const result = await streamAgentChat(
@@ -209,6 +216,7 @@ export async function chatWithAgent(
       skills,
       agentConfig,
       onChunk,
+      onToolEvent,
     )
     content = result.content
     model = result.model

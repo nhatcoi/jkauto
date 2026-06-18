@@ -54,12 +54,6 @@ export class McpManager {
         '@modelcontextprotocol/server-filesystem',
         projectPath,
       ]),
-      this.addStdio('playwright', 'npx', [
-        '-y',
-        '@playwright/mcp@latest',
-        '--browser',
-        'chromium',
-      ]),
       ...userServers
         .filter((s) => s.enabled !== false)
         .map((s) => this.addStdio(s.name, s.command, s.args, s.env)),
@@ -85,9 +79,13 @@ export class McpManager {
     args: string[],
     env?: Record<string, string>,
   ): Promise<void> {
-    const transport = new StdioClientTransport({ command, args, env })
+    const transport = new StdioClientTransport({
+      command,
+      args,
+      env: { PATH: process.env.PATH ?? '', ...env },
+    })
     const client = new Client({ name: `jkauto-${name}`, version: '1.0.0' })
-    await client.connect(transport)
+    await client.connect(transport, { timeout: 10000 })
     this.clients.push({ name, client, transport })
   }
 

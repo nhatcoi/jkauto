@@ -102,6 +102,13 @@ async function buildMcpTools(manager: McpManager): Promise<ToolSet> {
   )
 }
 
+export interface AgentToolEvent {
+  type: 'call' | 'result'
+  name: string
+  args?: Record<string, unknown>
+  result?: string
+}
+
 export async function streamAgentChat(
   messages: AgentMessage[],
   contextSummary: string,
@@ -112,6 +119,7 @@ export async function streamAgentChat(
   skills: string[],
   configOverride?: Partial<AgentConfig>,
   onChunk?: (text: string) => void,
+  onToolEvent?: (event: AgentToolEvent) => void,
 ): Promise<AgentLlmResult> {
   const config = getConfig(configOverride)
   const provider = createOpenAI({
@@ -122,44 +130,83 @@ export async function streamAgentChat(
 
   const tools = mcpManager ? await buildMcpTools(mcpManager) : {}
   const hasTools = Object.keys(tools).length > 0
+  const systemPrompt = buildSystemPrompt(mode, contextSummary, projectContext, sessionSummary, skills)
 
   const toolCallsLog: AgentMessageMeta['toolCalls'] = []
 
-  const result = streamText({
-    model: provider(config.model),
-    system: buildSystemPrompt(mode, contextSummary, projectContext, sessionSummary, skills),
-    messages: buildMessages(messages),
-    ...(hasTools && { tools, maxSteps: MAX_TOOL_ROUNDS }),
-    onStepFinish({ toolCalls }) {
-      for (const tc of toolCalls ?? []) {
-        toolCallsLog.push({ name: tc.toolName, args: tc.input })
-      }
-    },
-  })
-
+  // Manual agentic loop — local models don't handle role:tool continuation messages,
+  // so we inject tool results as user messages and call the model again ourselves.
+  let currentMessages = buildMessages(messages)
   let fullText = ''
-  for await (const part of result.fullStream) {
-    if (part.type === 'text-delta') {
-      fullText += part.text
-      onChunk?.(part.text)
-    } else if (part.type === 'error') {
-      throw part.error instanceof Error ? part.error : new Error(String(part.error))
+  let lastUsage: LanguageModelUsage | undefined
+  let lastModelId: string | undefined
+
+  for (let step = 0; step < MAX_TOOL_ROUNDS; step++) {
+    const result = streamText({
+      model: provider(config.model),
+      system: systemPrompt,
+      messages: currentMessages,
+      ...(hasTools && { tools }),
+      onStepFinish({ toolCalls }) {
+        for (const tc of toolCalls ?? []) {
+          toolCallsLog.push({ name: tc.toolName, args: tc.input })
+        }
+      },
+    })
+
+    let stepText = ''
+    const stepToolResults: string[] = []
+
+    for await (const part of result.fullStream) {
+      if (part.type === 'text-delta') {
+        stepText += part.text
+        fullText += part.text
+        onChunk?.(part.text)
+      } else if (part.type === 'tool-call') {
+        onToolEvent?.({ type: 'call', name: part.toolName, args: part.args as Record<string, unknown> })
+      } else if (part.type === 'tool-result') {
+        // AI SDK v6: property is "output", not "result"
+        const out = (part as unknown as { output?: unknown }).output
+        const outStr =
+          out === undefined ? '(empty)' : typeof out === 'string' ? out : JSON.stringify(out)
+        stepToolResults.push(`[${part.toolName}]: ${outStr}`)
+        onToolEvent?.({ type: 'result', name: part.toolName, result: outStr })
+      } else if (part.type === 'error') {
+        throw part.error instanceof Error ? part.error : new Error(String(part.error))
+      }
     }
+
+    lastUsage = await result.usage
+    lastModelId = (await result.response).modelId
+
+    if (stepText || stepToolResults.length === 0) {
+      // Model produced text, or called no tools — done
+      break
+    }
+
+    // Tools ran but no text: inject results as user message and continue loop.
+    // Use XML tags + no fake assistant turn — avoids model echoing "[Tools called: ...]".
+    currentMessages = [
+      ...currentMessages,
+      {
+        role: 'user' as const,
+        content: `<tool_results>\n${stepToolResults.join('\n\n')}\n</tool_results>\n\nContinue with the task and write your response to the user.`,
+      },
+    ]
   }
 
-  const usage = await result.usage
-  const response = await result.response
+  if (!fullText) {
+    throw new Error('Agent returned no text after all tool steps')
+  }
 
-  if (!fullText) throw new Error('Agent returned no text (tool-only or empty stream)')
-
-  const mappedUsage = usage ? mapUsage(usage) : undefined
+  const mappedUsage = lastUsage ? mapUsage(lastUsage) : undefined
 
   return {
     content: fullText,
-    model: response.modelId,
+    model: lastModelId,
     usage: mappedUsage,
     metadata: {
-      model: response.modelId,
+      model: lastModelId,
       usage: mappedUsage,
       toolCalls: toolCallsLog.length > 0 ? toolCallsLog : undefined,
     },

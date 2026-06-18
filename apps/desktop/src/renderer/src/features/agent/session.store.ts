@@ -11,7 +11,7 @@ interface SessionStore {
   loading: boolean
 
   loadSessions: (projectPath: string) => Promise<void>
-  createSession: (projectPath: string, mode?: AgentSessionMode) => Promise<AgentSession>
+  createSession: (projectPath: string, mode?: AgentSessionMode, title?: string) => Promise<AgentSession>
   selectSession: (projectPath: string, id: string) => Promise<void>
   updateSession: (
     projectPath: string,
@@ -41,10 +41,11 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     }
   },
 
-  createSession: async (projectPath, mode = 'ask') => {
+  createSession: async (projectPath, mode = 'ask', title?: string) => {
     const session = await invoke<AgentSession>(IpcChannels.AGENT_SESSION_CREATE, {
       projectPath,
       mode,
+      title,
     })
     set((s) => ({ sessions: [session, ...s.sessions], activeSessionId: session.id }))
     return session

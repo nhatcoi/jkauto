@@ -9,6 +9,7 @@ import { useSessionStore } from './session.store'
 import { SessionHeader } from './SessionHeader'
 import { MessageList } from './MessageList'
 import { ChatInput } from './ChatInput'
+import { ThinkingSection } from './ThinkingSection'
 import { useProjectStore } from '@/store/project.store'
 import { useRunStore } from '@/store/run.store'
 import { useAppSettingsStore } from '@/store/app-settings.store'
@@ -37,13 +38,17 @@ function isTestCasePath(p: string | null | undefined): boolean {
 
 export function AgentPanel() {
   const [draft, setDraft] = useState('')
+  const [pendingMode, setPendingMode] = useState<AgentSessionMode>('ask')
   const endRef = useRef<HTMLDivElement>(null)
+  const prevMsgCountRef = useRef(0)
+  const isSubmittingRef = useRef(false)
 
   const {
     messages,
     sendState,
     error,
     streamingContent,
+    pendingToolCalls,
     lastModel,
     lastUsage,
     addMessage,
@@ -53,6 +58,8 @@ export function AgentPanel() {
     startStreaming,
     appendStreamChunk,
     finalizeStream,
+    addPendingToolCall,
+    updatePendingToolResult,
     clear,
     setMessages,
   } = useAgentStore()
@@ -82,12 +89,10 @@ export function AgentPanel() {
       useSessionStore.getState().reset()
       return
     }
-    loadSessions(projectPath).then(async () => {
+    loadSessions(projectPath).then(() => {
       const store = useSessionStore.getState()
-      // Auto-create session if none exist or none active
-      if (store.sessions.length === 0 || !store.activeSessionId) {
-        const sess = await createSession(projectPath, 'ask')
-        useSessionStore.setState({ activeSessionId: sess.id })
+      if (store.sessions.length > 0 && !store.activeSessionId) {
+        useSessionStore.setState({ activeSessionId: store.sessions[0].id })
       }
     })
   }, [projectPath])
@@ -166,25 +171,51 @@ export function AgentPanel() {
     return off
   }, [appendStreamChunk])
 
+  // Listen to tool call events from main process
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const off = window.api.on(IpcChannels.AGENT_STREAM_TOOL_EVENT, (event: unknown) => {
+      const e = event as { type: 'call' | 'result'; name: string; args?: Record<string, unknown>; result?: string }
+      if (e.type === 'call') {
+        addPendingToolCall(e.name, e.args)
+      } else if (e.type === 'result') {
+        updatePendingToolResult(e.name, e.result ?? '(empty)')
+      }
+    })
+    return off
+  }, [addPendingToolCall, updatePendingToolResult])
+
+  useEffect(() => {
+    if (!endRef.current) return
+    const isNewMessage = messages.length > prevMsgCountRef.current
+    prevMsgCountRef.current = messages.length
+    endRef.current.scrollIntoView({ behavior: isNewMessage || sendState === 'sending' ? 'smooth' : 'instant' })
   }, [messages, sendState, streamingContent])
 
   async function handleSubmit() {
     const content = draft.trim()
-    if (!content || sendState === 'sending') return
+    if (!content || isSubmittingRef.current) return
+    isSubmittingRef.current = true
 
-    const userMessage = createMessage('user', content, activeSessionId ?? undefined)
-    const nextMessages = [...messages, userMessage]
     setDraft('')
     setError(null)
     startStreaming()
     setSendState('sending')
-    addMessage(userMessage)
 
     try {
+      // Lazy-create session on first message
+      let sessionId = activeSessionId
+      if (!sessionId && projectPath) {
+        const title = content.length > 60 ? content.slice(0, 57) + '…' : content
+        const sess = await createSession(projectPath, pendingMode, title)
+        sessionId = sess.id
+      }
+
+      const userMessage = createMessage('user', content, sessionId ?? undefined)
+      const nextMessages = [...messages, userMessage]
+      addMessage(userMessage)
+
       const result = await sendAgentMessage({
-        sessionId: activeSessionId ?? undefined,
+        sessionId: sessionId ?? undefined,
         messages: nextMessages,
         context,
       })
@@ -192,13 +223,15 @@ export function AgentPanel() {
       addMessage(result.message)
       setMetadata(result.model, result.usage)
       setSendState('idle')
-      // Refresh artifacts after reply
-      if (projectPath && activeSessionId) {
-        refreshArtifacts(projectPath, activeSessionId)
+      if (projectPath && sessionId) {
+        refreshArtifacts(projectPath, sessionId)
       }
     } catch (err) {
       finalizeStream()
+      setSendState('idle')
       setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      isSubmittingRef.current = false
     }
   }
 
@@ -244,10 +277,10 @@ export function AgentPanel() {
     await selectSession(projectPath, id)
   }
 
-  async function handleCreateSession(mode: AgentSessionMode) {
-    if (!projectPath) return
+  function handleCreateSession(mode: AgentSessionMode) {
     clear()
-    await createSession(projectPath, mode)
+    setPendingMode(mode)
+    useSessionStore.setState({ activeSessionId: null })
   }
 
   async function handleDeleteSession(id: string) {
@@ -344,6 +377,7 @@ export function AgentPanel() {
             applyTargetPath={applyTargetPath}
             onApplySteps={handleApplySteps}
           />
+
         )}
 
         {isSending && streamingContent !== null && (
@@ -353,15 +387,22 @@ export function AgentPanel() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="mb-1 text-[10px] text-muted-foreground font-medium">JKAuto AI</div>
-              <div className="rounded-md px-3 py-2 text-xs leading-relaxed bg-secondary/50 text-foreground/85 border border-border/60 whitespace-pre-wrap">
-                {streamingContent || (
+              {pendingToolCalls.length > 0 && (
+                <ThinkingSection steps={pendingToolCalls} isStreaming={!streamingContent} />
+              )}
+              {streamingContent ? (
+                <div className="rounded-md px-3 py-2 text-xs leading-relaxed bg-secondary/50 text-foreground/85 border border-border/60 whitespace-pre-wrap mt-1.5">
+                  {streamingContent}
+                  <span className="animate-pulse ml-0.5">▊</span>
+                </div>
+              ) : pendingToolCalls.length === 0 && (
+                <div className="rounded-md px-3 py-2 text-xs leading-relaxed bg-secondary/50 text-foreground/85 border border-border/60">
                   <span className="flex items-center gap-1.5 text-muted-foreground">
                     <Loader2 className="w-3 h-3 animate-spin" />
                     Thinking…
                   </span>
-                )}
-                {streamingContent && <span className="animate-pulse ml-0.5">▊</span>}
-              </div>
+                </div>
+              )}
             </div>
           </div>
         )}

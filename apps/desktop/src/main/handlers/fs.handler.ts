@@ -19,13 +19,37 @@ type FSWatcher = ReturnType<typeof chokidar.watch>
 const watchers = new Map<string, FSWatcher>()
 
 const SKIP_DIRS = new Set(['.autotest', '.git', 'node_modules'])
-const SKIP_FILES = new Set([EXPLORER_META_FILE])
+const SKIP_FILES = new Set([EXPLORER_META_FILE, '.DS_Store', 'Thumbs.db'])
+const ALLOWED_ROOT_DIRS = new Set([
+  'test-cases',
+  'test-suites',
+  'profiles',
+  'api-request',
+  'api-requests',
+  'checkpoints',
+  'data-files',
+  'keywords',
+  'plugins',
+  'reports',
+])
+const ALLOWED_ROOT_FILES = new Set([
+  'project.json',
+  '.mcp.json',
+])
 const REQUIRED_FEATURE_DIRS: Array<{ key: string; name: string }> = []
 
 type ExplorerSettings = AppSettings['explorer']
 
 function isMetadataFile(fileName: string): boolean {
   return fileName.endsWith('.json') || fileName.endsWith('.yaml') || fileName.endsWith('.yml')
+}
+
+function isAllowedExplorerPath(rootPath: string, targetPath: string): boolean {
+  const relPath = path.relative(rootPath, targetPath)
+  if (!relPath || relPath.startsWith('..') || path.isAbsolute(relPath)) return false
+
+  const [rootEntry] = relPath.split(path.sep)
+  return ALLOWED_ROOT_DIRS.has(rootEntry) || ALLOWED_ROOT_FILES.has(rootEntry)
 }
 
 function parseMetadata(raw: string, fileName: string): unknown {
@@ -75,6 +99,17 @@ async function buildTree(
     if (entry.isFile() && SKIP_FILES.has(entry.name)) continue
     const fullPath = path.join(rootPath, entry.name)
     const relPath = path.relative(basePath, fullPath)
+    const isRootEntry = path.dirname(relPath) === '.'
+
+    if (
+      isRootEntry &&
+      (
+        (entry.isDirectory() && !ALLOWED_ROOT_DIRS.has(entry.name)) ||
+        (entry.isFile() && !ALLOWED_ROOT_FILES.has(entry.name))
+      )
+    ) {
+      continue
+    }
 
     if (entry.isDirectory()) {
       nodes.push({
@@ -218,7 +253,15 @@ export function registerFsHandlers(ipcMain: IpcMain): void {
     if (watchers.has(rootPath)) return
     const webContents: WebContents = event.sender
     const watcher = chokidar.watch(rootPath, {
-      ignored: (p: string) => SKIP_DIRS.has(path.basename(p)) || SKIP_FILES.has(path.basename(p)),
+      ignored: (targetPath: string) => {
+        if (targetPath === rootPath) return false
+        const name = path.basename(targetPath)
+        return (
+          SKIP_DIRS.has(name) ||
+          SKIP_FILES.has(name) ||
+          !isAllowedExplorerPath(rootPath, targetPath)
+        )
+      },
       persistent: true,
       ignoreInitial: true,
       awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 100 },

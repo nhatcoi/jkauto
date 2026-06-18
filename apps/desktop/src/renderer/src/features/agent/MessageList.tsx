@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Bot, CheckCircle2, Loader2, User, Wand2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { AgentMessage } from './types'
+import { ThinkingSection } from './ThinkingSection'
 
 interface MessageListProps {
   messages: AgentMessage[]
@@ -141,6 +142,7 @@ export function MessageList({ messages, applyTargetPath, onApplySteps }: Message
         const Icon = isUser ? User : Bot
         const parts = isUser ? null : parseMessageParts(message.content)
         const hasApplyBlock = parts?.some((p) => p.type === 'apply-steps')
+        const toolCalls = (message.metadata as { toolCalls?: Array<{ name: string; args: Record<string, unknown> }> } | undefined)?.toolCalls
 
         return (
           <div key={message.id} className={cn('flex gap-2.5', isUser && 'flex-row-reverse')}>
@@ -162,6 +164,10 @@ export function MessageList({ messages, applyTargetPath, onApplySteps }: Message
                 </span>
                 <span>{formatTime(message.createdAt)}</span>
               </div>
+
+              {!isUser && toolCalls && toolCalls.length > 0 && (
+                <ThinkingSection steps={toolCalls} />
+              )}
 
               {isUser || !parts ? (
                 <div

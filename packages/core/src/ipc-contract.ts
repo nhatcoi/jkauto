@@ -59,6 +59,7 @@ export const IpcChannels = {
 
   AGENT_CHAT: 'agent:chat',
   AGENT_STREAM_CHUNK: 'agent:stream-chunk',
+  AGENT_STREAM_TOOL_EVENT: 'agent:stream-tool-event',
   AGENT_GET_CONTEXT: 'agent:get-context',
   AGENT_CANCEL: 'agent:cancel',
 

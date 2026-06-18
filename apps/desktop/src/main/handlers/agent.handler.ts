@@ -26,11 +26,20 @@ import { getSettings } from '../services/settings.service'
 export function registerAgentHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(IpcChannels.AGENT_CHAT, async (event, payload: AgentChatPayload) => {
     const settings = await getSettings()
-    return chatWithAgent(payload, settings.agent, (chunk) => {
-      if (!event.sender.isDestroyed()) {
-        event.sender.send(IpcChannels.AGENT_STREAM_CHUNK, chunk)
-      }
-    })
+    return chatWithAgent(
+      payload,
+      settings.agent,
+      (chunk) => {
+        if (!event.sender.isDestroyed()) {
+          event.sender.send(IpcChannels.AGENT_STREAM_CHUNK, chunk)
+        }
+      },
+      (toolEvent) => {
+        if (!event.sender.isDestroyed()) {
+          event.sender.send(IpcChannels.AGENT_STREAM_TOOL_EVENT, toolEvent)
+        }
+      },
+    )
   })
 
   ipcMain.handle(IpcChannels.AGENT_GET_CONTEXT, async (_, payload: AgentChatPayload) => {
