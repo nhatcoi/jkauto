@@ -1,12 +1,10 @@
-import { useState } from 'react'
 import { FolderOpen, Settings, Layers, FolderPlus, BarChart2 } from 'lucide-react'
 import logoUrl from '@/assets/logo.png'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Kbd } from '@/components/ui/kbd'
 import { useProjectStore } from '@/store/project.store'
-import { NewProjectDialog } from '@/features/project/NewProjectDialog'
-import { SettingsDialog } from '@/features/settings/SettingsDialog'
+import { useUiDialogsStore } from '@/store/ui-dialogs.store'
 import { IpcChannels } from '@jkauto/core'
 import type { Project } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
@@ -22,8 +20,7 @@ export function TitleBar() {
   const reopenLastTab = useProjectStore((s) => s.reopenLastTab)
   const moveTabLeft = useProjectStore((s) => s.moveTabLeft)
   const moveTabRight = useProjectStore((s) => s.moveTabRight)
-  const [showAppSettings, setShowAppSettings] = useState(false)
-  const [showNew, setShowNew] = useState(false)
+  const { open } = useUiDialogsStore()
 
   const handleOpenProject = async () => {
     const result = await invoke<{ projectPath: string; project: Project } | null>(
@@ -33,9 +30,9 @@ export function TitleBar() {
   }
 
   const km = useSettingsKeymap(APP_KEYMAPS, KEYMAP_SCOPES.APP, {
-    newProject:   () => setShowNew(true),
+    newProject:   () => open('newProject'),
     openProject:  () => handleOpenProject(),
-    openSettings: () => setShowAppSettings((v) => !v),
+    openSettings: () => open('settings'),
     closeTab:     () => { if (activeTabPath) closeTab(activeTabPath) },
     reopenTab:    () => reopenLastTab(),
     moveTabLeft:  () => moveTabLeft(),
@@ -84,7 +81,7 @@ export function TitleBar() {
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-muted-foreground hover:text-foreground"
-              onClick={() => setShowNew(true)}
+              onClick={() => open('newProject')}
             >
               <FolderPlus className="w-4 h-4" />
             </Button>
@@ -128,7 +125,7 @@ export function TitleBar() {
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-muted-foreground hover:text-foreground"
-              onClick={() => setShowAppSettings(true)}
+              onClick={() => open('settings')}
             >
               <Settings className="w-4 h-4" />
             </Button>
@@ -136,9 +133,6 @@ export function TitleBar() {
           <TooltipContent>App Settings<Kbd>{km.openSettings.hint}</Kbd></TooltipContent>
         </Tooltip>
       </div>
-
-      <SettingsDialog open={showAppSettings} onOpenChange={setShowAppSettings} />
-      <NewProjectDialog open={showNew} onOpenChange={setShowNew} />
     </div>
   )
 }

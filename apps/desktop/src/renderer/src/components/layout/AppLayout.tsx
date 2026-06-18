@@ -2,16 +2,22 @@ import { useRef, useEffect } from 'react'
 import type { ImperativePanelHandle } from 'react-resizable-panels'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { TitleBar } from './TitleBar'
+import { MenuBar } from './MenuBar'
+import { AppDialogs } from './AppDialogs'
 import { StatusBar } from './StatusBar'
 import { LeftPanel } from './LeftPanel'
 import { MidPanel } from './MidPanel'
 import { RightPanel } from './RightPanel'
 import { BottomPanel } from './BottomPanel'
 import { useLayoutStore } from '@/store/layout.store'
+import { useMenuEvents } from '@/hooks/useMenuEvents'
+
+const isMac = navigator.userAgent.includes('Mac')
 
 export function AppLayout() {
   const bottomRef = useRef<ImperativePanelHandle>(null)
   const { bottomCollapsed, setBottomCollapsed } = useLayoutStore()
+  useMenuEvents()
 
   useEffect(() => {
     if (bottomCollapsed) bottomRef.current?.collapse()
@@ -21,6 +27,8 @@ export function AppLayout() {
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
       <TitleBar />
+      {!isMac && <MenuBar />}
+      <AppDialogs />
 
       <ResizablePanelGroup
         direction="horizontal"

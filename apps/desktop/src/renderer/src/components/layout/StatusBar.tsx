@@ -1,17 +1,15 @@
-import { useState } from 'react'
 import { GitBranch, CloudOff, Activity, ChevronDown } from 'lucide-react'
 import { useProjectStore } from '@/store/project.store'
-import { EnvManagerDialog } from '@/features/env/EnvManagerDialog'
+import { useUiDialogsStore } from '@/store/ui-dialogs.store'
 import { useZoom } from '@/hooks/useZoom'
 
 export function StatusBar() {
   const { activeProject } = useProjectStore()
-  const [envOpen, setEnvOpen] = useState(false)
+  const { open } = useUiDialogsStore()
   const { zoomPercent, zoomIn, zoomOut, canZoomIn, canZoomOut } = useZoom()
 
   return (
-    <>
-      <div className="flex items-center h-6 bg-statusbar px-3 gap-4 text-[11px] text-white/80 shrink-0 select-none">
+    <div className="flex items-center h-6 bg-statusbar px-3 gap-4 text-[11px] text-white/80 shrink-0 select-none">
         <div className="flex items-center gap-1.5">
           <Activity className="w-3 h-3" />
           <span>Ready</span>
@@ -23,7 +21,7 @@ export function StatusBar() {
           <>
             <button
               type="button"
-              onClick={() => setEnvOpen(true)}
+              onClick={() => open('envManager')}
               className="flex items-center gap-1 hover:bg-white/10 px-2 py-0.5 rounded transition-colors"
               title="Manage environments"
             >
@@ -69,9 +67,6 @@ export function StatusBar() {
             +
           </button>
         </div>
-      </div>
-
-      <EnvManagerDialog open={envOpen} onClose={() => setEnvOpen(false)} />
-    </>
+    </div>
   )
 }

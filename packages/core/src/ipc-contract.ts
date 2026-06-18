@@ -125,6 +125,8 @@ export const IpcChannels = {
   MAESTRO_ENV_CHECK: 'maestro:env:check',
   MAESTRO_INSTALL: 'maestro:install',
   MAESTRO_LOG: 'maestro:log',
+
+  MENU_EVENT: 'menu-event',
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]

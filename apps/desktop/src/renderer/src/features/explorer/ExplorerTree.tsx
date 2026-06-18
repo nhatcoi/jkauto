@@ -587,6 +587,12 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
     if (explorerSettings) reload()
   }, [explorerSettings, reload])
 
+  useEffect(() => {
+    const handler = () => reload()
+    window.addEventListener('jkauto:refresh-explorer', handler)
+    return () => window.removeEventListener('jkauto:refresh-explorer', handler)
+  }, [reload])
+
   const handleRename = useCallback(
     async ({ id, name: displayName }: { id: string; name: string }) => {
       const node = findNodeById(tree, id)
