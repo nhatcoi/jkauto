@@ -1,6 +1,11 @@
 import { create } from 'zustand'
 import { IpcChannels } from '@jkauto/core'
-import type { AgentSession, AgentSessionMode, AgentArtifact, AgentAction } from '@jkauto/core'
+import type {
+  AgentSession,
+  AgentSessionMode,
+  AgentArtifact,
+  AgentAction,
+} from '@jkauto/core'
 import { invoke } from '@/lib/utils'
 
 interface SessionStore {
@@ -11,7 +16,11 @@ interface SessionStore {
   loading: boolean
 
   loadSessions: (projectPath: string) => Promise<void>
-  createSession: (projectPath: string, mode?: AgentSessionMode, title?: string) => Promise<AgentSession>
+  createSession: (
+    projectPath: string,
+    mode?: AgentSessionMode,
+    title?: string,
+  ) => Promise<AgentSession>
   selectSession: (projectPath: string, id: string) => Promise<void>
   updateSession: (
     projectPath: string,
@@ -34,20 +43,29 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   loadSessions: async (projectPath) => {
     set({ loading: true })
     try {
-      const sessions = await invoke<AgentSession[]>(IpcChannels.AGENT_SESSION_LIST, { projectPath })
+      const sessions = await invoke<AgentSession[]>(
+        IpcChannels.AGENT_SESSION_LIST,
+        { projectPath },
+      )
       set({ sessions, loading: false })
     } catch {
       set({ loading: false })
     }
   },
 
-  createSession: async (projectPath, mode = 'ask', title?: string) => {
-    const session = await invoke<AgentSession>(IpcChannels.AGENT_SESSION_CREATE, {
-      projectPath,
-      mode,
-      title,
-    })
-    set((s) => ({ sessions: [session, ...s.sessions], activeSessionId: session.id }))
+  createSession: async (projectPath, mode = 'normal', title?: string) => {
+    const session = await invoke<AgentSession>(
+      IpcChannels.AGENT_SESSION_CREATE,
+      {
+        projectPath,
+        mode,
+        title,
+      },
+    )
+    set((s) => ({
+      sessions: [session, ...s.sessions],
+      activeSessionId: session.id,
+    }))
     return session
   },
 
@@ -63,7 +81,9 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     await invoke(IpcChannels.AGENT_SESSION_UPDATE, { projectPath, id, patch })
     set((s) => ({
       sessions: s.sessions.map((sess) =>
-        sess.id === id ? { ...sess, ...patch, updatedAt: new Date().toISOString() } : sess,
+        sess.id === id
+          ? { ...sess, ...patch, updatedAt: new Date().toISOString() }
+          : sess,
       ),
     }))
   },
@@ -74,26 +94,39 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     const remaining = sessions.filter((s) => s.id !== id)
     set({
       sessions: remaining,
-      activeSessionId: activeSessionId === id ? (remaining[0]?.id ?? null) : activeSessionId,
+      activeSessionId:
+        activeSessionId === id ? (remaining[0]?.id ?? null) : activeSessionId,
     })
   },
 
   refreshArtifacts: async (projectPath, sessionId) => {
-    const artifacts = await invoke<AgentArtifact[]>(IpcChannels.AGENT_SESSION_ARTIFACTS, {
-      projectPath,
-      sessionId,
-    })
+    const artifacts = await invoke<AgentArtifact[]>(
+      IpcChannels.AGENT_SESSION_ARTIFACTS,
+      {
+        projectPath,
+        sessionId,
+      },
+    )
     set({ artifacts })
   },
 
   refreshActions: async (projectPath, sessionId) => {
-    const actions = await invoke<AgentAction[]>(IpcChannels.AGENT_SESSION_ACTIONS, {
-      projectPath,
-      sessionId,
-    })
+    const actions = await invoke<AgentAction[]>(
+      IpcChannels.AGENT_SESSION_ACTIONS,
+      {
+        projectPath,
+        sessionId,
+      },
+    )
     set({ actions })
   },
 
   reset: () =>
-    set({ sessions: [], activeSessionId: null, artifacts: [], actions: [], loading: false }),
+    set({
+      sessions: [],
+      activeSessionId: null,
+      artifacts: [],
+      actions: [],
+      loading: false,
+    }),
 }))

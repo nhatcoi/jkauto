@@ -12,6 +12,7 @@ apps/desktop/out/
 apps/desktop/dist/
 apps/desktop/tsconfig.web.tsbuildinfo
 apps/desktop/tsconfig.node.tsbuildinfo
+apps/desktop/.playwright-mcp/
 
 # autotest workspace data (per-project)
 .autotest/

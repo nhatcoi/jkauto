@@ -340,11 +340,15 @@ export interface HttpHistorySavePayload {
 }
 
 export type AgentRole = 'system' | 'user' | 'assistant'
-export type AgentSessionMode = 'ask' | 'edit' | 'debug' | 'generate-test'
+export type AgentSessionMode = 'normal' | 'directly'
 
 export interface AgentMessageMeta {
   model?: string
-  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number }
+  usage?: {
+    prompt_tokens: number
+    completion_tokens: number
+    total_tokens: number
+  }
   toolCalls?: Array<{ name: string; args: unknown }>
 }
 
@@ -362,7 +366,7 @@ export interface AgentSession {
   projectPath: string
   title: string
   mode: AgentSessionMode
-  status: 'active' | 'archived'
+  status: 'active' | 'archived' | 'deleted'
   summary?: string
   activeTabPath?: string
   createdAt: string
@@ -381,7 +385,13 @@ export interface AgentArtifact {
 export interface AgentAction {
   id: string
   sessionId: string
-  type: 'read_file' | 'write_file' | 'apply_steps' | 'run_test' | 'backup_file' | 'tool_call'
+  type:
+    | 'read_file'
+    | 'write_file'
+    | 'apply_steps'
+    | 'run_test'
+    | 'backup_file'
+    | 'tool_call'
   status: 'pending' | 'done' | 'error' | 'rolledback'
   payloadJson: string
   resultJson?: string
@@ -432,11 +442,27 @@ export interface AgentChatPayload {
   context?: AgentContextSnapshot
 }
 
-export interface AgentSessionListPayload { projectPath: string }
-export interface AgentSessionCreatePayload { projectPath: string; mode?: AgentSessionMode; title?: string }
-export interface AgentSessionUpdatePayload { projectPath: string; id: string; patch: Partial<Pick<AgentSession, 'title' | 'mode' | 'status' | 'summary'>> }
-export interface AgentSessionDeletePayload { projectPath: string; id: string }
-export interface AgentSessionDataPayload { projectPath: string; sessionId: string }
+export interface AgentSessionListPayload {
+  projectPath: string
+}
+export interface AgentSessionCreatePayload {
+  projectPath: string
+  mode?: AgentSessionMode
+  title?: string
+}
+export interface AgentSessionUpdatePayload {
+  projectPath: string
+  id: string
+  patch: Partial<Pick<AgentSession, 'title' | 'mode' | 'status' | 'summary'>>
+}
+export interface AgentSessionDeletePayload {
+  projectPath: string
+  id: string
+}
+export interface AgentSessionDataPayload {
+  projectPath: string
+  sessionId: string
+}
 
 export interface AvdEntry {
   avdName: string

@@ -1,6 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { parse as yamlParse, stringify as yamlStringify } from 'yaml'
-import { AlertCircle, Bot, Loader2, Plus, Trash2 } from 'lucide-react'
+import {
+  AlertCircle,
+  FlaskConical,
+  Loader2,
+  MessageSquareText,
+  Plus,
+  SearchCode,
+  Sparkles,
+  Trash2,
+  Zap,
+} from 'lucide-react'
 import { IpcChannels } from '@jkauto/core'
 import type { AgentContextSnapshot, AgentMessage } from './types'
 import { sendAgentMessage } from './api'
@@ -21,7 +31,11 @@ import {
 import type { TestCase } from '@/features/test-cases/types'
 import type { AgentSessionMode } from '@jkauto/core'
 
-function createMessage(role: AgentMessage['role'], content: string, sessionId?: string): AgentMessage {
+function createMessage(
+  role: AgentMessage['role'],
+  content: string,
+  sessionId?: string,
+): AgentMessage {
   return {
     id: crypto.randomUUID(),
     role,
@@ -33,12 +47,16 @@ function createMessage(role: AgentMessage['role'], content: string, sessionId?: 
 
 function isTestCasePath(p: string | null | undefined): boolean {
   if (!p) return false
-  return p.endsWith('.test.json') || p.endsWith('.test.yaml') || p.endsWith('.test.yml')
+  return (
+    p.endsWith('.test.json') ||
+    p.endsWith('.test.yaml') ||
+    p.endsWith('.test.yml')
+  )
 }
 
 export function AgentPanel() {
   const [draft, setDraft] = useState('')
-  const [pendingMode, setPendingMode] = useState<AgentSessionMode>('ask')
+  const [pendingMode, setPendingMode] = useState<AgentSessionMode>('normal')
   const endRef = useRef<HTMLDivElement>(null)
   const prevMsgCountRef = useRef(0)
   const isSubmittingRef = useRef(false)
@@ -64,7 +82,8 @@ export function AgentPanel() {
     setMessages,
   } = useAgentStore()
 
-  const { activeProject, activeTabPath, openTabs, triggerTabReload } = useProjectStore()
+  const { activeProject, activeTabPath, openTabs, triggerTabReload } =
+    useProjectStore()
   const run = useRunStore()
   const { settings, update: updateSettings } = useAppSettingsStore()
   const editMode = settings?.agent.editMode ?? 'ask'
@@ -108,12 +127,6 @@ export function AgentPanel() {
       .catch(() => {})
   }, [activeSessionId, projectPath])
 
-  function toggleEditMode() {
-    const next =
-      editMode === 'ask' ? 'auto' : editMode === 'auto' ? 'auto-with-rollback' : 'ask'
-    if (settings) updateSettings({ agent: { ...settings.agent, editMode: next } })
-  }
-
   const activeTab = useMemo(
     () => openTabs.find((tab) => tab.path === activeTabPath) ?? null,
     [activeTabPath, openTabs],
@@ -133,7 +146,11 @@ export function AgentPanel() {
           }
         : undefined,
       activeTab: activeTab
-        ? { path: activeTab.path, title: activeTab.title, isDirty: activeTab.isDirty }
+        ? {
+            path: activeTab.path,
+            title: activeTab.title,
+            isDirty: activeTab.isDirty,
+          }
         : undefined,
       openTabs: openTabs.map((tab) => ({
         path: tab.path,
@@ -163,24 +180,35 @@ export function AgentPanel() {
 
   // Listen to stream chunks from main process
   useEffect(() => {
-    const off = window.api.on(IpcChannels.AGENT_STREAM_CHUNK, (chunk: unknown) => {
-      if (typeof chunk === 'string' && chunk.length > 0) {
-        appendStreamChunk(chunk)
-      }
-    })
+    const off = window.api.on(
+      IpcChannels.AGENT_STREAM_CHUNK,
+      (chunk: unknown) => {
+        if (typeof chunk === 'string' && chunk.length > 0) {
+          appendStreamChunk(chunk)
+        }
+      },
+    )
     return off
   }, [appendStreamChunk])
 
   // Listen to tool call events from main process
   useEffect(() => {
-    const off = window.api.on(IpcChannels.AGENT_STREAM_TOOL_EVENT, (event: unknown) => {
-      const e = event as { type: 'call' | 'result'; name: string; args?: Record<string, unknown>; result?: string }
-      if (e.type === 'call') {
-        addPendingToolCall(e.name, e.args)
-      } else if (e.type === 'result') {
-        updatePendingToolResult(e.name, e.result ?? '(empty)')
-      }
-    })
+    const off = window.api.on(
+      IpcChannels.AGENT_STREAM_TOOL_EVENT,
+      (event: unknown) => {
+        const e = event as {
+          type: 'call' | 'result'
+          name: string
+          args?: Record<string, unknown>
+          result?: string
+        }
+        if (e.type === 'call') {
+          addPendingToolCall(e.name, e.args)
+        } else if (e.type === 'result') {
+          updatePendingToolResult(e.name, e.result ?? '(empty)')
+        }
+      },
+    )
     return off
   }, [addPendingToolCall, updatePendingToolResult])
 
@@ -188,7 +216,9 @@ export function AgentPanel() {
     if (!endRef.current) return
     const isNewMessage = messages.length > prevMsgCountRef.current
     prevMsgCountRef.current = messages.length
-    endRef.current.scrollIntoView({ behavior: isNewMessage || sendState === 'sending' ? 'smooth' : 'instant' })
+    endRef.current.scrollIntoView({
+      behavior: isNewMessage || sendState === 'sending' ? 'smooth' : 'instant',
+    })
   }, [messages, sendState, streamingContent])
 
   async function handleSubmit() {
@@ -239,24 +269,31 @@ export function AgentPanel() {
     async (steps: unknown[]) => {
       if (!applyTargetPath) throw new Error('No test case file open')
 
-      const raw = await invoke<string>(IpcChannels.FS_READ_FILE, applyTargetPath)
+      const raw = await invoke<string>(
+        IpcChannels.FS_READ_FILE,
+        applyTargetPath,
+      )
       const isYaml =
         applyTargetPath.endsWith('.yaml') || applyTargetPath.endsWith('.yml')
-      const parsed = (isYaml ? yamlParse(raw) : JSON.parse(raw)) as Partial<TestCase>
+      const parsed = (
+        isYaml ? yamlParse(raw) : JSON.parse(raw)
+      ) as Partial<TestCase>
       const tc = normalizeTestCase(parsed)
 
-      const normalizedSteps = (steps as Array<Record<string, unknown>>).map((s) => ({
-        id: crypto.randomUUID(),
-        name: String(s.name ?? ''),
-        keyword: String(s.keyword ?? ''),
-        description: String(s.description ?? ''),
-        objectRef: String(s.objectRef ?? ''),
-        input: String(s.input ?? ''),
-        expected: String(s.expected ?? ''),
-        enabled: s.enabled !== false,
-        continueOnFailure: s.continueOnFailure === true,
-        timeout: typeof s.timeout === 'number' ? s.timeout : null,
-      }))
+      const normalizedSteps = (steps as Array<Record<string, unknown>>).map(
+        (s) => ({
+          id: crypto.randomUUID(),
+          name: String(s.name ?? ''),
+          keyword: String(s.keyword ?? ''),
+          description: String(s.description ?? ''),
+          objectRef: String(s.objectRef ?? ''),
+          input: String(s.input ?? ''),
+          expected: String(s.expected ?? ''),
+          enabled: s.enabled !== false,
+          continueOnFailure: s.continueOnFailure === true,
+          timeout: typeof s.timeout === 'number' ? s.timeout : null,
+        }),
+      )
 
       const updated: TestCase = {
         ...tc,
@@ -274,12 +311,15 @@ export function AgentPanel() {
   async function handleSelectSession(id: string) {
     if (!projectPath) return
     clear()
+    const selected = sessions.find((session) => session.id === id)
+    if (selected) setPendingMode(selected.mode)
     await selectSession(projectPath, id)
   }
 
-  function handleCreateSession(mode: AgentSessionMode) {
+  function handleCreateSession() {
     clear()
-    setPendingMode(mode)
+    const active = sessions.find((session) => session.id === activeSessionId)
+    if (active) setPendingMode(active.mode)
     useSessionStore.setState({ activeSessionId: null })
   }
 
@@ -294,39 +334,62 @@ export function AgentPanel() {
     updateSession(projectPath, id, { title })
   }
 
-  function handleChangeMode(id: string, mode: AgentSessionMode) {
-    if (!projectPath) return
-    updateSession(projectPath, id, { mode })
+  function handleChangeMode(mode: AgentSessionMode) {
+    setPendingMode(mode)
+    if (mode === 'directly' && editMode === 'ask') {
+      handleWriteModeChange('auto')
+    }
+    if (projectPath && activeSessionId) {
+      updateSession(projectPath, activeSessionId, { mode })
+    }
   }
 
   const isSending = sendState === 'sending'
-  const editModeLabel =
-    editMode === 'ask' ? 'ask' : editMode === 'auto-with-rollback' ? 'rollback' : 'auto'
-  const editModeColor =
-    editMode === 'auto-with-rollback'
-      ? 'bg-orange-500/20 text-orange-400 border-orange-500/30 hover:bg-orange-500/30'
-      : editMode === 'auto'
-        ? 'bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-amber-500/30'
-        : 'bg-secondary text-muted-foreground border-border hover:text-foreground hover:bg-secondary/80'
+  const activeSession = sessions.find(
+    (session) => session.id === activeSessionId,
+  )
+  const currentMode = activeSession?.mode ?? pendingMode
+
+  useEffect(() => {
+    if (currentMode === 'directly' && editMode === 'ask' && settings) {
+      updateSettings({ agent: { ...settings.agent, editMode: 'auto' } })
+    }
+  }, [currentMode, editMode, settings, updateSettings])
+
+  function handleWriteModeChange(next: typeof editMode) {
+    const resolved =
+      currentMode === 'directly' && next === 'ask' ? 'auto' : next
+    if (settings) {
+      updateSettings({ agent: { ...settings.agent, editMode: resolved } })
+    }
+  }
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-background">
-      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-panel/60 shrink-0">
+      <div className="flex min-h-14 items-center justify-between gap-2 border-b border-border bg-panel/40 px-4 py-2 shrink-0">
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-medium text-foreground mb-0.5">JKAuto AI</div>
+          <div className="mb-0.5 flex items-center gap-2">
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-violet-500/10 text-violet-400">
+              <Sparkles className="h-3.5 w-3.5" />
+            </div>
+            <div className="text-xs font-semibold text-foreground">JKAuto</div>
+          </div>
           {projectPath ? (
-            <SessionHeader
-              sessions={sessions}
-              activeSessionId={activeSessionId}
-              onSelectSession={handleSelectSession}
-              onCreateSession={handleCreateSession}
-              onDeleteSession={handleDeleteSession}
-              onRenameSession={handleRenameSession}
-              onChangeMode={handleChangeMode}
-            />
+            <div className="pl-8">
+              <SessionHeader
+                sessions={sessions}
+                activeSessionId={activeSessionId}
+                onSelectSession={handleSelectSession}
+                onCreateSession={handleCreateSession}
+                onDeleteSession={handleDeleteSession}
+                onRenameSession={handleRenameSession}
+              />
+            </div>
           ) : (
-            <div className="text-[10px] text-muted-foreground">
-              {activeTab ? `Context: ${activeTab.title}` : 'Context: app workspace'}
+            <div className="pl-8 text-[10px] text-muted-foreground">
+              {activeTab
+                ? `Context: ${activeTab.title}`
+                : 'Context: app workspace'}
               {lastModel ? ` · ${lastModel}` : ''}
             </div>
           )}
@@ -335,24 +398,13 @@ export function AgentPanel() {
           {projectPath && (
             <button
               type="button"
-              onClick={() => handleCreateSession('ask')}
+              onClick={handleCreateSession}
               className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
               title="New session"
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
           )}
-          <button
-            type="button"
-            onClick={toggleEditMode}
-            title={`File edit mode: ${editMode} (click to cycle)`}
-            className={[
-              'h-5 px-1.5 rounded text-[10px] font-medium border transition-colors',
-              editModeColor,
-            ].join(' ')}
-          >
-            {editModeLabel}
-          </button>
           <button
             type="button"
             onClick={clear}
@@ -364,44 +416,52 @@ export function AgentPanel() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3">
+      <div className="flex-1 overflow-y-auto px-4 py-5">
         {messages.length === 0 ? (
-          <div className="text-xs text-muted-foreground/60 text-center mt-8">
-            {projectPath
-              ? 'Ask about the current project, test case, run failure, or selector.'
-              : 'Open a project to enable full agent context.'}
-          </div>
+          <AgentEmptyState
+            hasProject={Boolean(projectPath)}
+            mode={currentMode}
+            onPrompt={setDraft}
+          />
         ) : (
           <MessageList
             messages={messages}
             applyTargetPath={applyTargetPath}
             onApplySteps={handleApplySteps}
           />
-
         )}
 
         {isSending && streamingContent !== null && (
-          <div className="mt-3 flex gap-2.5">
-            <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 border bg-secondary text-foreground/80 border-border">
-              <Bot className="w-3.5 h-3.5" />
+          <div className="mx-auto mt-6 flex w-full max-w-3xl gap-3">
+            <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-violet-500/20 bg-violet-500/10 text-violet-400">
+              <Sparkles className="h-3.5 w-3.5" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="mb-1 text-[10px] text-muted-foreground font-medium">JKAuto AI</div>
+              <div className="mb-2 text-[10px] font-semibold text-foreground/80">
+                JKAuto
+              </div>
               {pendingToolCalls.length > 0 && (
-                <ThinkingSection steps={pendingToolCalls} isStreaming={!streamingContent} />
+                <ThinkingSection
+                  steps={pendingToolCalls}
+                  isStreaming={!streamingContent}
+                />
               )}
               {streamingContent ? (
-                <div className="rounded-md px-3 py-2 text-xs leading-relaxed bg-secondary/50 text-foreground/85 border border-border/60 whitespace-pre-wrap mt-1.5">
+                <div className="mt-1.5 whitespace-pre-wrap text-xs leading-5 text-foreground/90">
                   {streamingContent}
-                  <span className="animate-pulse ml-0.5">▊</span>
+                  <span className="ml-0.5 animate-pulse text-primary">●</span>
                 </div>
-              ) : pendingToolCalls.length === 0 && (
-                <div className="rounded-md px-3 py-2 text-xs leading-relaxed bg-secondary/50 text-foreground/85 border border-border/60">
-                  <span className="flex items-center gap-1.5 text-muted-foreground">
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    Thinking…
-                  </span>
-                </div>
+              ) : (
+                pendingToolCalls.length === 0 && (
+                  <div className="text-xs leading-5 text-muted-foreground">
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      {currentMode === 'directly'
+                        ? 'Preparing browser harness…'
+                        : 'Thinking…'}
+                    </span>
+                  </div>
+                )
               )}
             </div>
           </div>
@@ -415,9 +475,9 @@ export function AgentPanel() {
         )}
 
         {lastUsage && (
-          <div className="mt-3 text-[10px] text-muted-foreground/60">
-            Tokens: {lastUsage.total_tokens} total · {lastUsage.prompt_tokens} prompt ·{' '}
-            {lastUsage.completion_tokens} completion
+          <div className="mx-auto mt-5 w-full max-w-3xl text-right text-[9px] text-muted-foreground/40">
+            {lastUsage.total_tokens.toLocaleString()} tokens
+            {lastModel ? ` · ${lastModel}` : ''}
           </div>
         )}
         <div ref={endRef} />
@@ -426,9 +486,98 @@ export function AgentPanel() {
       <ChatInput
         value={draft}
         disabled={isSending}
+        mode={currentMode}
+        writeMode={editMode}
         onChange={setDraft}
         onSubmit={handleSubmit}
+        onModeChange={handleChangeMode}
+        onWriteModeChange={handleWriteModeChange}
       />
+    </div>
+  )
+}
+
+const NORMAL_PROMPTS = [
+  {
+    icon: SearchCode,
+    label: 'Review current test',
+    prompt: 'Review the current test case and suggest concrete improvements.',
+  },
+  {
+    icon: FlaskConical,
+    label: 'Diagnose latest failure',
+    prompt:
+      'Diagnose the latest test failure and explain the most likely cause.',
+  },
+  {
+    icon: MessageSquareText,
+    label: 'Explain project flow',
+    prompt: 'Explain the current project test flow and important files.',
+  },
+]
+
+const DIRECT_PROMPTS = [
+  {
+    icon: Zap,
+    label: 'Build login test',
+    prompt:
+      'Open the application, verify the login flow in Chromium, and save a complete test.',
+  },
+  {
+    icon: FlaskConical,
+    label: 'Verify current scenario',
+    prompt:
+      'Execute the current scenario in Chromium, fix issues, and generate the verified test file.',
+  },
+]
+
+function AgentEmptyState({
+  hasProject,
+  mode,
+  onPrompt,
+}: {
+  hasProject: boolean
+  mode: AgentSessionMode
+  onPrompt: (prompt: string) => void
+}) {
+  const prompts = mode === 'directly' ? DIRECT_PROMPTS : NORMAL_PROMPTS
+
+  return (
+    <div className="mx-auto flex h-full min-h-[320px] w-full max-w-xl flex-col items-center justify-center px-4 pb-16 text-center">
+      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl border border-violet-500/20 bg-violet-500/10 text-violet-400 shadow-sm">
+        {mode === 'directly' ? (
+          <Zap className="h-5 w-5" />
+        ) : (
+          <Sparkles className="h-5 w-5" />
+        )}
+      </div>
+      <h3 className="text-sm font-semibold text-foreground">
+        {mode === 'directly'
+          ? 'Run and build a verified test'
+          : 'How can I help?'}
+      </h3>
+      <p className="mt-1.5 max-w-sm text-[11px] leading-5 text-muted-foreground">
+        {!hasProject
+          ? 'Open a project to give JKAuto access to tests, files, tools, and runtime context.'
+          : mode === 'directly'
+            ? 'Describe the outcome. JKAuto will operate Chromium, verify the flow, and save the final test.'
+            : 'Ask about tests, selectors, failures, project files, or implementation changes.'}
+      </p>
+      {hasProject && (
+        <div className="mt-5 grid w-full gap-2 sm:grid-cols-2">
+          {prompts.map(({ icon: Icon, label, prompt }) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => onPrompt(prompt)}
+              className="flex items-center gap-2 rounded-xl border border-border/70 bg-secondary/20 px-3 py-2.5 text-left text-[11px] text-foreground/80 transition-colors hover:border-border hover:bg-secondary/50 hover:text-foreground"
+            >
+              <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <span>{label}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

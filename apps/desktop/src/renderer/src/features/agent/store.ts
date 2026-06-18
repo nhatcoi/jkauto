@@ -19,7 +19,11 @@ interface AgentStore {
   setError: (error: string | null) => void
   setMetadata: (
     model?: string,
-    usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number },
+    usage?: {
+      prompt_tokens: number
+      completion_tokens: number
+      total_tokens: number
+    },
   ) => void
   startStreaming: () => void
   appendStreamChunk: (chunk: string) => void
@@ -30,15 +34,7 @@ interface AgentStore {
 }
 
 export const useAgentStore = create<AgentStore>((set) => ({
-  messages: [
-    {
-      id: 'welcome',
-      role: 'assistant',
-      content:
-        'Hello. I can help debug runs, explain app behavior, and suggest JKAuto test steps from the current project context.',
-      createdAt: new Date().toISOString(),
-    },
-  ],
+  messages: [],
   sendState: 'idle',
   error: null,
   streamingContent: null,

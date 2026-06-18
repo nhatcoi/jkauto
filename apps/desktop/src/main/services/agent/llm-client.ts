@@ -1,13 +1,26 @@
-import { streamText, dynamicTool, jsonSchema, type ModelMessage, type LanguageModelUsage, type ToolSet } from 'ai'
+import {
+  streamText,
+  dynamicTool,
+  jsonSchema,
+  type ModelMessage,
+  type LanguageModelUsage,
+  type ToolSet,
+} from 'ai'
 import { createOpenAI } from '@ai-sdk/openai'
-import type { AgentMessage, AgentMessageMeta, AgentSessionMode } from '@jkauto/core'
+import type {
+  AgentMessage,
+  AgentMessageMeta,
+  AgentSessionMode,
+} from '@jkauto/core'
 import type { McpManager } from './mcp-manager'
 import { getSystemPrompt } from './prompt'
 
 const DEFAULT_BASE_URL = 'http://127.0.0.1:20128/v1'
 const DEFAULT_MODEL = 'v1'
 const MAX_TOOL_ROUNDS = 20
+const DIRECTLY_MAX_TOOL_ROUNDS = 40
 const MAX_MESSAGES_TO_LLM = 20
+const DIRECTLY_COMPLETE_MARKER = 'DIRECTLY_COMPLETE'
 
 export interface AgentConfig {
   baseUrl: string
@@ -18,13 +31,18 @@ export interface AgentConfig {
 export interface AgentLlmResult {
   content: string
   model?: string
-  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number }
+  usage?: {
+    prompt_tokens: number
+    completion_tokens: number
+    total_tokens: number
+  }
   metadata?: AgentMessageMeta
 }
 
 export function getConfig(override?: Partial<AgentConfig>): AgentConfig {
   return {
-    baseUrl: override?.baseUrl || process.env.DEFAULT_BASE_URL || DEFAULT_BASE_URL,
+    baseUrl:
+      override?.baseUrl || process.env.DEFAULT_BASE_URL || DEFAULT_BASE_URL,
     apiKey: override?.apiKey || process.env.DEFAULT_API_KEY || '',
     model: override?.model || process.env.DEFAULT_MODEL || DEFAULT_MODEL,
   }
@@ -52,9 +70,15 @@ function buildMessages(history: AgentMessage[]): ModelMessage[] {
 }
 
 function createFilteredFetch(): typeof fetch {
-  return async (input: Parameters<typeof globalThis.fetch>[0], init?: RequestInit) => {
+  return async (
+    input: Parameters<typeof globalThis.fetch>[0],
+    init?: RequestInit,
+  ) => {
     const response = await globalThis.fetch(input, init)
-    if (!response.body || !response.headers.get('content-type')?.includes('text/event-stream')) {
+    if (
+      !response.body ||
+      !response.headers.get('content-type')?.includes('text/event-stream')
+    ) {
       return response
     }
     const transformer = new TransformStream<Uint8Array, Uint8Array>({
@@ -93,8 +117,13 @@ async function buildMcpTools(manager: McpManager): Promise<ToolSet> {
         inputSchema: jsonSchema(t.inputSchema),
         execute: async (args) => {
           console.log(`[agent] tool call: ${t.name}`, args)
-          const result = await manager.callTool(t.name, args as Record<string, unknown>)
-          console.log(`[agent] tool result: ${t.name} → ${result.content.slice(0, 120)}`)
+          const result = await manager.callTool(
+            t.name,
+            args as Record<string, unknown>,
+          )
+          console.log(
+            `[agent] tool result: ${t.name} → ${result.content.slice(0, 120)}`,
+          )
           return result.content
         },
       }),
@@ -130,7 +159,13 @@ export async function streamAgentChat(
 
   const tools = mcpManager ? await buildMcpTools(mcpManager) : {}
   const hasTools = Object.keys(tools).length > 0
-  const systemPrompt = buildSystemPrompt(mode, contextSummary, projectContext, sessionSummary, skills)
+  const systemPrompt = buildSystemPrompt(
+    mode,
+    contextSummary,
+    projectContext,
+    sessionSummary,
+    skills,
+  )
 
   const toolCallsLog: AgentMessageMeta['toolCalls'] = []
 
@@ -141,7 +176,10 @@ export async function streamAgentChat(
   let lastUsage: LanguageModelUsage | undefined
   let lastModelId: string | undefined
 
-  for (let step = 0; step < MAX_TOOL_ROUNDS; step++) {
+  const maxRounds =
+    mode === 'directly' ? DIRECTLY_MAX_TOOL_ROUNDS : MAX_TOOL_ROUNDS
+
+  for (let step = 0; step < maxRounds; step++) {
     const result = streamText({
       model: provider(config.model),
       system: systemPrompt,
@@ -163,34 +201,61 @@ export async function streamAgentChat(
         fullText += part.text
         onChunk?.(part.text)
       } else if (part.type === 'tool-call') {
-        onToolEvent?.({ type: 'call', name: part.toolName, args: part.args as Record<string, unknown> })
+        onToolEvent?.({
+          type: 'call',
+          name: part.toolName,
+          args: part.input as Record<string, unknown>,
+        })
       } else if (part.type === 'tool-result') {
         // AI SDK v6: property is "output", not "result"
         const out = (part as unknown as { output?: unknown }).output
         const outStr =
-          out === undefined ? '(empty)' : typeof out === 'string' ? out : JSON.stringify(out)
+          out === undefined
+            ? '(empty)'
+            : typeof out === 'string'
+              ? out
+              : JSON.stringify(out)
         stepToolResults.push(`[${part.toolName}]: ${outStr}`)
         onToolEvent?.({ type: 'result', name: part.toolName, result: outStr })
       } else if (part.type === 'error') {
-        throw part.error instanceof Error ? part.error : new Error(String(part.error))
+        throw part.error instanceof Error
+          ? part.error
+          : new Error(String(part.error))
       }
     }
 
     lastUsage = await result.usage
     lastModelId = (await result.response).modelId
 
-    if (stepText || stepToolResults.length === 0) {
-      // Model produced text, or called no tools — done
+    const directlyComplete =
+      mode === 'directly' && stepText.includes(DIRECTLY_COMPLETE_MARKER)
+
+    if (mode !== 'directly' && (stepText || stepToolResults.length === 0)) {
+      // Normal mode: model produced text, or called no tools — done.
       break
     }
 
-    // Tools ran but no text: inject results as user message and continue loop.
-    // Use XML tags + no fake assistant turn — avoids model echoing "[Tools called: ...]".
+    if (directlyComplete) break
+
+    // Inject progress and tool results as a user message and continue the harness.
+    // This avoids role:tool continuation issues in local OpenAI-compatible models.
+    const progress = stepText
+      ? `<agent_progress>\n${stepText}\n</agent_progress>\n\n`
+      : ''
+    const toolResults =
+      stepToolResults.length > 0
+        ? `<tool_results>\n${stepToolResults.join('\n\n')}\n</tool_results>\n\n`
+        : ''
+    const continuation =
+      mode === 'directly'
+        ? 'The task is not complete yet. Continue using browser and JKAuto tools. Verify the real flow in Chromium, correct failures, save the final test file, and only then emit DIRECTLY_COMPLETE.'
+        : 'Continue with the task and write your response to the user.'
+
     currentMessages = [
       ...currentMessages,
       {
         role: 'user' as const,
-        content: `<tool_results>\n${stepToolResults.join('\n\n')}\n</tool_results>\n\nContinue with the task and write your response to the user.`,
+        content: `${progress}${toolResults}${continuation}`,
       },
     ]
   }
@@ -198,6 +263,14 @@ export async function streamAgentChat(
   if (!fullText) {
     throw new Error('Agent returned no text after all tool steps')
   }
+
+  if (mode === 'directly' && !fullText.includes(DIRECTLY_COMPLETE_MARKER)) {
+    throw new Error(
+      `Directly mode did not finish within ${DIRECTLY_MAX_TOOL_ROUNDS} harness rounds`,
+    )
+  }
+
+  fullText = fullText.replaceAll(DIRECTLY_COMPLETE_MARKER, '').trim()
 
   const mappedUsage = lastUsage ? mapUsage(lastUsage) : undefined
 

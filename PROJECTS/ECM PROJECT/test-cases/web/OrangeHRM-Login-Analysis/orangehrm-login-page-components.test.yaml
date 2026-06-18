@@ -1,0 +1,113 @@
+id: 4b5ee1eb-45d9-451c-b14a-beaa9a6b4f84
+name: OrangeHRM Login - Page Components
+description: "Analyze and verify all visible components on OrangeHRM Login page:
+  logo, heading, credential hints, username field, password field, login button,
+  forgot password link, footer links."
+schemaVersion: 1
+steps:
+  - keyword: navigate-to
+    description: Open OrangeHRM login page
+    input: https://opensource-demo.orangehrmlive.com/web/index.php/auth/login
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - keyword: wait-for-visible
+    description: Login form visible
+    objectRef: form.oxd-form
+    enabled: true
+    continueOnFailure: false
+    timeout: 15000
+  - keyword: assert-visible
+    description: OrangeHRM logo visible
+    objectRef: img[alt='company-branding']
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - keyword: assert-visible
+    description: Login title visible
+    objectRef: h5:has-text('Login')
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - keyword: assert-visible
+    description: Username field visible
+    objectRef: input[name='username']
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - keyword: assert-visible
+    description: Password field visible
+    objectRef: input[name='password']
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - keyword: assert-visible
+    description: Login button visible
+    objectRef: button[type='submit']
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - keyword: assert-text
+    description: Username demo hint visible
+    objectRef: "p.oxd-text:has-text('Username : Admin')"
+    expected: "Username : Admin"
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - keyword: assert-text
+    description: Password demo hint visible
+    objectRef: "p.oxd-text:has-text('Password : admin123')"
+    expected: "Password : admin123"
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - keyword: assert-visible
+    description: Forgot password link visible
+    objectRef: p:has-text('Forgot your password?')
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - keyword: assert-visible
+    description: OrangeHRM footer link visible
+    objectRef: a[href*='orangehrm.com']
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - keyword: click
+    description: Open forgot password flow
+    objectRef: p:has-text('Forgot your password?')
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - keyword: wait-for-visible
+    description: Reset password page visible
+    objectRef: h6:has-text('Reset Password')
+    enabled: true
+    continueOnFailure: false
+    timeout: 15000
+  - keyword: assert-url-contains
+    description: User lands on request password reset URL
+    input: /web/index.php/auth/requestPasswordResetCode
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - keyword: assert-visible
+    description: Reset username field visible
+    objectRef: input[name='username']
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - keyword: assert-visible
+    description: Cancel button visible
+    objectRef: button:has-text('Cancel')
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - keyword: assert-visible
+    description: Reset password submit button visible
+    objectRef: button[type='submit']
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+createdAt: 2026-06-18T19:05:05.884Z
+updatedAt: 2026-06-18T19:05:27.285Z

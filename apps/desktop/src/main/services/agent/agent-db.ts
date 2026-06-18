@@ -12,7 +12,9 @@ export function getAgentDb(projectPath: string): Database.Database {
   if (db && currentDbPath === dbPath) return db
 
   if (db) {
-    try { db.close() } catch {}
+    try {
+      db.close()
+    } catch {}
     db = null
   }
 
@@ -29,7 +31,7 @@ export function getAgentDb(projectPath: string): Database.Database {
       id TEXT PRIMARY KEY,
       project_path TEXT NOT NULL,
       title TEXT NOT NULL,
-      mode TEXT NOT NULL DEFAULT 'ask',
+      mode TEXT NOT NULL DEFAULT 'normal',
       status TEXT NOT NULL DEFAULT 'active',
       summary TEXT,
       active_tab_path TEXT,
@@ -77,7 +79,9 @@ export function getAgentDb(projectPath: string): Database.Database {
 
 export function closeAgentDb(): void {
   if (db) {
-    try { db.close() } catch {}
+    try {
+      db.close()
+    } catch {}
     db = null
     currentDbPath = null
   }

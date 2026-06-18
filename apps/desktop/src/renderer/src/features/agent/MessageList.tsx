@@ -1,5 +1,12 @@
 import { useState } from 'react'
-import { Bot, CheckCircle2, Loader2, User, Wand2 } from 'lucide-react'
+import {
+  Check,
+  CheckCircle2,
+  Copy,
+  Loader2,
+  Sparkles,
+  Wand2,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { AgentMessage } from './types'
 import { ThinkingSection } from './ThinkingSection'
@@ -51,7 +58,9 @@ interface ApplyStepsCardProps {
 }
 
 function ApplyStepsCard({ steps, targetPath, onApply }: ApplyStepsCardProps) {
-  const [state, setState] = useState<'idle' | 'applying' | 'done' | 'error'>('idle')
+  const [state, setState] = useState<'idle' | 'applying' | 'done' | 'error'>(
+    'idle',
+  )
   const [errorMsg, setErrorMsg] = useState('')
 
   const fileName = targetPath ? targetPath.split('/').pop() : null
@@ -121,8 +130,14 @@ function ApplyStepsCard({ steps, targetPath, onApply }: ApplyStepsCardProps) {
                 : 'bg-secondary text-muted-foreground cursor-not-allowed opacity-50',
             )}
           >
-            {state === 'applying' && <Loader2 className="w-3 h-3 animate-spin" />}
-            {state === 'applying' ? 'Applying…' : targetPath ? 'Apply to file' : 'No test case open'}
+            {state === 'applying' && (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            )}
+            {state === 'applying'
+              ? 'Applying…'
+              : targetPath
+                ? 'Apply to file'
+                : 'No test case open'}
           </button>
         )}
       </div>
@@ -131,61 +146,99 @@ function ApplyStepsCard({ steps, targetPath, onApply }: ApplyStepsCardProps) {
 }
 
 function formatTime(value: string) {
-  return new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return new Date(value).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
-export function MessageList({ messages, applyTargetPath, onApplySteps }: MessageListProps) {
+function CopyButton({ content }: { content: string }) {
+  const [copied, setCopied] = useState(false)
+
+  async function handleCopy() {
+    await navigator.clipboard.writeText(content)
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1200)
+  }
+
   return (
-    <div className="flex flex-col gap-3">
+    <button
+      type="button"
+      onClick={handleCopy}
+      className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/60 opacity-0 transition-all hover:bg-secondary hover:text-foreground group-hover:opacity-100"
+      title="Copy message"
+    >
+      {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+    </button>
+  )
+}
+
+export function MessageList({
+  messages,
+  applyTargetPath,
+  onApplySteps,
+}: MessageListProps) {
+  return (
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       {messages.map((message) => {
         const isUser = message.role === 'user'
-        const Icon = isUser ? User : Bot
         const parts = isUser ? null : parseMessageParts(message.content)
         const hasApplyBlock = parts?.some((p) => p.type === 'apply-steps')
-        const toolCalls = (message.metadata as { toolCalls?: Array<{ name: string; args: Record<string, unknown> }> } | undefined)?.toolCalls
+        const toolCalls = (
+          message.metadata as
+            | {
+                toolCalls?: Array<{
+                  name: string
+                  args: Record<string, unknown>
+                }>
+              }
+            | undefined
+        )?.toolCalls
+
+        if (isUser) {
+          return (
+            <div key={message.id} className="group flex justify-end">
+              <div className="flex max-w-[88%] flex-col items-end gap-1">
+                <div className="rounded-2xl rounded-br-md bg-secondary px-3.5 py-2.5 text-xs leading-5 text-foreground whitespace-pre-wrap">
+                  {message.content}
+                </div>
+                <div className="flex h-6 items-center gap-1 text-[10px] text-muted-foreground/50">
+                  <CopyButton content={message.content} />
+                  <span>{formatTime(message.createdAt)}</span>
+                </div>
+              </div>
+            </div>
+          )
+        }
 
         return (
-          <div key={message.id} className={cn('flex gap-2.5', isUser && 'flex-row-reverse')}>
-            <div
-              className={cn(
-                'w-6 h-6 rounded-md flex items-center justify-center shrink-0 border',
-                isUser
-                  ? 'bg-primary text-primary-foreground border-primary/80'
-                  : 'bg-secondary text-foreground/80 border-border',
-              )}
-            >
-              <Icon className="w-3.5 h-3.5" />
+          <div key={message.id} className="group flex gap-3">
+            <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-violet-500/20 bg-violet-500/10 text-violet-400">
+              <Sparkles className="h-3.5 w-3.5" />
             </div>
 
-            <div className={cn('min-w-0 flex-1', isUser && 'text-right')}>
-              <div className="flex items-center gap-1.5 mb-1 text-[10px] text-muted-foreground">
-                <span className={cn('font-medium', isUser && 'ml-auto')}>
-                  {isUser ? 'You' : 'JKAuto AI'}
+            <div className="min-w-0 flex-1">
+              <div className="mb-2 flex h-5 items-center gap-2 text-[10px] text-muted-foreground">
+                <span className="font-semibold text-foreground/80">JKAuto</span>
+                <span className="text-muted-foreground/50">
+                  {formatTime(message.createdAt)}
                 </span>
-                <span>{formatTime(message.createdAt)}</span>
+                <CopyButton content={message.content} />
               </div>
 
-              {!isUser && toolCalls && toolCalls.length > 0 && (
+              {toolCalls && toolCalls.length > 0 && (
                 <ThinkingSection steps={toolCalls} />
               )}
 
-              {isUser || !parts ? (
-                <div
-                  className={cn(
-                    'inline-block max-w-full rounded-md px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap text-left',
-                    isUser
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-secondary/50 text-foreground/85 border border-border/60',
-                  )}
-                >
+              {!parts ? (
+                <div className="text-xs leading-5 text-foreground/90 whitespace-pre-wrap">
                   {message.content}
                 </div>
               ) : (
                 <div
                   className={cn(
-                    'max-w-full rounded-md px-3 py-2 text-xs leading-relaxed text-left',
-                    'bg-secondary/50 text-foreground/85 border border-border/60',
-                    hasApplyBlock && 'pb-0',
+                    'max-w-full text-xs leading-5 text-foreground/90',
+                    hasApplyBlock && 'pb-1',
                   )}
                 >
                   {parts.map((part, i) => {
@@ -205,7 +258,6 @@ export function MessageList({ messages, applyTargetPath, onApplySteps }: Message
                       />
                     )
                   })}
-                  {hasApplyBlock && <div className="pb-2" />}
                 </div>
               )}
             </div>

@@ -9,11 +9,15 @@ import type {
 } from '@jkauto/core'
 
 function rowToSession(r: Record<string, unknown>): AgentSession {
+  const storedMode = r.mode as string
+  const mode: AgentSessionMode =
+    storedMode === 'directly' ? 'directly' : 'normal'
+
   return {
     id: r.id as string,
     projectPath: r.project_path as string,
     title: r.title as string,
-    mode: r.mode as AgentSessionMode,
+    mode,
     status: r.status as AgentSession['status'],
     summary: (r.summary as string) || undefined,
     activeTabPath: (r.active_tab_path as string) || undefined,
@@ -35,7 +39,7 @@ export function listSessions(projectPath: string): AgentSession[] {
 
 export function createSession(
   projectPath: string,
-  mode: AgentSessionMode = 'ask',
+  mode: AgentSessionMode = 'normal',
   title?: string,
 ): AgentSession {
   const db = getAgentDb(projectPath)
@@ -47,11 +51,17 @@ export function createSession(
      VALUES(?, ?, ?, ?, 'active', ?, ?)`,
   ).run(id, projectPath, sessionTitle, mode, now, now)
   return rowToSession(
-    db.prepare(`SELECT * FROM agent_sessions WHERE id = ?`).get(id) as Record<string, unknown>,
+    db.prepare(`SELECT * FROM agent_sessions WHERE id = ?`).get(id) as Record<
+      string,
+      unknown
+    >,
   )
 }
 
-export function getSession(projectPath: string, id: string): AgentSession | null {
+export function getSession(
+  projectPath: string,
+  id: string,
+): AgentSession | null {
   const db = getAgentDb(projectPath)
   const row = db
     .prepare(`SELECT * FROM agent_sessions WHERE id = ?`)
@@ -62,25 +72,52 @@ export function getSession(projectPath: string, id: string): AgentSession | null
 export function updateSession(
   projectPath: string,
   id: string,
-  patch: Partial<Pick<AgentSession, 'title' | 'mode' | 'status' | 'summary' | 'activeTabPath'>>,
+  patch: Partial<
+    Pick<
+      AgentSession,
+      'title' | 'mode' | 'status' | 'summary' | 'activeTabPath'
+    >
+  >,
 ): void {
   const db = getAgentDb(projectPath)
   const now = new Date().toISOString()
   const fields: string[] = ['updated_at = ?']
   const values: unknown[] = [now]
-  if (patch.title !== undefined) { fields.push('title = ?'); values.push(patch.title) }
-  if (patch.mode !== undefined) { fields.push('mode = ?'); values.push(patch.mode) }
-  if (patch.status !== undefined) { fields.push('status = ?'); values.push(patch.status) }
-  if (patch.summary !== undefined) { fields.push('summary = ?'); values.push(patch.summary) }
-  if (patch.activeTabPath !== undefined) { fields.push('active_tab_path = ?'); values.push(patch.activeTabPath) }
+  if (patch.title !== undefined) {
+    fields.push('title = ?')
+    values.push(patch.title)
+  }
+  if (patch.mode !== undefined) {
+    fields.push('mode = ?')
+    values.push(patch.mode)
+  }
+  if (patch.status !== undefined) {
+    fields.push('status = ?')
+    values.push(patch.status)
+  }
+  if (patch.summary !== undefined) {
+    fields.push('summary = ?')
+    values.push(patch.summary)
+  }
+  if (patch.activeTabPath !== undefined) {
+    fields.push('active_tab_path = ?')
+    values.push(patch.activeTabPath)
+  }
   values.push(id)
-  db.prepare(`UPDATE agent_sessions SET ${fields.join(', ')} WHERE id = ?`).run(...values)
+  db.prepare(`UPDATE agent_sessions SET ${fields.join(', ')} WHERE id = ?`).run(
+    ...values,
+  )
 }
 
-export function getSessionMessages(projectPath: string, sessionId: string): AgentMessage[] {
+export function getSessionMessages(
+  projectPath: string,
+  sessionId: string,
+): AgentMessage[] {
   const db = getAgentDb(projectPath)
   const rows = db
-    .prepare(`SELECT * FROM agent_messages WHERE session_id = ? ORDER BY created_at ASC`)
+    .prepare(
+      `SELECT * FROM agent_messages WHERE session_id = ? ORDER BY created_at ASC`,
+    )
     .all(sessionId) as Record<string, unknown>[]
   return rows.map((r) => ({
     id: r.id as string,
@@ -109,7 +146,10 @@ export function saveMessage(projectPath: string, msg: AgentMessage): void {
   )
 }
 
-export function saveArtifact(projectPath: string, artifact: AgentArtifact): void {
+export function saveArtifact(
+  projectPath: string,
+  artifact: AgentArtifact,
+): void {
   const db = getAgentDb(projectPath)
   db.prepare(
     `INSERT OR REPLACE INTO agent_artifacts(id, session_id, type, content_json, target_path, created_at)
@@ -124,10 +164,15 @@ export function saveArtifact(projectPath: string, artifact: AgentArtifact): void
   )
 }
 
-export function getSessionArtifacts(projectPath: string, sessionId: string): AgentArtifact[] {
+export function getSessionArtifacts(
+  projectPath: string,
+  sessionId: string,
+): AgentArtifact[] {
   const db = getAgentDb(projectPath)
   const rows = db
-    .prepare(`SELECT * FROM agent_artifacts WHERE session_id = ? ORDER BY created_at DESC`)
+    .prepare(
+      `SELECT * FROM agent_artifacts WHERE session_id = ? ORDER BY created_at DESC`,
+    )
     .all(sessionId) as Record<string, unknown>[]
   return rows.map((r) => ({
     id: r.id as string,
@@ -162,17 +207,20 @@ export function updateAction(
   patch: { status: AgentAction['status']; resultJson?: string },
 ): void {
   const db = getAgentDb(projectPath)
-  db.prepare(`UPDATE agent_actions SET status = ?, result_json = ? WHERE id = ?`).run(
-    patch.status,
-    patch.resultJson ?? null,
-    id,
-  )
+  db.prepare(
+    `UPDATE agent_actions SET status = ?, result_json = ? WHERE id = ?`,
+  ).run(patch.status, patch.resultJson ?? null, id)
 }
 
-export function getSessionActions(projectPath: string, sessionId: string): AgentAction[] {
+export function getSessionActions(
+  projectPath: string,
+  sessionId: string,
+): AgentAction[] {
   const db = getAgentDb(projectPath)
   const rows = db
-    .prepare(`SELECT * FROM agent_actions WHERE session_id = ? ORDER BY created_at DESC`)
+    .prepare(
+      `SELECT * FROM agent_actions WHERE session_id = ? ORDER BY created_at DESC`,
+    )
     .all(sessionId) as Record<string, unknown>[]
   return rows.map((r) => ({
     id: r.id as string,

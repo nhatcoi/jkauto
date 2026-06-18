@@ -1,0 +1,30 @@
+schemaVersion: 1
+id: 0bdafc4c-52bf-41ec-ad64-d6640dbdac69
+name: OrangeHRM Login Empty Fields
+description: Verify validation messages when Login submitted with empty username
+  and password
+runner: playwright
+steps:
+  - id: 619d3d3e-85c2-408e-bdd2-e7d5fa23982b
+    keyword: navigate-to
+    description: Open OrangeHRM login page
+    input: https://opensource-demo.orangehrmlive.com/web/index.php/auth/login
+  - id: 01e44394-8c15-42e0-9311-91c98da1ae40
+    keyword: wait-for-visible
+    description: Login form visible
+    objectRef: form.oxd-form
+    timeout: 10000
+  - id: 9ef063b2-b918-41e2-a3ab-fb00b5dfd066
+    keyword: click
+    description: Submit without username and password
+    objectRef: button[type='submit']
+  - id: 532f926f-5b87-4b23-ac11-9147b2510c39
+    keyword: assert-text
+    description: Username required message visible
+    objectRef: (//span[contains(@class,'oxd-input-field-error-message')])[1]
+    expected: Required
+  - id: 0d9f6271-bae3-41b4-96f5-cf6c0dcfd239
+    keyword: assert-text
+    description: Password required message visible
+    objectRef: (//span[contains(@class,'oxd-input-field-error-message')])[2]
+    expected: Required

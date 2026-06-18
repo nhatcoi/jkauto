@@ -6,22 +6,10 @@ import { IpcChannels } from '@jkauto/core'
 import type { CreateProjectPayload, UpdateProjectPayload, DuplicateProjectPayload, RecentProject } from '@jkauto/core'
 import { randomUUID } from 'node:crypto'
 import { writeExplorerMetadata } from '../services/explorer-metadata'
+import { PROJECT_STRUCTURE } from '../services/project-features'
 
 const RECENT_KEY = 'recent_projects'
 let recentProjects: RecentProject[] = []
-
-const PROJECT_STRUCTURE: Array<{ key: string; name?: string }> = [
-  { key: 'profiles', name: 'Profiles' },
-  { key: 'test-cases', name: 'Test Cases' },
-  { key: 'api-request', name: 'API Requests' },
-  { key: 'test-suites', name: 'Test Suites' },
-  { key: 'keywords', name: 'Keywords' },
-  { key: 'reports', name: 'Reports' },
-  { key: 'data-files', name: 'Data Files' },
-  { key: 'checkpoints', name: 'Checkpoints' },
-  { key: 'plugins', name: 'Plugins' },
-  { key: '.autotest' },
-]
 
 export function registerProjectHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(IpcChannels.PROJECT_CREATE, async (_, payload: CreateProjectPayload) => {

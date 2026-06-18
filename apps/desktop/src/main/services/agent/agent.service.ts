@@ -34,7 +34,9 @@ interface ServiceAgentConfig extends Partial<AgentConfig> {
 // Cache McpManager per projectPath — avoid 60s reconnect on every chat message
 const managerCache = new Map<string, McpManager>()
 
-export async function disposeProjectManager(projectPath: string): Promise<void> {
+export async function disposeProjectManager(
+  projectPath: string,
+): Promise<void> {
   const manager = managerCache.get(projectPath)
   if (manager) {
     managerCache.delete(projectPath)
@@ -56,14 +58,22 @@ async function loadSkills(skillPaths: string[]): Promise<string[]> {
 }
 
 function getProjectPath(payload: AgentChatPayload): string | undefined {
-  return (payload.context as { activeProject?: { path: string } } | undefined)?.activeProject?.path
+  return (payload.context as { activeProject?: { path: string } } | undefined)
+    ?.activeProject?.path
 }
 
 function extractApplyStepsArtifacts(
   content: string,
   sessionId: string,
   targetPath?: string,
-): Array<{ id: string; sessionId: string; type: 'apply-steps'; contentJson: string; targetPath?: string; createdAt: string }> {
+): Array<{
+  id: string
+  sessionId: string
+  type: 'apply-steps'
+  contentJson: string
+  targetPath?: string
+  createdAt: string
+}> {
   const artifacts = []
   const regex = new RegExp(APPLY_STEPS_REGEX.source, 'g')
   let match
@@ -85,17 +95,21 @@ function extractApplyStepsArtifacts(
   return artifacts
 }
 
-export async function getAgentContext(payload: AgentChatPayload): Promise<AgentContextResult> {
+export async function getAgentContext(
+  payload: AgentChatPayload,
+): Promise<AgentContextResult> {
   return buildAgentContext(payload.context)
 }
 
-export async function listAgentSessions(projectPath: string): Promise<AgentSession[]> {
+export async function listAgentSessions(
+  projectPath: string,
+): Promise<AgentSession[]> {
   return listSessions(projectPath)
 }
 
 export async function createAgentSession(
   projectPath: string,
-  mode: AgentSessionMode = 'ask',
+  mode: AgentSessionMode = 'normal',
   title?: string,
 ): Promise<AgentSession> {
   return createSession(projectPath, mode, title)
@@ -122,13 +136,13 @@ export async function chatWithAgent(
 
   // Resolve session — frontend always provides sessionId (created lazily on first message)
   const sessionId = payload.sessionId
-  const session = projectPath && sessionId ? getSession(projectPath, sessionId) : null
-  const sessionMode: AgentSessionMode = session?.mode ?? 'ask'
+  const session =
+    projectPath && sessionId ? getSession(projectPath, sessionId) : null
+  const sessionMode: AgentSessionMode = session?.mode ?? 'normal'
 
   // Load historical messages from DB for context (use as source of truth)
-  const allDbMessages = projectPath && sessionId
-    ? getSessionMessages(projectPath, sessionId)
-    : []
+  const allDbMessages =
+    projectPath && sessionId ? getSessionMessages(projectPath, sessionId) : []
 
   // Merge: use DB history + latest user message from payload (last in payload.messages)
   const latestUserMsg = payload.messages[payload.messages.length - 1]
@@ -144,11 +158,15 @@ export async function chatWithAgent(
   // Build messages for LLM: DB history + new user message, trimmed
   const messagesForLlm = [
     ...allDbMessages,
-    ...(userMessage && !allDbMessages.find((m) => m.id === userMessage.id) ? [userMessage] : []),
+    ...(userMessage && !allDbMessages.find((m) => m.id === userMessage.id)
+      ? [userMessage]
+      : []),
   ]
 
   // Project context
-  const projectContext = projectPath ? await buildProjectContext(projectPath) : ''
+  const projectContext = projectPath
+    ? await buildProjectContext(projectPath)
+    : ''
 
   let content: string
   let model: string | undefined
@@ -165,6 +183,8 @@ export async function chatWithAgent(
         sessionId ?? '',
       )
       managerCache.set(projectPath, manager)
+    } else {
+      manager.configure(editMode, sessionId ?? '')
     }
 
     const result = await streamAgentChat(
@@ -197,7 +217,11 @@ export async function chatWithAgent(
 
       // Extract + save artifacts
       const activeTabPath = payload.context?.activeTab?.path
-      const artifacts = extractApplyStepsArtifacts(content, sessionId, activeTabPath)
+      const artifacts = extractApplyStepsArtifacts(
+        content,
+        sessionId,
+        activeTabPath,
+      )
       for (const artifact of artifacts) {
         saveArtifact(projectPath, artifact)
       }

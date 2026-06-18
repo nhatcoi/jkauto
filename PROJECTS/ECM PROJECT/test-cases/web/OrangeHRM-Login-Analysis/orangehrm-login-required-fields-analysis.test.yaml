@@ -1,0 +1,53 @@
+id: 8ae6cc2c-9d9d-4b3c-a4e6-5e1ce12b5ef3
+name: OrangeHRM Login - Required Fields Analysis
+description: Verify Login form required-field validation for empty username,
+  empty password, and empty form submission.
+schemaVersion: 1
+steps:
+  - keyword: navigate-to
+    description: Open OrangeHRM login page
+    input: https://opensource-demo.orangehrmlive.com/web/index.php/auth/login
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - keyword: wait-for-visible
+    description: Login form visible
+    objectRef: form.oxd-form
+    enabled: true
+    continueOnFailure: false
+    timeout: 15000
+  - keyword: click
+    description: Submit empty login form
+    objectRef: button[type='submit']
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - keyword: wait-for-visible
+    description: Username required message visible
+    objectRef: .oxd-input-group:has(input[name='username'])
+      .oxd-input-field-error-message:has-text('Required')
+    enabled: true
+    continueOnFailure: false
+    timeout: 15000
+  - keyword: assert-text
+    description: Username required validation shown
+    objectRef: .oxd-input-group:has(input[name='username']) .oxd-input-field-error-message
+    expected: Required
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - keyword: assert-text
+    description: Password required validation shown
+    objectRef: .oxd-input-group:has(input[name='password']) .oxd-input-field-error-message
+    expected: Required
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - keyword: assert-url-contains
+    description: User remains on login URL
+    input: /web/index.php/auth/login
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+createdAt: 2026-06-18T19:06:05.961Z
+updatedAt: 2026-06-18T19:06:15.692Z

@@ -72,7 +72,7 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(
     IpcChannels.AGENT_SESSION_DELETE,
     async (_, payload: AgentSessionDeletePayload) => {
-      updateSession(payload.projectPath, payload.id, { status: 'archived' })
+      updateSession(payload.projectPath, payload.id, { status: 'deleted' })
       return { ok: true }
     },
   )

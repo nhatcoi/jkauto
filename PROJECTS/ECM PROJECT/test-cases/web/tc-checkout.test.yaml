@@ -3,30 +3,39 @@ id: 49018cf0-de5c-4b5e-8cbf-a4a8966a0b62
 name: TC - Checkout
 runner: playwright
 steps:
-  - id: 7a660561-23e6-4b0d-9393-a82d554a1724
+  - id: 0c2cc158-b4cf-4dec-9b8e-48f45eb7d14d
     keyword: navigate-to
-    description: Open SauceDemo login page
-    input: https://www.saucedemo.com/
-  - id: 7fc2933b-7a66-42af-8150-f548fb45367f
+    description: Go to login page
+    input: http://localhost:5173/login
+  - id: ae002f5f-8c16-4df1-862d-da7a0fae5723
+    keyword: wait-for-visible
+    description: Wait for username field
+    objectRef: "#username"
+    timeout: 10000
+  - id: 2716aa55-10fd-42c7-9f60-9f726ef6f0e7
     keyword: type-text
     description: Enter username
-    objectRef: '[data-test="username"]'
-    input: standard_user
-  - id: 752ee19d-c7ad-4138-839d-ca387f1325bc
+    objectRef: "#username"
+    input: ${username}
+  - id: 84b0bede-6c8b-42aa-af5b-e6ef49b4d47e
     keyword: type-text
     description: Enter password
-    objectRef: '[data-test="password"]'
-    input: secret_sauce
-  - id: 45b30126-b8fb-4916-9c2d-c7711c9ab97f
+    objectRef: "#password"
+    input: ${password}
+  - id: 6f617b60-fff5-410f-a0d6-18c70419d729
     keyword: click
-    description: Click login button
-    objectRef: '[data-test="login-button"]'
-  - id: 38fb382d-51c8-4cd9-a753-0df8f3c35ac0
+    description: Submit login
+    objectRef: button[type="submit"]
+  - id: b77fdbf0-d8a4-4155-b210-0c90c14ae51a
+    keyword: wait-for-visible
+    description: Wait for dashboard
+    objectRef: text=Dashboard
+    timeout: 10000
+  - id: 1cd24051-8211-4fca-a86e-1573b2050504
     keyword: assert-url-contains
-    description: Verify inventory page URL
-    expected: /inventory.html
-  - id: 1af78004-a260-45e4-a426-1325701a22e7
-    keyword: assert-text
-    description: Verify Products title
-    objectRef: .title
-    expected: Products
+    description: Verify redirected to dashboard
+    expected: /dashboard
+  - id: 104dbb7c-9557-4859-8024-ea3591075c9d
+    keyword: assert-visible
+    description: Verify dashboard visible
+    objectRef: text=Dashboard

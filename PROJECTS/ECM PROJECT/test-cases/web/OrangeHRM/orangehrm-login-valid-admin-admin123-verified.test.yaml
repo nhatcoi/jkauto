@@ -1,0 +1,111 @@
+id: 033317ad-4a66-4f2a-9a7c-a391804b8895
+name: OrangeHRM Login Valid Admin admin123 Verified
+description: Verify OrangeHRM login succeeds with Admin/admin123 and dashboard opens.
+schemaVersion: 1
+steps:
+  - keyword: navigate-to
+    description: Open OrangeHRM login page
+    objectRef: ""
+    input: https://opensource-demo.orangehrmlive.com/web/index.php/auth/login
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - keyword: wait-for-visible
+    description: Wait for Username field visible
+    objectRef: input[placeholder="Username"]
+    input: ""
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: 10000
+  - keyword: assert-visible
+    description: Verify Login heading visible
+    objectRef: //h5[normalize-space()="Login"]
+    input: ""
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: 5000
+  - keyword: assert-visible
+    description: Verify Username field visible
+    objectRef: input[placeholder="Username"]
+    input: ""
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: 5000
+  - keyword: assert-visible
+    description: Verify Password field visible
+    objectRef: input[placeholder="Password"]
+    input: ""
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: 5000
+  - keyword: assert-visible
+    description: Verify Login button visible
+    objectRef: button[type="submit"]
+    input: ""
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: 5000
+  - keyword: type-text
+    description: Enter valid username Admin
+    objectRef: input[placeholder="Username"]
+    input: Admin
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: 5000
+  - keyword: type-text
+    description: Enter valid password admin123
+    objectRef: input[placeholder="Password"]
+    input: admin123
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: 5000
+  - keyword: click
+    description: Click Login button
+    objectRef: button[type="submit"]
+    input: ""
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: 5000
+  - keyword: wait-for-visible
+    description: Wait for Dashboard page header
+    objectRef: //h6[normalize-space()="Dashboard"]
+    input: ""
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: 15000
+  - keyword: assert-url-contains
+    description: Verify redirected to dashboard URL
+    objectRef: ""
+    input: ""
+    expected: /web/index.php/dashboard/index
+    enabled: true
+    continueOnFailure: false
+    timeout: 5000
+  - keyword: assert-visible
+    description: Verify Dashboard menu active
+    objectRef: a.oxd-main-menu-item.active[href*="/dashboard/index"]
+    input: ""
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: 5000
+  - keyword: assert-text
+    description: Verify Admin menu exists after login
+    objectRef: a.oxd-main-menu-item[href*="/admin/viewAdminModule"]
+    input: ""
+    expected: Admin
+    enabled: true
+    continueOnFailure: false
+    timeout: 5000
+createdAt: 2026-06-18T19:18:01.574Z
+updatedAt: 2026-06-18T19:18:26.550Z

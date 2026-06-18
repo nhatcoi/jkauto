@@ -1,0 +1,33 @@
+schemaVersion: 1
+id: tc-login
+name: TC - Login
+runner: playwright
+steps:
+  - keyword: navigate-to
+    description: Go to login page
+    input: http://localhost:5174/login
+  - keyword: wait-for-visible
+    description: Wait for username field
+    objectRef: "#username"
+    timeout: 10000
+  - keyword: type-text
+    description: Enter username
+    objectRef: "#username"
+    input: ${username}
+  - keyword: type-text
+    description: Enter password
+    objectRef: "#password"
+    input: ${password}
+  - keyword: click
+    description: Submit login
+    objectRef: button[type="submit"]
+  - keyword: wait-for-visible
+    description: Wait for dashboard
+    objectRef: text=Dashboard
+    timeout: 10000
+  - keyword: assert-url-contains
+    description: Verify redirected to dashboard
+    expected: /dashboard
+  - keyword: assert-visible
+    description: Verify dashboard visible
+    objectRef: text=Dashboard

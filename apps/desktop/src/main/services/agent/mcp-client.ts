@@ -1,5 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
+import { chromium } from '@playwright/test'
 
 export interface McpToolDefinition {
   name: string
@@ -17,13 +18,19 @@ export class McpClient {
   private transport: StdioClientTransport | null = null
   private connected = false
 
-  constructor(private command: string, private args: string[]) {
+  constructor(
+    private command: string,
+    private args: string[],
+  ) {
     this.client = new Client({ name: 'jkauto-agent', version: '1.0.0' })
   }
 
   async connect(): Promise<void> {
     if (this.connected) return
-    this.transport = new StdioClientTransport({ command: this.command, args: this.args })
+    this.transport = new StdioClientTransport({
+      command: this.command,
+      args: this.args,
+    })
     await this.client.connect(this.transport)
     this.connected = true
   }
@@ -39,13 +46,22 @@ export class McpClient {
     return tools.map((t) => ({
       name: t.name,
       description: t.description ?? '',
-      inputSchema: (t.inputSchema as Record<string, unknown>) ?? { type: 'object', properties: {} },
+      inputSchema: (t.inputSchema as Record<string, unknown>) ?? {
+        type: 'object',
+        properties: {},
+      },
     }))
   }
 
-  async callTool(name: string, args: Record<string, unknown>): Promise<McpToolResult> {
+  async callTool(
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<McpToolResult> {
     const result = await this.client.callTool({ name, arguments: args })
-    const contentItems = result.content as Array<{ type: string; text?: string }>
+    const contentItems = result.content as Array<{
+      type: string
+      text?: string
+    }>
     const content = contentItems
       .map((c) => (c.type === 'text' ? (c.text ?? '') : JSON.stringify(c)))
       .join('\n')
@@ -55,5 +71,13 @@ export class McpClient {
 
 // Spawn Playwright MCP server process — use Playwright-managed Chromium, not system Chrome
 export function createPlaywrightMcpClient(): McpClient {
-  return new McpClient('npx', ['@playwright/mcp@latest', '--browser', 'chromium'])
+  return new McpClient('npx', [
+    '-y',
+    '@playwright/mcp@0.0.76',
+    '--executable-path',
+    chromium.executablePath(),
+    '--isolated',
+    '--codegen',
+    'none',
+  ])
 }

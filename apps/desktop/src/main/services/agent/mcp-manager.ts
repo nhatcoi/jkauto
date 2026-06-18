@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { chromium } from '@playwright/test'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import type { McpToolDefinition, McpToolResult } from './mcp-client'
@@ -23,6 +24,15 @@ const FILESYSTEM_WRITE_TOOLS = new Set([
   'move_file',
   'delete_file',
 ])
+
+const JKAUTO_WRITE_TOOLS = new Set(['create_test_case', 'save_test_case_steps'])
+
+function isWriteTool(owner: string, toolName: string): boolean {
+  return (
+    (owner === 'filesystem' && FILESYSTEM_WRITE_TOOLS.has(toolName)) ||
+    (owner === 'jkauto' && JKAUTO_WRITE_TOOLS.has(toolName))
+  )
+}
 
 interface ManagedClient {
   name: string
@@ -54,6 +64,15 @@ export class McpManager {
         '@modelcontextprotocol/server-filesystem',
         projectPath,
       ]),
+      this.addStdio('playwright', 'npx', [
+        '-y',
+        '@playwright/mcp@0.0.76',
+        '--executable-path',
+        chromium.executablePath(),
+        '--isolated',
+        '--codegen',
+        'none',
+      ]),
       ...userServers
         .filter((s) => s.enabled !== false)
         .map((s) => this.addStdio(s.name, s.command, s.args, s.env)),
@@ -68,7 +87,15 @@ export class McpManager {
     await this.buildToolOwnerMap()
   }
 
-  private async addInProcess(name: string, factory: () => Promise<Client>): Promise<void> {
+  configure(editMode: McpEditMode, sessionId: string): void {
+    this.editMode = editMode
+    this.sessionId = sessionId
+  }
+
+  private async addInProcess(
+    name: string,
+    factory: () => Promise<Client>,
+  ): Promise<void> {
     const client = await factory()
     this.clients.push({ name, client })
   }
@@ -110,11 +137,7 @@ export class McpManager {
       try {
         const { tools } = await managed.client.listTools()
         for (const t of tools) {
-          if (
-            this.editMode === 'ask' &&
-            managed.name === 'filesystem' &&
-            FILESYSTEM_WRITE_TOOLS.has(t.name)
-          ) {
+          if (this.editMode === 'ask' && isWriteTool(managed.name, t.name)) {
             continue
           }
           all.push({
@@ -131,21 +154,26 @@ export class McpManager {
     return all
   }
 
-  async callTool(name: string, args: Record<string, unknown>): Promise<McpToolResult> {
+  async callTool(
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<McpToolResult> {
     const ownerName = this.toolOwner.get(name)
     const managed = this.clients.find((c) => c.name === ownerName)
     if (!managed) throw new Error(`MCP tool not found: ${name}`)
 
     if (
       this.editMode === 'auto-with-rollback' &&
-      managed.name === 'filesystem' &&
-      FILESYSTEM_WRITE_TOOLS.has(name)
+      isWriteTool(managed.name, name)
     ) {
       await this.backupBeforeWrite(name, args)
     }
 
     const result = await managed.client.callTool({ name, arguments: args })
-    const contentItems = result.content as Array<{ type: string; text?: string }>
+    const contentItems = result.content as Array<{
+      type: string
+      text?: string
+    }>
     const content = contentItems
       .map((c) => (c.type === 'text' ? (c.text ?? '') : JSON.stringify(c)))
       .join('\n')
@@ -156,14 +184,22 @@ export class McpManager {
     toolName: string,
     args: Record<string, unknown>,
   ): Promise<void> {
-    const targetPath = args.path as string | undefined
+    const targetPath = (args.path ?? args.filePath) as string | undefined
     if (!targetPath) return
     try {
       const original = await fs.readFile(targetPath, 'utf-8')
-      const backupDir = path.join(this.projectPath, '.autotest', 'agent-backups', this.sessionId)
+      const backupDir = path.join(
+        this.projectPath,
+        '.autotest',
+        'agent-backups',
+        this.sessionId,
+      )
       await fs.mkdir(backupDir, { recursive: true })
       const ts = new Date().toISOString().replace(/[:.]/g, '-')
-      const backupPath = path.join(backupDir, `${ts}-${path.basename(targetPath)}`)
+      const backupPath = path.join(
+        backupDir,
+        `${ts}-${path.basename(targetPath)}`,
+      )
       await fs.writeFile(backupPath, original, 'utf-8')
       console.log(`[mcp-manager] backup before ${toolName}: ${backupPath}`)
     } catch {
