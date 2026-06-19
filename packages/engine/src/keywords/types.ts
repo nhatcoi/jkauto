@@ -30,6 +30,7 @@ export interface ApiSession {
   baseUrl: string
   defaultHeaders: Record<string, string>
   lastResponse: ApiResponse | null
+  variables: Record<string, string>
 }
 
 export interface ApiResponse {
@@ -58,6 +59,7 @@ export interface ApiKeywordContext {
   expected: string
   resolveLocator: (ref: string) => Promise<string>
   interpolate: (value: string) => string
+  setVariable?: (key: string, value: string) => void
 }
 
 // Context for appium platform (native iOS/Android via WebDriverIO).

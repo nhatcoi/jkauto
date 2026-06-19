@@ -64,13 +64,13 @@ export function StepTable({
                 Description
               </th>
               <th className="w-36 text-[10px] font-medium text-muted-foreground text-left px-1 py-1.5">
-                Object / Selector
+                {platform === 'api' ? 'Object / Path' : 'Object / Selector'}
               </th>
               <th className="w-36 text-[10px] font-medium text-muted-foreground text-left px-1 py-1.5">
-                Input
+                {platform === 'api' ? 'URL / Value' : 'Input'}
               </th>
               <th className="w-36 text-[10px] font-medium text-muted-foreground text-left px-1 py-1.5">
-                Expected
+                {platform === 'api' ? 'Body / Expected' : 'Expected'}
               </th>
               <th className="w-8 px-1" />
             </tr>

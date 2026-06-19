@@ -274,7 +274,8 @@ export async function runTestCase(
   options: RunOptions = {},
 ): Promise<void> {
   const { headless = false, stepDelay = 0, waitForNext, objectRepositories = [], appPath, externalSession, loadTestCase, screenshotDir } = options
-  const platform: Platform = testCase.platform ?? options.platform ?? 'web'
+  const platform: Platform = testCase.platform
+    ?? (testCase.runner === 'api' ? 'api' : options.platform ?? 'web')
   // When platform is 'mobile', resolve to the concrete engine adapter key.
   const adapterKey = platform === 'mobile'
     ? (testCase.runner === 'appium' ? 'appium' : 'maestro')
@@ -323,19 +324,24 @@ export async function runTestCase(
       const stepStart = Date.now()
       const timeout = step.timeout ?? 30000
       try {
+        const setVariable = (key: string, value: string) => { variables[key] = value }
         const work = step.keyword === 'call-test-case'
           ? executeCalledTestCase(step.input, loadTestCase, adapter, session, { resolveLocator, interpolate }, signal)
-          : adapter.execute(session, step, { resolveLocator, interpolate })
+          : adapter.execute(session, step, { resolveLocator, interpolate, setVariable })
         await Promise.race([
           work,
           new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error(`Step timeout after ${timeout}ms`)), timeout),
           ),
         ])
-        onStep({ runId, testCaseId: testCase.id, stepIndex: i, status: 'passed', durationMs: Date.now() - stepStart })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const stepMeta = (session as any)?.lastResponse ?? undefined
+        onStep({ runId, testCaseId: testCase.id, stepIndex: i, status: 'passed', durationMs: Date.now() - stepStart, meta: stepMeta })
         passedSteps++
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const stepMeta = (session as any)?.lastResponse ?? undefined
         let screenshotPath: string | undefined
         if (screenshotDir && adapter.screenshot) {
           try {
@@ -346,7 +352,7 @@ export async function runTestCase(
             screenshotPath = undefined
           }
         }
-        onStep({ runId, testCaseId: testCase.id, stepIndex: i, status: 'failed', message, durationMs: Date.now() - stepStart, screenshotPath })
+        onStep({ runId, testCaseId: testCase.id, stepIndex: i, status: 'failed', message, durationMs: Date.now() - stepStart, screenshotPath, meta: stepMeta })
         failedSteps++
         if (!step.continueOnFailure) break
       }

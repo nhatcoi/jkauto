@@ -13,6 +13,7 @@ import { useStepDragDrop } from "./hooks/useStepDragDrop";
 import { useStepContextMenu } from "./hooks/useStepContextMenu";
 import { ImportStepsDialog } from "./components/ImportStepsDialog";
 import { CallTestCaseDialog } from "./components/CallTestCaseDialog";
+import { ApiTestEditor } from "./components/ApiTestEditor";
 import { StepContextMenu } from "./components/StepContextMenu";
 import { EngineInstallBanner } from "@/components/engine-install/EngineInstallBanner";
 import { TestCaseToolbar, type TestCaseViewMode } from "./components/TestCaseToolbar";
@@ -176,6 +177,12 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
     closeContextMenu();
     openCallDialog(idx);
   };
+
+  // API test cases use a dedicated split-pane editor.
+  // This check is placed after all hooks so React's rules are satisfied.
+  if (effectivePlatform === "api") {
+    return <ApiTestEditor filePath={filePath} />;
+  }
 
   if (error) {
     return (

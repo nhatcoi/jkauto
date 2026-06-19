@@ -39,3 +39,8 @@ steps:
     keyword: assert-visible
     description: Verify dashboard visible
     objectRef: text=Dashboard
+  - id: 2a549fba-a700-4f82-a5af-7f1fc5fabf40
+    keyword: call-test-case
+    description: "Call: JSONPlaceholder - User CRUD flow"
+    input: /home/nhatcoi/Documents/personal/jkauto/PROJECTS/ECM
+      PROJECT/test-cases/test-api.test.yaml

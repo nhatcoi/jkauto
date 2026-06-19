@@ -225,6 +225,7 @@ export interface StepEvent {
   message?: string
   screenshotPath?: string
   durationMs?: number
+  meta?: unknown
 }
 
 export interface SuiteEvent {

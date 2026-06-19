@@ -32,6 +32,7 @@ interface RunStore {
   stepMessages: Record<number, string>
   stepDurations: Record<number, number>
   stepScreenshots: Record<number, string>
+  stepMeta: Record<number, unknown>
   logs: LogEntry[]
   events: EventEntry[]
   appiumLogs: AppiumLogEntry[]
@@ -71,6 +72,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
   stepMessages: {},
   stepDurations: {},
   stepScreenshots: {},
+  stepMeta: {},
   logs: [],
   events: [],
   appiumLogs: [],
@@ -89,6 +91,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
       stepMessages: {},
       stepDurations: {},
       stepScreenshots: {},
+      stepMeta: {},
       logs: [
         {
           id: uid(),
@@ -107,7 +110,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
     }),
 
   handleStepEvent: (event: StepEvent) => {
-    const { stepIndex, status, message, durationMs, screenshotPath } = event
+    const { stepIndex, status, message, durationMs, screenshotPath, meta } = event
     set((state) => {
       const newStatuses = { ...state.stepStatuses, [stepIndex]: status as StepStatus }
       const newMessages = message
@@ -121,6 +124,9 @@ export const useRunStore = create<RunStore>((set, get) => ({
         screenshotPath
           ? { ...state.stepScreenshots, [stepIndex]: screenshotPath }
           : state.stepScreenshots
+      const newMeta = meta !== undefined
+        ? { ...state.stepMeta, [stepIndex]: meta }
+        : state.stepMeta
 
       const logLevel =
         status === 'passed' ? 'success' : status === 'failed' ? 'error' : 'info'
@@ -142,6 +148,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
         stepMessages: newMessages,
         stepDurations: newDurations,
         stepScreenshots: newScreenshots,
+        stepMeta: newMeta,
         isDebugPaused,
         logs: [
           ...state.logs,
@@ -239,6 +246,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
       stepMessages: {},
       stepDurations: {},
       stepScreenshots: {},
+      stepMeta: {},
       logs: [],
       events: [],
     }),

@@ -181,3 +181,5 @@ Clipboard = local state; UUIDs regenerated on paste.
 
 ## Recent changes
 - **Undo/Redo:** `tc` state migrated to `useHistory<TestCase>` hook. `mutate()` calls `history.update(fn)`. `setInitial()` resets stack on file load/save. `Cmd+Z` / `Cmd+Shift+Z` via `window` keydown listener (skips when focus in input). Undo/Redo buttons added to toolbar. Key files: `hooks/useHistory.ts`, `TestCaseEditor.tsx`.
+- **API platform table headers:** `StepTable` column headers adapt for `platform === 'api'`: "Object / Path", "URL / Value", "Body / Expected" instead of generic UI labels.
+- **API split-pane editor:** When `effectivePlatform === 'api'`, `TestCaseEditor` renders `ApiTestEditor` instead of the table view. Components: `ApiStepList.tsx` (left panel — step list with status icons, category-colored left border, drag reorder), `ApiStepDetail.tsx` (right panel — keyword-specific form fields + response viewer), `ApiTestEditor.tsx` (orchestrator using `ResizablePanelGroup`). Response data flows via `StepEvent.meta` → `run.store.stepMeta[stepIndex]` → rendered in `ApiStepDetail`. Default step keyword is `http-request` (not `click`).

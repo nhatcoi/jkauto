@@ -52,14 +52,85 @@ const assertJsonPathFn: ApiKeywordExecutor = async ({ session, objectRef, expect
   if (!session.lastResponse) throw new Error('No response — run http-request first')
   let json: unknown
   try { json = JSON.parse(session.lastResponse.body) } catch { throw new Error('Response body is not valid JSON') }
-  const path = interpolate(objectRef).split('.')
-  let val: unknown = json
-  for (const key of path) {
-    if (val == null || typeof val !== 'object') throw new Error(`Path "${objectRef}" not found`)
-    val = (val as Record<string, unknown>)[key]
-  }
+  const val = resolveJsonPath(json, interpolate(objectRef))
   const exp = interpolate(expected)
   if (String(val) !== exp) throw new Error(`Expected "${exp}" at path "${objectRef}" but got "${String(val)}"`)
+}
+
+function resolveJsonPath(obj: unknown, path: string): unknown {
+  const parts = path.replace(/^\$\.?/, '').split(/\.|\[(\d+)\]/).filter(Boolean)
+  let val: unknown = obj
+  for (const key of parts) {
+    if (val == null || typeof val !== 'object') return undefined
+    val = (val as Record<string, unknown>)[key]
+  }
+  return val
+}
+
+const extractBodyFn: ApiKeywordExecutor = async ({ session, objectRef, input, interpolate, setVariable }) => {
+  if (!session.lastResponse) throw new Error('No response — run http-request first')
+  let json: unknown
+  try { json = JSON.parse(session.lastResponse.body) } catch { throw new Error('Response body is not valid JSON') }
+  const jsonPath = interpolate(objectRef) || '$'
+  const varName = interpolate(input)
+  if (!varName) throw new Error('extract-body: input must be variable name')
+  const extracted = resolveJsonPath(json, jsonPath)
+  const strVal = extracted == null ? '' : String(extracted)
+  session.variables[varName] = strVal
+  setVariable?.(varName, strVal)
+}
+
+const setAuthBearerFn: ApiKeywordExecutor = async ({ session, input, interpolate }) => {
+  session.defaultHeaders['Authorization'] = `Bearer ${interpolate(input)}`
+}
+
+const setAuthBasicFn: ApiKeywordExecutor = async ({ session, objectRef, input, interpolate }) => {
+  const user = interpolate(objectRef)
+  const pass = interpolate(input)
+  session.defaultHeaders['Authorization'] = `Basic ${btoa(`${user}:${pass}`)}`
+}
+
+const assertHeaderFn: ApiKeywordExecutor = async ({ session, objectRef, expected, interpolate }) => {
+  if (!session.lastResponse) throw new Error('No response — run http-request first')
+  const name = interpolate(objectRef).toLowerCase()
+  const exp = interpolate(expected)
+  const actual = session.lastResponse.headers[name] ?? ''
+  if (!actual.includes(exp)) {
+    throw new Error(`Expected header "${name}" to contain "${exp}" but got "${actual}"`)
+  }
+}
+
+const assertStatusRangeFn: ApiKeywordExecutor = async ({ session, input, interpolate }) => {
+  if (!session.lastResponse) throw new Error('No response — run http-request first')
+  const range = interpolate(input)
+  const [minStr, maxStr] = range.split('-')
+  const min = parseInt(minStr, 10)
+  const max = parseInt(maxStr ?? minStr, 10)
+  const { status } = session.lastResponse
+  if (status < min || status > max) {
+    throw new Error(`Expected status in ${min}-${max} but got ${status}`)
+  }
+}
+
+const assertResponseTimeFn: ApiKeywordExecutor = async ({ session, expected, interpolate }) => {
+  if (!session.lastResponse) throw new Error('No response — run http-request first')
+  const maxMs = parseInt(interpolate(expected), 10)
+  const { durationMs } = session.lastResponse
+  if (durationMs > maxMs) {
+    throw new Error(`Response took ${durationMs}ms — exceeded limit of ${maxMs}ms`)
+  }
+}
+
+const setVariableFn: ApiKeywordExecutor = async ({ objectRef, input, interpolate, setVariable, session }) => {
+  const key = interpolate(objectRef)
+  const value = interpolate(input)
+  session.variables[key] = value
+  setVariable?.(key, value)
+}
+
+const logResponseFn: ApiKeywordExecutor = async ({ session }) => {
+  if (!session.lastResponse) throw new Error('No response — run http-request first')
+  // Logged via step message — just validate response exists
 }
 
 export const apiKeywords: KeywordDef[] = [
@@ -171,5 +242,124 @@ export const apiKeywords: KeywordDef[] = [
     objectPlaceholder: 'data.id',
     expectedPlaceholder: '42',
     executors: { api: assertJsonPathFn },
+  },
+  {
+    name: 'extract-body',
+    label: 'Extract Body',
+    color: 'bg-violet-600',
+    description: 'Extract JSON value from last response into a variable. objectRef=$.json.path, input=varName',
+    platforms: ['api'],
+    params: [
+      { name: 'objectRef', description: 'JSON path (e.g. $.data.token)', required: true },
+      { name: 'input', description: 'Variable name to store value', required: true },
+    ],
+    hasObject: true,
+    hasInput: true,
+    hasExpected: false,
+    objectPlaceholder: '$.data.token',
+    inputPlaceholder: 'accessToken',
+    executors: { api: extractBodyFn },
+  },
+  {
+    name: 'set-auth-bearer',
+    label: 'Set Auth Bearer',
+    color: 'bg-indigo-600',
+    description: 'Set Authorization: Bearer header for subsequent requests',
+    platforms: ['api'],
+    params: [{ name: 'input', description: 'Token value or variable (e.g. {{accessToken}})', required: true }],
+    hasObject: false,
+    hasInput: true,
+    hasExpected: false,
+    inputPlaceholder: '{{accessToken}}',
+    executors: { api: setAuthBearerFn },
+  },
+  {
+    name: 'set-auth-basic',
+    label: 'Set Auth Basic',
+    color: 'bg-indigo-700',
+    description: 'Set Authorization: Basic header. objectRef=username, input=password',
+    platforms: ['api'],
+    params: [
+      { name: 'objectRef', description: 'Username', required: true },
+      { name: 'input', description: 'Password', required: true },
+    ],
+    hasObject: true,
+    hasInput: true,
+    hasExpected: false,
+    objectPlaceholder: 'admin',
+    inputPlaceholder: 'password',
+    executors: { api: setAuthBasicFn },
+  },
+  {
+    name: 'assert-header',
+    label: 'Assert Header',
+    color: 'bg-amber-600',
+    description: 'Assert response header contains expected value. objectRef=headerName, expected=value',
+    platforms: ['api'],
+    params: [
+      { name: 'objectRef', description: 'Header name (case-insensitive)', required: true },
+      { name: 'expected', description: 'Expected value (substring match)', required: true },
+    ],
+    hasObject: true,
+    hasInput: false,
+    hasExpected: true,
+    objectPlaceholder: 'content-type',
+    expectedPlaceholder: 'application/json',
+    executors: { api: assertHeaderFn },
+  },
+  {
+    name: 'assert-status-range',
+    label: 'Assert Status Range',
+    color: 'bg-amber-500',
+    description: 'Assert response status code is within range. input=min-max (e.g. 200-299)',
+    platforms: ['api'],
+    params: [{ name: 'input', description: 'Status range e.g. 200-299', required: true }],
+    hasObject: false,
+    hasInput: true,
+    hasExpected: false,
+    inputPlaceholder: '200-299',
+    executors: { api: assertStatusRangeFn },
+  },
+  {
+    name: 'assert-response-time',
+    label: 'Assert Response Time',
+    color: 'bg-orange-600',
+    description: 'Assert last response completed within time limit. expected=maxMs',
+    platforms: ['api'],
+    params: [{ name: 'expected', description: 'Max duration in ms', required: true }],
+    hasObject: false,
+    hasInput: false,
+    hasExpected: true,
+    expectedPlaceholder: '2000',
+    executors: { api: assertResponseTimeFn },
+  },
+  {
+    name: 'set-variable',
+    label: 'Set Variable',
+    color: 'bg-slate-500',
+    description: 'Set a variable for use in later steps. objectRef=name, input=value',
+    platforms: ['api'],
+    params: [
+      { name: 'objectRef', description: 'Variable name', required: true },
+      { name: 'input', description: 'Value (supports {{varName}} interpolation)', required: true },
+    ],
+    hasObject: true,
+    hasInput: true,
+    hasExpected: false,
+    objectPlaceholder: 'myVar',
+    inputPlaceholder: 'value',
+    executors: { api: setVariableFn },
+  },
+  {
+    name: 'log-response',
+    label: 'Log Response',
+    color: 'bg-slate-600',
+    description: 'Assert response exists and log details (visible in run history)',
+    platforms: ['api'],
+    params: [],
+    hasObject: false,
+    hasInput: false,
+    hasExpected: false,
+    executors: { api: logResponseFn },
   },
 ]

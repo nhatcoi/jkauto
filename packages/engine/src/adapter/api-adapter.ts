@@ -13,6 +13,7 @@ export class ApiAdapter implements EngineAdapter<ApiSession> {
       baseUrl: profile.variables['BASE_URL'] ?? '',
       defaultHeaders: {},
       lastResponse: null,
+      variables: { ...profile.variables },
     }
   }
 
@@ -28,6 +29,7 @@ export class ApiAdapter implements EngineAdapter<ApiSession> {
       expected: step.expected,
       resolveLocator: helpers.resolveLocator,
       interpolate: helpers.interpolate,
+      setVariable: helpers.setVariable,
     })
   }
 
