@@ -38,6 +38,8 @@
   - [2.2. Kiến trúc tổng thể](#22-kiến-trúc-tổng-thể)
   - [2.3. Mô hình dữ liệu và tổ chức dự án](#23-mô-hình-dữ-liệu-và-tổ-chức-dự-án)
   - [2.4. Phân tích các chức năng chính](#24-phân-tích-các-chức-năng-chính)
+    - [2.4.8. Sinh kiểm thử từ repository](#248-sinh-kiểm-thử-từ-repository)
+    - [2.4.9. JKAuto Skills](#249-jkauto-skills)
   - [2.5. Luồng thực thi kiểm thử](#25-luồng-thực-thi-kiểm-thử)
   - [2.6. Công nghệ sử dụng](#26-công-nghệ-sử-dụng)
   - [2.7. Các quyết định thiết kế ảnh hưởng đến chất lượng](#27-các-quyết-định-thiết-kế-ảnh-hưởng-đến-chất-lượng)
@@ -64,11 +66,11 @@
 
 # TÓM TẮT
 
-JKAuto là một môi trường phát triển tích hợp phục vụ thiết kế, quản lý và thực thi kiểm thử tự động trên nhiều nền tảng, gồm Web, Desktop, Mobile, Appium và API. Hệ thống hướng tới việc kết hợp sự trực quan của công cụ no-code với khả năng mở rộng của các framework kiểm thử theo mã nguồn. Người dùng có thể tạo test case dưới dạng bảng, tổ chức test suite, quản lý đối tượng giao diện, cấu hình môi trường, gửi yêu cầu API, theo dõi lịch sử chạy và sử dụng AI Agent để hỗ trợ sinh hoặc chỉnh sửa kịch bản kiểm thử.
+JKAuto là một môi trường phát triển tích hợp phục vụ thiết kế, quản lý và thực thi kiểm thử tự động trên nhiều nền tảng, gồm Web, Desktop, Mobile, Appium và API. Hệ thống hướng tới việc kết hợp sự trực quan của công cụ no-code với khả năng mở rộng của các framework kiểm thử theo mã nguồn. Người dùng có thể tạo test case dưới dạng bảng, tổ chức test suite, quản lý đối tượng giao diện, cấu hình môi trường, gửi yêu cầu API, theo dõi lịch sử chạy, sinh test từ repository nguồn và sử dụng AI Agent để kiểm tra luồng thật trên Chromium trước khi lưu kịch bản.
 
-Báo cáo này tập trung đánh giá chất lượng của JKAuto dựa trên toàn bộ tài liệu Markdown hiện có trong dự án, bao gồm tài liệu giới thiệu, kế hoạch kiến trúc, hướng dẫn đóng góp, tài liệu riêng của từng feature, tài liệu bộ keyword, quy trình gỡ lỗi và các dự án mẫu. Việc đánh giá được tổ chức theo các nhóm thuộc tính chất lượng phổ biến của ISO/IEC 25010: phù hợp chức năng, hiệu năng, tương thích, khả năng sử dụng, độ tin cậy, bảo mật, khả năng bảo trì và tính khả chuyển.
+Báo cáo này tập trung đánh giá chất lượng của JKAuto dựa trên tài liệu Markdown, cấu trúc mã nguồn và lịch sử commit hiện có trong dự án. Nguồn khảo sát gồm tài liệu giới thiệu, kế hoạch kiến trúc, hướng dẫn đóng góp, tài liệu riêng của từng feature, schema, IPC contract, service chính, bộ keyword, quy trình gỡ lỗi và các dự án mẫu. Việc đánh giá được tổ chức theo các nhóm thuộc tính chất lượng phổ biến của ISO/IEC 25010: phù hợp chức năng, hiệu năng, tương thích, khả năng sử dụng, độ tin cậy, bảo mật, khả năng bảo trì và tính khả chuyển.
 
-Kết quả khảo sát tài liệu cho thấy hệ thống có định hướng kiến trúc rõ ràng, mô hình dữ liệu có version, phân tách renderer với quyền truy cập hệ thống thông qua IPC, hỗ trợ nhiều runner và ưu tiên định dạng JSON/YAML thân thiện với Git. Các feature quan trọng như Test Case, Test Suite, API Request, Object Repository, Appium và AI Agent đã được mô tả tương đối chi tiết. Tuy nhiên, dự án chưa thể hiện một bộ kiểm thử tự động cấp mã nguồn trong cấu trúc hiện tại; một số chức năng vẫn có ràng buộc hoặc placeholder, đồng thời trạng thái milestone trong tài liệu kế hoạch chưa được cập nhật đồng bộ với tài liệu feature mới hơn.
+Kết quả khảo sát tài liệu, mã nguồn và các commit gần nhất cho thấy hệ thống có định hướng kiến trúc rõ ràng, mô hình dữ liệu có version, phân tách renderer với quyền truy cập hệ thống thông qua IPC, hỗ trợ nhiều runner và ưu tiên định dạng JSON/YAML thân thiện với Git. Các feature quan trọng như Test Case, Test Suite, API Request, Object Repository, Appium, repository indexer và AI Agent đã được triển khai theo các module tương đối rõ. Tuy nhiên, dự án chưa thể hiện một bộ kiểm thử tự động cấp mã nguồn trong cấu trúc hiện tại; một số thao tác hủy vẫn là placeholder, đồng thời trạng thái milestone trong tài liệu kế hoạch chưa được cập nhật đồng bộ với mã nguồn mới hơn.
 
 Vì vậy, báo cáo không xem các mô tả chức năng là bằng chứng tuyệt đối rằng mọi chức năng đã vượt qua kiểm định thực tế. Các kết luận được chia thành hai mức: đánh giá dựa trên thiết kế/tài liệu và các ca kiểm thử cần thực thi để xác nhận chất lượng. Hướng cải tiến ưu tiên là xây dựng test pyramid, chuẩn hóa truy vết yêu cầu, tự động hóa kiểm tra trong CI, bổ sung đo lường hiệu năng và tăng cường kiểm soát an toàn cho AI Agent, thông tin xác thực và các công cụ có quyền ghi tệp.
 
@@ -119,7 +121,9 @@ Phân tích, đánh giá và đề xuất quy trình kiểm định chất lư�
 - Main process xử lý tệp, tiến trình, Appium, HTTP và runner.
 - Package `core` chứa schema và hợp đồng IPC.
 - Package `engine` thực thi keyword bằng Playwright, Appium, API hoặc Maestro.
+- Package `indexer` clone và phân tích repository để tạo code map phục vụ sinh test.
 - Các feature Test Case, Test Suite, Explorer, API Request, Object Repository, Appium và AI Agent.
+- Feature Autogen Test sinh test từ route, phần tử giao diện và API endpoint được phát hiện.
 - Bộ JKAuto Skills hỗ trợ tạo test case, chọn keyword và chẩn đoán lỗi.
 - Các dự án mẫu dùng cho kiểm thử API và automation CLI.
 
@@ -201,7 +205,8 @@ Tài liệu được chia thành các nhóm:
 |---|---|---|
 | Tổng quan | `README.md`, `PLAN.md` | Mục tiêu sản phẩm, kiến trúc, roadmap |
 | Quy trình | `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `CLAUDE.md` | Quy ước phát triển và cộng tác |
-| Feature | Các tệp `AGENTS.md` | Mô tả chi tiết Test Case, Suite, API, Agent, Appium, Explorer |
+| Feature | Các tệp `AGENTS.md` | Mô tả chi tiết Test Case, Suite, API, Agent, Appium, Explorer và Autogen |
+| Lịch sử mã nguồn | Các commit từ `e8bbf45` đến `ff96ce3` | MenuBar, repository indexer, suite path recovery và Agent Directly |
 | Kỹ năng | `jkauto-skills/**/*.md` | Schema test case, keyword, mapping runner, checklist debug |
 | Lịch sử | `CONTINUE.md` | Quá trình xây dựng engine và giao diện log |
 | Mẫu kiểm thử | `test-project/**/*.md` | API curl và generic automation target |
@@ -245,6 +250,7 @@ jkauto/
 ├── packages/
 │   ├── core/             # Zod schema, type và IPC contract
 │   ├── engine/           # Runner và keyword executor
+│   ├── indexer/          # Clone, nhận diện stack và lập code map repository
 │   ├── project-fs/       # Đọc/ghi project
 │   ├── storage/          # Dữ liệu SQLite hoặc dữ liệu dẫn xuất
 │   └── ui/               # Thành phần giao diện dùng chung
@@ -340,7 +346,7 @@ Biến môi trường được lưu trong các tệp profile. Tài liệu ghi nh
 
 ### 2.4.1. Explorer
 
-Explorer hiển thị nhiều project, hỗ trợ cây tệp ảo hóa, theo dõi thay đổi filesystem, tạo/xóa/đổi tên, kéo thả và menu ngữ cảnh theo loại node.
+Explorer hiển thị nhiều project, hỗ trợ cây tệp ảo hóa, theo dõi thay đổi filesystem, tạo/xóa/đổi tên, kéo thả và menu ngữ cảnh theo loại node. Shell ứng dụng có MenuBar HTML trên Windows/Linux và menu Electron native trên macOS; lệnh menu được chuyển về renderer qua IPC để dùng chung các dialog và hành động.
 
 Các chức năng đáng chú ý:
 
@@ -349,6 +355,8 @@ Các chức năng đáng chú ý:
 - Mở thư mục chứa project.
 - Cập nhật đường dẫn tab khi đổi tên tệp hoặc thư mục.
 - Xác nhận trước khi loại project khỏi workspace.
+- Chỉ hiển thị các thư mục feature được JKAuto hỗ trợ và ẩn thư mục nội bộ theo policy.
+- Gọi New/Open Project, Settings, Run/Debug/Stop, Reports và Keyword Manager từ menu hệ điều hành.
 
 Rủi ro chính là đồng bộ trạng thái tab với thay đổi tệp ngoài ứng dụng và xử lý xung đột khi rename/move.
 
@@ -372,7 +380,7 @@ Keyword được lấy từ engine qua IPC thay vì hard-code ở renderer. Quy�
 
 Suite Editor hỗ trợ khám phá test case trong project, thêm/xóa/sắp xếp case, chọn profile, chạy toàn suite hoặc từng case, hiển thị trạng thái từng case và tổng kết kết quả.
 
-Hệ thống có cơ chế normalize định dạng legacy. Đây là điểm tích cực về tương thích ngược nhưng cần test migration để tránh mất dữ liệu.
+Suite mới được chuẩn hóa ở định dạng `.suite.yaml` và lưu đường dẫn test case tương đối theo project. Khi path cũ không còn hợp lệ, engine quét đệ quy và tìm test case bằng ID ổn định, sau đó tự cập nhật path mới vào suite. Cơ chế này tăng khả năng phục hồi khi người dùng di chuyển hoặc đổi tên test case, nhưng cần kiểm thử trường hợp trùng ID, file hỏng và project lớn.
 
 ### 2.4.4. API Request
 
@@ -412,14 +420,25 @@ Android mirror sử dụng scrcpy và WebCodecs; iOS dùng luồng MJPEG. Touch 
 
 ### 2.4.7. AI Agent
 
-AI Agent có bốn lớp:
+AI Agent có các lớp chính:
 
-1. Session chat được lưu trong SQLite.
+1. Session chat được tạo lazy ở tin nhắn đầu tiên và lưu trong SQLite.
 2. Lịch sử message đầy đủ, cắt còn 20 message gần nhất khi gửi LLM.
 3. Context gồm trạng thái ứng dụng, tệp đang mở, keyword, test case và profile.
-4. Artifact/action để áp dụng step hoặc theo dõi tool call.
+4. MCP manager kết nối công cụ JKAuto, filesystem, Playwright và server do người dùng cấu hình.
+5. Vòng lặp agentic thủ công bơm kết quả tool trở lại model để tương thích với local LLM.
+6. Thinking UI stream tên tool, tham số và kết quả theo từng bước.
 
-Ba chế độ quyền sửa tệp:
+Agent có hai chế độ hội thoại:
+
+| Chế độ | Hành vi |
+|---|---|
+| `normal` | Hỏi đáp, phân tích, dùng tool và chỉnh sửa theo chính sách ghi file |
+| `directly` | Mở Chromium cô lập, thao tác trên ứng dụng thật, sửa và thử lại, sau đó lưu test đã kiểm chứng |
+
+Chế độ `directly` dùng completion harness tối đa 40 vòng tool, yêu cầu marker hoàn tất và không cho chọn chính sách chỉ đề xuất vì kết quả cuối phải được ghi thành test case. Chế độ này thực thi luồng trình duyệt qua Playwright MCP để xác minh trước khi sinh file; đây không đồng nghĩa với việc gọi trực tiếp engine runner của JKAuto.
+
+Ba chính sách quyền sửa tệp:
 
 | Chế độ | Quyền ghi | Cơ chế an toàn |
 |---|---|---|
@@ -429,7 +448,23 @@ Ba chế độ quyền sửa tệp:
 
 Agent tích hợp MCP nội bộ, filesystem và Playwright. `AGENT_CANCEL` hiện được mô tả là placeholder, vì vậy khả năng hủy yêu cầu dài là một điểm còn thiếu.
 
-### 2.4.8. JKAuto Skills
+### 2.4.8. Sinh kiểm thử từ repository
+
+Feature Autogen Test cho phép nhập URL hoặc đường dẫn repository, sau đó thực hiện luồng:
+
+1. Clone nông repository hoặc pull cache hiện có trong `.autotest/repo-cache`.
+2. Nhận diện framework, ngôn ngữ, OpenAPI và test framework.
+3. Trích route, phần tử giao diện, symbol và API endpoint bằng AST hoặc parser theo ngôn ngữ.
+4. Lưu code map và chunk tìm kiếm vào SQLite.
+5. Chọn page/API target và loại test cần sinh.
+6. Xây context có ngân sách khoảng 12.000 token, stream kết quả từ LLM, chuẩn hóa và kiểm tra bằng `TestCaseSchema`.
+7. Lưu test sinh ra vào `test-cases/*.test.yaml`.
+
+Indexer hỗ trợ nhận diện nhiều hệ sinh thái gồm TypeScript/JavaScript, Java/Kotlin, Go, Python và Rust. Route parser có xử lý Next.js, React Router và Angular; endpoint parser hỗ trợ OpenAPI cùng một số framework backend phổ biến.
+
+Đây là luồng sinh test dựa trên phân tích tĩnh, khác với Agent `directly`: Autogen suy luận từ mã nguồn và API spec, còn `directly` quan sát trạng thái trình duyệt thật. Kết quả `safeParse` chưa phải hard gate vì nhánh lỗi vẫn trả dữ liệu đã chuẩn hóa; `AUTOGEN_CANCEL` cũng chưa dùng `AbortController`. Việc ghi file cần kiểm soát xung đột tên để tránh ghi đè test đã tồn tại.
+
+### 2.4.9. JKAuto Skills
 
 Ba skill chính:
 
@@ -480,6 +515,7 @@ Luồng API Request:
 | Validation | Zod | Schema và kiểm tra dữ liệu |
 | Data | JSON, YAML, SQLite | Artifact, cấu hình và lịch sử |
 | AI | Vercel AI SDK, MCP | Chat, tool calling và sinh test |
+| Phân tích repository | TypeScript ESTree, parser theo ngôn ngữ, Swagger Parser, simple-git | Lập code map và context sinh test |
 | Workspace | pnpm, Turborepo | Quản lý monorepo |
 
 ## 2.7. Các quyết định thiết kế ảnh hưởng đến chất lượng
@@ -505,6 +541,9 @@ Luồng API Request:
 - Maestro chỉ hỗ trợ một tập con keyword; một số keyword bị skip hoặc báo không hỗ trợ.
 - `get-text` hiện đọc nhưng chưa lưu giá trị theo tài liệu keyword.
 - Agent gọi nhiều MCP server cho mỗi lượt chat có thể ảnh hưởng hiệu năng và độ ổn định.
+- Directly mode có thể chạy đến 40 vòng tool, cần giới hạn thời gian và khả năng hủy thật.
+- Repository không tin cậy có thể rất lớn, chứa symlink hoặc cấu trúc gây parser tiêu thụ nhiều tài nguyên.
+- Autogen lưu theo tên chuẩn hóa nhưng chưa thể hiện cơ chế xử lý trùng tên file.
 
 ---
 
@@ -575,8 +614,8 @@ Thang đánh giá tài liệu:
 
 | Mã | Ca kiểm thử | Dữ liệu/Thao tác | Kết quả mong đợi | Mức ưu tiên |
 |---|---|---|---|---|
-| TC-01 | Mở test case hợp lệ | Tệp `.test.json` đúng schema | Hiển thị đúng metadata và step | Critical |
-| TC-02 | Mở test case lỗi cú pháp | JSON thiếu dấu ngoặc | Hiển thị lỗi, không làm treo editor | High |
+| TC-01 | Mở test case hợp lệ | Tệp `.test.yaml` đúng schema | Hiển thị đúng metadata và step | Critical |
+| TC-02 | Mở test case lỗi cú pháp | YAML sai cấu trúc hoặc sai kiểu dữ liệu | Hiển thị lỗi, không làm treo editor | High |
 | TC-03 | Thêm step | Nhấn Add Step | Step mới có ID và giá trị mặc định | High |
 | TC-04 | Undo/redo | Sửa 3 lần rồi undo/redo | Trạng thái phục hồi đúng, không vượt stack | High |
 | TC-05 | Lọc keyword | Chọn platform Appium | Chỉ hiển thị keyword được hỗ trợ | Critical |
@@ -597,7 +636,9 @@ Thang đánh giá tài liệu:
 | TS-05 | Case fail, `continueOnFailure=false` | Suite dừng theo chính sách |
 | TS-06 | Case fail, `continueOnFailure=true` | Case sau tiếp tục chạy |
 | TS-07 | Mở suite legacy | `testCaseIds` được normalize không mất dữ liệu |
-| TS-08 | Case bị đổi đường dẫn | Hệ thống ưu tiên resolve bằng ID |
+| TS-08 | Case bị đổi đường dẫn | Hệ thống resolve bằng ID và ghi lại path tương đối mới vào suite |
+| TS-09 | Hai case trùng ID | Không tự liên kết nhầm; báo lỗi dữ liệu rõ ràng |
+| TS-10 | Suite chứa path tuyệt đối từ máy khác | Resolve có kiểm soát hoặc chuyển sang path tương đối trong project |
 
 ### 3.3.3. Explorer
 
@@ -784,7 +825,8 @@ Chuỗi login → trích token → gọi API bảo vệ là bài kiểm định 
 
 ### 3.7.1. Kiểm định session và context
 
-- Session được tạo tự động khi mở project.
+- Session chỉ được tạo khi gửi tin nhắn đầu tiên; mở panel không tạo session rỗng.
+- Double-submit không tạo hai session hoặc lưu trùng message.
 - Chuyển session tải đúng message.
 - Soft delete không làm mất dữ liệu ngoài ý muốn.
 - Chỉ 20 message gần nhất được gửi LLM nhưng lịch sử đầy đủ còn trong DB.
@@ -801,7 +843,30 @@ Chuỗi login → trích token → gọi API bảo vệ là bài kiểm định 
 | Yêu cầu ghi ngoài project | Bị chặn |
 | Yêu cầu xóa file | Cần policy rõ và log đầy đủ |
 
-### 3.7.3. Kiểm định `apply-steps`
+Cần kiểm tra thêm việc cache `McpManager` theo project: đổi policy hoặc session phải cập nhật cấu hình mà không tái sử dụng sai quyền từ lượt chat trước; đóng project phải giải phóng các MCP process.
+
+### 3.7.3. Kiểm định vòng lặp tool và Thinking UI
+
+- Tool call và tool result xuất hiện đúng thứ tự, không ghép nhầm khi gọi lặp cùng tên.
+- Local LLM nhận được kết quả tool qua continuation message và tiếp tục sinh phản hồi.
+- Normal mode dừng khi model đã trả lời bằng văn bản.
+- Lỗi tool được hiển thị rõ và không làm spinner treo vô hạn.
+- Metadata tool call được lưu cùng message để có thể truy vết.
+- Vòng lặp dừng ở giới hạn cấu hình, không chạy vô hạn.
+
+### 3.7.4. Kiểm định `directly`
+
+| Ca kiểm thử | Kết quả mong đợi |
+|---|---|
+| Yêu cầu test luồng Web hợp lệ | Chromium cô lập được mở, Agent thao tác và kiểm chứng assertion |
+| Selector dự đoán sai | Agent đọc DOM thật, sửa selector và thử lại |
+| Chọn `ask` trong Directly | UI chuyển sang chính sách cho phép ghi |
+| Hoàn tất nhưng chưa lưu test | Không chấp nhận marker hoàn tất |
+| Quá 40 vòng tool | Kết thúc bằng lỗi có thể chẩn đoán, không báo thành công giả |
+| Test mới trùng tên | Không ghi đè test không liên quan |
+| Đóng project khi đang chạy | MCP/Chromium được giải phóng hoặc dừng an toàn |
+
+### 3.7.5. Kiểm định `apply-steps`
 
 Artifact hợp lệ phải:
 
@@ -813,15 +878,33 @@ Artifact hợp lệ phải:
 - Được validate bằng schema trước khi ghi.
 - Có cơ chế phục hồi nếu ghi tệp thất bại.
 
-### 3.7.4. Rủi ro AI
+### 3.7.6. Kiểm định sinh test từ repository
+
+Các ca quan trọng:
+
+- Clone URL hợp lệ, URL sai, repository private và branch không tồn tại.
+- Pull lại cache khi repository đã được index.
+- Nhận diện đúng stack cho monorepo hoặc project có nhiều ngôn ngữ.
+- Parse route động, JSX có `data-testid` động và OpenAPI có `$ref`.
+- Parser lỗi ở một file không làm mất toàn bộ kết quả index.
+- Context không vượt ngân sách token và ưu tiên đúng target truy vấn.
+- LLM trả YAML hợp lệ, JSON, markdown fence hoặc dữ liệu sai schema.
+- Dữ liệu không đạt `TestCaseSchema` phải bị chặn hoặc cảnh báo, không được âm thầm lưu từ nhánh fallback.
+- Hai test sinh ra có cùng tên file.
+- Repository lớn, symlink và file nhị phân không làm scan vượt phạm vi hoặc treo ứng dụng.
+- Cancel phải thực sự dừng clone/index/generate thay vì chỉ trả `{ ok: true }`.
+
+### 3.7.7. Rủi ro AI
 
 - Hallucination keyword không tồn tại.
 - Chọn keyword không hỗ trợ runner.
 - Ghi đè toàn bộ steps ngoài ý muốn.
+- Ghi đè test sinh tự động do tên file trùng.
 - Đưa secret vào prompt.
 - Prompt injection từ nội dung project.
 - Tool call lặp gây tốn tài nguyên.
-- Không thể hủy request do `AGENT_CANCEL` còn placeholder.
+- Nội dung repository không tin cậy ảnh hưởng prompt hoặc làm parser tiêu thụ tài nguyên.
+- Không thể hủy request do `AGENT_CANCEL` và `AUTOGEN_CANCEL` còn placeholder.
 
 ## 3.8. Kiểm định phi chức năng
 
@@ -885,6 +968,8 @@ Các điểm cần tăng cường:
 6. Import cURL và trích token vào profile.
 7. Kết nối thiết bị Appium.
 8. Dùng Agent thêm assertion.
+9. Dùng Agent `directly` kiểm tra một luồng thật và lưu test.
+10. Index repository, chọn target và xem test được sinh.
 
 Chỉ số:
 
@@ -924,6 +1009,9 @@ Thang xác suất và tác động: 1 thấp, 5 rất cao. Điểm rủi ro = X�
 | Secret xuất hiện trong log/prompt | 3 | 5 | 15 | Cao | Masking, secret store, context filtering |
 | Runner treo và không dừng được | 3 | 4 | 12 | Cao | Abort test, watchdog, child process isolation |
 | OpenAPI lớn làm treo ứng dụng | 3 | 3 | 9 | Trung bình | Size limit, worker/process riêng |
+| Repository lớn hoặc độc hại làm treo indexer | 3 | 4 | 12 | Cao | Giới hạn clone/scan, bỏ symlink, timeout, process riêng |
+| Autogen ghi đè test do trùng tên chuẩn hóa | 3 | 4 | 12 | Cao | Kiểm tra tồn tại, suffix/UUID, xác nhận hoặc atomic create |
+| Directly mode chạy nhiều vòng nhưng không hủy được | 3 | 4 | 12 | Cao | AbortController, timeout tổng và cleanup MCP/Chromium |
 | Lịch sử JSON ghi đồng thời bị hỏng | 2 | 3 | 6 | Trung bình | Queue và atomic write |
 | Tài liệu sai lệch trạng thái | 4 | 2 | 8 | Trung bình | Docs review trong Definition of Done |
 | Native dependency lỗi khi đóng gói | 3 | 4 | 12 | Cao | Build matrix và smoke test artifact |
@@ -937,6 +1025,9 @@ Thang xác suất và tác động: 1 thấp, 5 rất cao. Điểm rủi ro = X�
 - Có cơ chế run event, history, undo/redo và profile.
 - Có hướng dẫn gỡ lỗi theo nhóm nguyên nhân.
 - Có project mẫu API để tạo smoke test thực tế.
+- Có test case OrangeHRM được sinh để làm fixture kiểm tra luồng Web.
+- Có repository indexer, code map, streaming progress và bước chuẩn hóa/kiểm tra schema cho test sinh ra.
+- Có Agent Thinking UI và completion harness cho chế độ kiểm chứng trực tiếp trên Chromium.
 - Có script build và typecheck ở cấp workspace.
 
 ### Khoảng trống bằng chứng
@@ -946,7 +1037,7 @@ Thang xác suất và tác động: 1 thấp, 5 rất cao. Điểm rủi ro = X�
 - Chưa có log CI hoặc ma trận build đa hệ điều hành trong tài liệu đã đọc.
 - Chưa có kết quả benchmark.
 - Chưa có báo cáo kiểm thử bảo mật.
-- Một số chức năng như hủy Agent vẫn là placeholder.
+- Hủy Agent và hủy Autogen vẫn là placeholder.
 
 ### Kết luận mức sẵn sàng
 
@@ -963,11 +1054,12 @@ Qua quá trình khảo sát và đánh giá, báo cáo đã:
 1. Hệ thống hóa kiến trúc và các thành phần chính của JKAuto.
 2. Phân tích mô hình dữ liệu Test Case, Test Suite, Object Repository và Profile.
 3. Làm rõ luồng chạy Web, Desktop, Mobile, Appium và API.
-4. Phân tích cơ chế AI Agent, session, context, artifact và quyền ghi tệp.
-5. Đánh giá hệ thống theo tám nhóm đặc tính chất lượng.
-6. Xây dựng danh sách ca kiểm thử chức năng và phi chức năng.
-7. Nhận diện các rủi ro ưu tiên cao.
-8. Phân biệt mô tả tài liệu với bằng chứng kiểm định đã có.
+4. Phân tích cơ chế AI Agent, vòng lặp tool, Thinking UI, Directly mode và quyền ghi tệp.
+5. Phân tích pipeline clone, index, tạo context và sinh test từ repository.
+6. Đánh giá hệ thống theo tám nhóm đặc tính chất lượng.
+7. Xây dựng danh sách ca kiểm thử chức năng và phi chức năng.
+8. Nhận diện các rủi ro ưu tiên cao.
+9. Phân biệt mô tả tài liệu với bằng chứng kiểm định đã có.
 
 JKAuto có nền tảng thiết kế tốt ở các khía cạnh file-based, schema-first, adapter-based và feature modularization. Đây là các yếu tố thuận lợi để phát triển một hệ thống automation IDE có khả năng bảo trì và mở rộng.
 
@@ -978,12 +1070,14 @@ JKAuto có nền tảng thiết kế tốt ở các khía cạnh file-based, sch
 - Phụ thuộc nhiều vào môi trường ngoài như browser binary, Appium, ADB, Xcode và driver.
 - Một số keyword có mức hỗ trợ khác nhau giữa Playwright, Maestro và Appium.
 - Agent có quyền ghi tệp tạo ra rủi ro mất dữ liệu hoặc ghi sai nếu thiếu validation.
+- Agent và Autogen chưa có cơ chế hủy tác vụ dài hoàn chỉnh.
+- Autogen chưa thể hiện xử lý an toàn khi tên file sinh ra bị trùng.
 - Native module và Electron có thể phát sinh lỗi khi đóng gói đa nền tảng.
 - Chưa có bằng chứng đầy đủ về test coverage và regression automation.
 
 ### 4.2.2. Hạn chế của báo cáo
 
-- Báo cáo chủ yếu dựa trên tài liệu và khảo sát cấu trúc dự án.
+- Báo cáo chủ yếu dựa trên tài liệu, đọc mã nguồn và lịch sử commit; chưa thay thế cho kiểm thử thực thi.
 - Chưa thực hiện benchmark trên cấu hình máy chuẩn.
 - Chưa chạy toàn bộ ma trận hệ điều hành và thiết bị.
 - Chưa thực hiện penetration test.
@@ -1007,6 +1101,9 @@ JKAuto có nền tảng thiết kế tốt ở các khía cạnh file-based, sch
 4. Test SQLite migration và session lifecycle.
 5. Test Appium handler bằng mock server hoặc fixture.
 6. Test Agent tool filtering theo từng edit mode.
+7. Test manual tool loop, streaming tool event và giới hạn vòng lặp.
+8. Test indexer bằng repository fixture cho từng ngôn ngữ/framework.
+9. Test Autogen parsing, schema validation và xử lý trùng tên file.
 
 ### 4.3.3. Giai đoạn 3: E2E và CI
 
@@ -1034,9 +1131,11 @@ Quality gate đề xuất:
 2. Chặn path traversal và symlink escape.
 3. Mask secret trong log, prompt và history.
 4. Thêm cancel thật cho AI Agent.
-5. Chạy runner trong process riêng có watchdog.
-6. Thêm transaction/atomic write cho artifact quan trọng.
-7. Giới hạn kích thước response, spec và context.
+5. Thêm cancel thật cho clone/index/generate của Autogen.
+6. Chạy runner và indexer trong process riêng có watchdog.
+7. Thêm transaction/atomic write cho artifact quan trọng.
+8. Giới hạn kích thước repository, response, spec và context.
+9. Không ghi đè file Autogen khi trùng tên; dùng atomic create hoặc yêu cầu xác nhận.
 
 ### 4.3.5. Giai đoạn 5: Quản trị chất lượng
 

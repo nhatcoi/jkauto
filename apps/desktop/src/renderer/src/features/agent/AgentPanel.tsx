@@ -20,6 +20,7 @@ import { SessionHeader } from './SessionHeader'
 import { MessageList } from './MessageList'
 import { ChatInput } from './ChatInput'
 import { ThinkingSection } from './ThinkingSection'
+import logoUrl from '@/assets/logo.svg'
 import { useProjectStore } from '@/store/project.store'
 import { useRunStore } from '@/store/run.store'
 import { useAppSettingsStore } from '@/store/app-settings.store'
@@ -124,7 +125,7 @@ export function AgentPanel() {
       sessionId: activeSessionId,
     })
       .then((msgs) => setMessages(msgs))
-      .catch(() => {})
+      .catch(() => { })
   }, [activeSessionId, projectPath])
 
   const activeTab = useMemo(
@@ -138,19 +139,19 @@ export function AgentPanel() {
     () => ({
       activeProject: activeProject
         ? {
-            path: activeProject.path,
-            name: activeProject.project.name,
-            type: activeProject.project.type,
-            description: activeProject.project.description,
-            activeProfile: activeProject.activeProfile,
-          }
+          path: activeProject.path,
+          name: activeProject.project.name,
+          type: activeProject.project.type,
+          description: activeProject.project.description,
+          activeProfile: activeProject.activeProfile,
+        }
         : undefined,
       activeTab: activeTab
         ? {
-            path: activeTab.path,
-            title: activeTab.title,
-            isDirty: activeTab.isDirty,
-          }
+          path: activeTab.path,
+          title: activeTab.title,
+          isDirty: activeTab.isDirty,
+        }
         : undefined,
       openTabs: openTabs.map((tab) => ({
         path: tab.path,
@@ -544,12 +545,8 @@ function AgentEmptyState({
 
   return (
     <div className="mx-auto flex h-full min-h-[320px] w-full max-w-xl flex-col items-center justify-center px-4 pb-16 text-center">
-      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl border border-violet-500/20 bg-violet-500/10 text-violet-400 shadow-sm">
-        {mode === 'directly' ? (
-          <Zap className="h-5 w-5" />
-        ) : (
-          <Sparkles className="h-5 w-5" />
-        )}
+      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl">
+        <img src={logoUrl} alt="JKAuto" className="h-14 w-14" />
       </div>
       <h3 className="text-sm font-semibold text-foreground">
         {mode === 'directly'

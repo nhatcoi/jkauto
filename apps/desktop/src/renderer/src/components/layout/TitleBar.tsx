@@ -1,50 +1,70 @@
-import { FolderOpen, Settings, Layers, FolderPlus, BarChart2 } from 'lucide-react'
-import logoUrl from '@/assets/logo.png'
-import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-import { Kbd } from '@/components/ui/kbd'
-import { useProjectStore } from '@/store/project.store'
-import { useUiDialogsStore } from '@/store/ui-dialogs.store'
-import { IpcChannels } from '@jkauto/core'
-import type { Project } from '@jkauto/core'
-import { invoke } from '@/lib/utils'
-import { cn } from '@/lib/utils'
-import { useSettingsKeymap } from '@/hooks/useSettingsKeymap'
-import { APP_KEYMAPS, KEYMAP_SCOPES, REPORTS_TAB_PATH } from '@/shared/keymaps'
+import {
+  FolderOpen,
+  Settings,
+  Layers,
+  FolderPlus,
+  BarChart2,
+} from "lucide-react";
+import logoUrl from "@/assets/logo.svg";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
+import { Kbd } from "@/components/ui/kbd";
+import { useProjectStore } from "@/store/project.store";
+import { useUiDialogsStore } from "@/store/ui-dialogs.store";
+import { IpcChannels } from "@jkauto/core";
+import type { Project } from "@jkauto/core";
+import { invoke } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { useSettingsKeymap } from "@/hooks/useSettingsKeymap";
+import { APP_KEYMAPS, KEYMAP_SCOPES, REPORTS_TAB_PATH } from "@/shared/keymaps";
 
 export function TitleBar() {
-  const { activeProject, activeProjectPath, projects, activeTabPath } = useProjectStore()
-  const addProject = useProjectStore((s) => s.addProject)
-  const openTab = useProjectStore((s) => s.openTab)
-  const closeTab = useProjectStore((s) => s.closeTab)
-  const reopenLastTab = useProjectStore((s) => s.reopenLastTab)
-  const moveTabLeft = useProjectStore((s) => s.moveTabLeft)
-  const moveTabRight = useProjectStore((s) => s.moveTabRight)
-  const { open } = useUiDialogsStore()
+  const { activeProject, activeProjectPath, projects, activeTabPath } =
+    useProjectStore();
+  const addProject = useProjectStore((s) => s.addProject);
+  const openTab = useProjectStore((s) => s.openTab);
+  const closeTab = useProjectStore((s) => s.closeTab);
+  const reopenLastTab = useProjectStore((s) => s.reopenLastTab);
+  const moveTabLeft = useProjectStore((s) => s.moveTabLeft);
+  const moveTabRight = useProjectStore((s) => s.moveTabRight);
+  const { open } = useUiDialogsStore();
 
   const handleOpenProject = async () => {
-    const result = await invoke<{ projectPath: string; project: Project } | null>(
-      IpcChannels.PROJECT_OPEN_DIALOG,
-    )
-    if (result) addProject(result.projectPath, result.project)
-  }
+    const result = await invoke<{
+      projectPath: string;
+      project: Project;
+    } | null>(IpcChannels.PROJECT_OPEN_DIALOG);
+    if (result) addProject(result.projectPath, result.project);
+  };
 
   const km = useSettingsKeymap(APP_KEYMAPS, KEYMAP_SCOPES.APP, {
-    newProject:   () => open('newProject'),
-    openProject:  () => handleOpenProject(),
-    openSettings: () => open('settings'),
-    closeTab:     () => { if (activeTabPath) closeTab(activeTabPath) },
-    reopenTab:    () => reopenLastTab(),
-    moveTabLeft:  () => moveTabLeft(),
+    newProject: () => open("newProject"),
+    openProject: () => handleOpenProject(),
+    openSettings: () => open("settings"),
+    closeTab: () => {
+      if (activeTabPath) closeTab(activeTabPath);
+    },
+    reopenTab: () => reopenLastTab(),
+    moveTabLeft: () => moveTabLeft(),
     moveTabRight: () => moveTabRight(),
-  })
+  });
 
   return (
     <div className="flex items-center h-9 bg-titlebar border-b border-border px-3 gap-3 shrink-0 select-none">
       {/* Logo */}
       <div className="flex items-center gap-2 min-w-0">
-        <img src={logoUrl} className="w-5 h-5 shrink-0 object-contain" alt="JKAuto" />
-        <span className="text-xs font-semibold text-foreground/70 hidden sm:block">JKAuto</span>
+        <img
+          src={logoUrl}
+          className="w-5 h-5 shrink-0 object-contain"
+          alt="JKAuto"
+        />
+        <span className="text-xs font-semibold text-foreground/70 hidden sm:block">
+          JKAuto
+        </span>
 
         {activeProject && (
           <>
@@ -54,8 +74,8 @@ export function TitleBar() {
             </span>
             <span
               className={cn(
-                'text-[10px] px-1.5 py-0.5 rounded border shrink-0',
-                'border-border text-muted-foreground bg-muted/30',
+                "text-[10px] px-1.5 py-0.5 rounded border shrink-0",
+                "border-border text-muted-foreground bg-muted/30",
               )}
             >
               {activeProject.project.type}
@@ -73,7 +93,7 @@ export function TitleBar() {
 
       <div className="flex-1" />
 
-{/* Actions */}
+      {/* Actions */}
       <div className="flex items-center gap-0.5">
         <Tooltip>
           <TooltipTrigger asChild>
@@ -81,12 +101,14 @@ export function TitleBar() {
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-muted-foreground hover:text-foreground"
-              onClick={() => open('newProject')}
+              onClick={() => open("newProject")}
             >
               <FolderPlus className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>New Project<Kbd>{km.newProject.hint}</Kbd></TooltipContent>
+          <TooltipContent>
+            New Project<Kbd>{km.newProject.hint}</Kbd>
+          </TooltipContent>
         </Tooltip>
 
         <Tooltip>
@@ -100,7 +122,9 @@ export function TitleBar() {
               <FolderOpen className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Open Project<Kbd>{km.openProject.hint}</Kbd></TooltipContent>
+          <TooltipContent>
+            Open Project<Kbd>{km.openProject.hint}</Kbd>
+          </TooltipContent>
         </Tooltip>
 
         {activeProject && (
@@ -110,7 +134,9 @@ export function TitleBar() {
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                onClick={() => openTab(REPORTS_TAB_PATH, 'Reports', activeProjectPath ?? '')}
+                onClick={() =>
+                  openTab(REPORTS_TAB_PATH, "Reports", activeProjectPath ?? "")
+                }
               >
                 <BarChart2 className="w-4 h-4" />
               </Button>
@@ -125,14 +151,16 @@ export function TitleBar() {
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-muted-foreground hover:text-foreground"
-              onClick={() => open('settings')}
+              onClick={() => open("settings")}
             >
               <Settings className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>App Settings<Kbd>{km.openSettings.hint}</Kbd></TooltipContent>
+          <TooltipContent>
+            App Settings<Kbd>{km.openSettings.hint}</Kbd>
+          </TooltipContent>
         </Tooltip>
       </div>
     </div>
-  )
+  );
 }

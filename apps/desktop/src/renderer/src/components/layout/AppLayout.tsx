@@ -16,13 +16,32 @@ const isMac = navigator.userAgent.includes('Mac')
 
 export function AppLayout() {
   const bottomRef = useRef<ImperativePanelHandle>(null)
-  const { bottomCollapsed, setBottomCollapsed } = useLayoutStore()
+  const leftRef = useRef<ImperativePanelHandle>(null)
+  const rightRef = useRef<ImperativePanelHandle>(null)
+  const {
+    bottomCollapsed,
+    leftCollapsed,
+    rightCollapsed,
+    setBottomCollapsed,
+    setLeftCollapsed,
+    setRightCollapsed,
+  } = useLayoutStore()
   useMenuEvents()
 
   useEffect(() => {
     if (bottomCollapsed) bottomRef.current?.collapse()
     else bottomRef.current?.expand()
   }, [bottomCollapsed])
+
+  useEffect(() => {
+    if (leftCollapsed) leftRef.current?.collapse()
+    else leftRef.current?.expand()
+  }, [leftCollapsed])
+
+  useEffect(() => {
+    if (rightCollapsed) rightRef.current?.collapse()
+    else rightRef.current?.expand()
+  }, [rightCollapsed])
 
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
@@ -37,11 +56,16 @@ export function AppLayout() {
       >
         {/* Left: Explorer */}
         <ResizablePanel
+          ref={leftRef}
           id="left"
           order={1}
           defaultSize={18}
           minSize={12}
           maxSize={32}
+          collapsible
+          collapsedSize={0}
+          onCollapse={() => setLeftCollapsed(true)}
+          onExpand={() => setLeftCollapsed(false)}
           className="bg-sidebar"
         >
           <LeftPanel />
@@ -77,11 +101,16 @@ export function AppLayout() {
 
         {/* Right: Jobs + Agent */}
         <ResizablePanel
+          ref={rightRef}
           id="right"
           order={3}
           defaultSize={20}
           minSize={15}
           maxSize={36}
+          collapsible
+          collapsedSize={0}
+          onCollapse={() => setRightCollapsed(true)}
+          onExpand={() => setRightCollapsed(false)}
           className="bg-sidebar"
         >
           <RightPanel />
