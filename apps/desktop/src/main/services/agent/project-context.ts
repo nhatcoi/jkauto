@@ -30,10 +30,11 @@ async function readSnippet(filePath: string): Promise<string> {
 export async function buildProjectContext(projectPath: string): Promise<string> {
   const parts: string[] = []
 
-  const [keywordFiles, testCaseFiles, profileFiles] = await Promise.all([
+  const [keywordFiles, testCaseFiles, profileFiles, apiRequestFiles] = await Promise.all([
     listFiles(path.join(projectPath, 'keywords'), ['.keywords.json', '.keywords.yaml']),
     listFiles(path.join(projectPath, 'test-cases'), ['.test.yaml', '.test.yml']),
     listFiles(path.join(projectPath, 'profiles'), ['.env.json']),
+    listFiles(path.join(projectPath, 'api-requests'), ['.request.json']),
   ])
 
   if (keywordFiles.length > 0) {
@@ -53,6 +54,13 @@ export async function buildProjectContext(projectPath: string): Promise<string> 
       profileFiles.map(async (f) => `${path.basename(f)}:\n${await readSnippet(f)}`),
     )
     parts.push(`## Profiles\n${snippets.join('\n\n')}`)
+  }
+
+  if (apiRequestFiles.length > 0) {
+    const snippets = await Promise.all(
+      apiRequestFiles.map(async (f) => `${path.basename(f)}:\n${await readSnippet(f)}`),
+    )
+    parts.push(`## API Request Templates\n${snippets.join('\n\n')}`)
   }
 
   return parts.length > 0 ? parts.join('\n\n') : ''

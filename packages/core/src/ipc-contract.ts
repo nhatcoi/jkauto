@@ -128,6 +128,9 @@ export const IpcChannels = {
   MAESTRO_INSTALL: 'maestro:install',
   MAESTRO_LOG: 'maestro:log',
 
+  FILE_HISTORY_LIST: 'file-history:list',
+  FILE_HISTORY_RESTORE: 'file-history:restore',
+
   MENU_EVENT: 'menu-event',
 
   AUTOGEN_START_INDEX: 'autogen:start-index',
@@ -650,4 +653,15 @@ export interface AgentChatResult {
 
 export interface AgentContextResult {
   summary: string
+}
+
+export interface FileVersionEntry {
+  timestamp: string
+  backupPath: string
+  sizeBytes: number
+}
+
+export interface FileHistoryRestorePayload {
+  filePath: string
+  backupPath: string
 }

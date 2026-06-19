@@ -9,6 +9,7 @@ import { getSettings } from '../services/settings.service'
 import { writeExplorerMetadata } from '../services/explorer-metadata'
 import { shouldIgnoreExplorerWatchPath } from '../services/explorer-policy'
 import { buildExplorerTree } from '../services/explorer-tree'
+import { createBackup } from '../services/file-history'
 
 type FSWatcher = ReturnType<typeof chokidar.watch>
 const watchers = new Map<string, FSWatcher>()
@@ -34,6 +35,7 @@ export function registerFsHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(
     IpcChannels.FS_WRITE_FILE,
     async (_, filePath: string, content: string) => {
+      await createBackup(filePath)
       await fs.writeFile(filePath, content, 'utf-8')
     },
   )

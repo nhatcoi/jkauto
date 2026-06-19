@@ -54,3 +54,5 @@ steps:
     keyword: log-response
     description: Log user info response
     continueOnFailure: true
+  - id: 46d69726-2738-42ba-b999-a8c5ff61c1ac
+    keyword: http-request

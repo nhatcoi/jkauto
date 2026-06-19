@@ -23,6 +23,7 @@ import { registerWindowHandlers } from './handlers/window.handler'
 import { registerMaestroHandlers } from './handlers/maestro.handler'
 import { registerMobileToolsHandlers } from './handlers/mobile-tools.handler'
 import { registerAutogenHandlers } from './handlers/autogen-handler'
+import { registerFileHistoryHandlers } from './handlers/file-history.handler'
 import { IpcChannels } from '@jkauto/core'
 import { setupMenu } from './menu'
 
@@ -110,6 +111,7 @@ app.whenReady().then(() => {
   registerHttpHandlers(ipcMain)
   registerEnvHandlers(ipcMain)
   registerHistoryHandlers(ipcMain)
+  registerFileHistoryHandlers(ipcMain)
   registerAgentHandlers(ipcMain)
   registerSettingsHandlers(ipcMain)
   registerAppiumHandlers(ipcMain)
