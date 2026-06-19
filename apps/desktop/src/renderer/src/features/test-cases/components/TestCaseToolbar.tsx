@@ -15,6 +15,7 @@ import {
   Undo2,
   Redo2,
   Globe,
+  History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -105,6 +106,7 @@ interface Props {
   saving: boolean;
   saveHint: string;
   onOpenApiConfig?: () => void;
+  onShowHistory: () => void;
 }
 
 export function TestCaseToolbar({
@@ -133,6 +135,7 @@ export function TestCaseToolbar({
   saving,
   saveHint,
   onOpenApiConfig,
+  onShowHistory,
 }: Props) {
   return (
     <div className="flex flex-wrap items-center gap-1 gap-y-1.5 px-2 py-1 border-b border-border bg-panel shrink-0">
@@ -195,6 +198,19 @@ export function TestCaseToolbar({
           </button>
         </TooltipTrigger>
         <TooltipContent>Redo<Kbd>⌘+⇧+Z</Kbd></TooltipContent>
+      </Tooltip>
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={onShowHistory}
+            className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+          >
+            <History className="w-3.5 h-3.5" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>File History</TooltipContent>
       </Tooltip>
 
       <div className="w-px h-4 bg-border mx-0.5" />

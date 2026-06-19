@@ -20,14 +20,16 @@ import { ApiStepList } from './ApiStepList'
 import { ApiStepDetail } from './ApiStepDetail'
 import { TestCaseVariables } from './TestCaseVariables'
 import { ApiUrlConfigDialog } from '@/features/env/ApiUrlConfigDialog'
+import { FileHistoryDialog } from './FileHistoryDialog'
 import type { TestCase } from '../types'
 
 export function ApiTestEditor({ filePath }: { filePath: string }) {
-  const { markTabDirty } = useProjectStore()
+  const { markTabDirty, triggerTabReload } = useProjectStore()
   const [viewMode, setViewMode] = useState<TestCaseViewMode>('table')
   const [yamlDraft, setYamlDraft] = useState('')
   const [yamlError, setYamlError] = useState('')
   const [showApiConfig, setShowApiConfig] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
 
   const { tc, tcRef, tcHistory, error, saving, mutate, save, saveRaw, serialize } = useTestCaseFile(filePath)
   const keywords = useKeywords('api')
@@ -171,6 +173,7 @@ export function ApiTestEditor({ filePath }: { filePath: string }) {
         saving={saving}
         saveHint={km.save.hint}
         onOpenApiConfig={() => setShowApiConfig(true)}
+        onShowHistory={() => setShowHistory(true)}
       />
 
       {viewMode !== 'yaml' && (
@@ -263,6 +266,13 @@ export function ApiTestEditor({ filePath }: { filePath: string }) {
       <ApiUrlConfigDialog
         open={showApiConfig}
         onClose={() => setShowApiConfig(false)}
+      />
+
+      <FileHistoryDialog
+        open={showHistory}
+        filePath={filePath}
+        onClose={() => setShowHistory(false)}
+        onRestored={() => triggerTabReload(filePath)}
       />
     </div>
   )

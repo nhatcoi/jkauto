@@ -64,3 +64,5 @@ steps:
     keyword: assert-response-time
     description: Under 3s
     expected: "3000"
+  - id: f032b0ff-01aa-47de-b509-bb0610fb16b6
+    keyword: http-request

@@ -13,6 +13,7 @@ import { useStepDragDrop } from "./hooks/useStepDragDrop";
 import { useStepContextMenu } from "./hooks/useStepContextMenu";
 import { ImportStepsDialog } from "./components/ImportStepsDialog";
 import { CallTestCaseDialog } from "./components/CallTestCaseDialog";
+import { FileHistoryDialog } from "./components/FileHistoryDialog";
 import { ApiTestEditor } from "./components/ApiTestEditor";
 import { StepContextMenu } from "./components/StepContextMenu";
 import { EngineInstallBanner } from "@/components/engine-install/EngineInstallBanner";
@@ -22,10 +23,11 @@ import { StepTable } from "./components/StepTable";
 import type { TestCase } from "./types";
 
 export function TestCaseEditor({ filePath }: { filePath: string }) {
-  const { markTabDirty, activeProject } = useProjectStore();
+  const { markTabDirty, activeProject, triggerTabReload } = useProjectStore();
   const [viewMode, setViewMode] = useState<TestCaseViewMode>("table");
   const [yamlDraft, setYamlDraft] = useState("");
   const [yamlError, setYamlError] = useState("");
+  const [showHistory, setShowHistory] = useState(false);
 
   const { tc, tcRef, tcHistory, error, saving, mutate, save, saveRaw, serialize } =
     useTestCaseFile(filePath);
@@ -228,6 +230,7 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
         onSave={handleSave}
         saving={saving}
         saveHint={km.save.hint}
+        onShowHistory={() => setShowHistory(true)}
       />
 
       {/* engine install banner — mobile only, auto-hides when installed */}
@@ -279,6 +282,13 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
         open={showImport}
         onOpenChange={setShowImport}
         onImport={handleImport}
+      />
+
+      <FileHistoryDialog
+        open={showHistory}
+        filePath={filePath}
+        onClose={() => setShowHistory(false)}
+        onRestored={() => triggerTabReload(filePath)}
       />
 
       {contextMenu && contextMenu.visible && (
