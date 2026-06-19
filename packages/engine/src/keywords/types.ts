@@ -61,6 +61,7 @@ export interface ApiKeywordContext {
   interpolate: (value: string) => string
   setVariable?: (key: string, value: string) => void
   persistVariable?: (profileKey: string, value: string) => Promise<void>
+  persistApiConfig?: (profileKey: string, value: string) => Promise<void>
 }
 
 // Context for appium platform (native iOS/Android via WebDriverIO).

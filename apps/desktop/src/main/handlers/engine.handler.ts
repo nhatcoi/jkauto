@@ -211,6 +211,29 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
         }
       : undefined
 
+    const persistApiConfig = profilePath
+      ? async (key: string, value: string) => {
+          const raw = await fs.readFile(profilePath, 'utf-8')
+          const parsed = JSON.parse(raw) as Record<string, unknown>
+          const api = (parsed['api'] ?? {}) as Record<string, unknown>
+          if (key === 'baseUrl') {
+            parsed['api'] = { ...api, baseUrl: value }
+          } else if (key === 'auth.bearer.token') {
+            parsed['api'] = { ...api, auth: { type: 'bearer', token: value } }
+          } else if (key === 'auth.basic.username') {
+            parsed['api'] = { ...api, auth: { ...(api['auth'] as Record<string, unknown> ?? { type: 'basic' }), type: 'basic', username: value } }
+          } else if (key === 'auth.basic.password') {
+            parsed['api'] = { ...api, auth: { ...(api['auth'] as Record<string, unknown> ?? { type: 'basic' }), type: 'basic', password: value } }
+          } else if (key === 'auth.api-key.key') {
+            parsed['api'] = { ...api, auth: { ...(api['auth'] as Record<string, unknown> ?? { type: 'api-key' }), type: 'api-key', key: value } }
+          } else {
+            const headers = (api['defaultHeaders'] ?? {}) as Record<string, string>
+            parsed['api'] = { ...api, defaultHeaders: { ...headers, [key]: value } }
+          }
+          await fs.writeFile(profilePath, JSON.stringify(parsed, null, 2), 'utf-8')
+        }
+      : undefined
+
     runTestCase(
       testCase,
       profile,
@@ -234,6 +257,7 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
             appPath: appPath ?? testCase.app?.path,
             loadTestCase,
             persistVariable,
+            persistApiConfig,
             waitForNext: (stepIndex: number) =>
               new Promise<void>((resolve) => {
                 debugNextResolvers.set(runId, resolve)
@@ -242,7 +266,7 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
                 }
               }),
           }
-        : { headless: settings.execution.headless, objectRepositories, appPath: appPath ?? testCase.app?.path, loadTestCase, stepDelay, persistVariable, screenshotDir: projectPath ? path.join(projectPath, '.autotest', 'screenshots') : undefined },
+        : { headless: settings.execution.headless, objectRepositories, appPath: appPath ?? testCase.app?.path, loadTestCase, stepDelay, persistVariable, persistApiConfig, screenshotDir: projectPath ? path.join(projectPath, '.autotest', 'screenshots') : undefined },
     ).catch((err) => {
       activeRuns.delete(runId)
       if (!webContents.isDestroyed()) {
@@ -262,7 +286,7 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
   })
 
   ipcMain.handle(IpcChannels.ENGINE_RUN_SUITE, async (event, payload: RunPayload) => {
-    const { filePath, profileVariables = {}, projectPath } = payload
+    const { filePath, profileVariables = {}, profileApi, profilePath, projectPath } = payload
     const settings = await getSettings()
     applyBrowsersPath(settings)
 
@@ -277,7 +301,40 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
       schemaVersion: 1,
       name: suite.profile || 'default',
       variables: profileVariables,
+      api: profileApi,
     }
+
+    const persistVariable = profilePath
+      ? async (key: string, value: string) => {
+          const raw = await fs.readFile(profilePath, 'utf-8')
+          const parsed = JSON.parse(raw) as Record<string, unknown>
+          const updated = { ...parsed, variables: { ...(parsed['variables'] as Record<string, string> ?? {}), [key]: value } }
+          await fs.writeFile(profilePath, JSON.stringify(updated, null, 2), 'utf-8')
+        }
+      : undefined
+
+    const persistApiConfig = profilePath
+      ? async (key: string, value: string) => {
+          const raw = await fs.readFile(profilePath, 'utf-8')
+          const parsed = JSON.parse(raw) as Record<string, unknown>
+          const api = (parsed['api'] ?? {}) as Record<string, unknown>
+          if (key === 'baseUrl') {
+            parsed['api'] = { ...api, baseUrl: value }
+          } else if (key === 'auth.bearer.token') {
+            parsed['api'] = { ...api, auth: { type: 'bearer', token: value } }
+          } else if (key === 'auth.basic.username') {
+            parsed['api'] = { ...api, auth: { ...(api['auth'] as Record<string, unknown> ?? { type: 'basic' }), type: 'basic', username: value } }
+          } else if (key === 'auth.basic.password') {
+            parsed['api'] = { ...api, auth: { ...(api['auth'] as Record<string, unknown> ?? { type: 'basic' }), type: 'basic', password: value } }
+          } else if (key === 'auth.api-key.key') {
+            parsed['api'] = { ...api, auth: { ...(api['auth'] as Record<string, unknown> ?? { type: 'api-key' }), type: 'api-key', key: value } }
+          } else {
+            const headers = (api['defaultHeaders'] ?? {}) as Record<string, string>
+            parsed['api'] = { ...api, defaultHeaders: { ...headers, [key]: value } }
+          }
+          await fs.writeFile(profilePath, JSON.stringify(parsed, null, 2), 'utf-8')
+        }
+      : undefined
 
     const runId = randomUUID()
     const abort = new AbortController()
@@ -419,9 +476,21 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
               externalSession,
               loadTestCase: readTestCase,
               stepDelay: testCase.stepDelayMs ?? settings.execution.stepDelayMs,
+              persistVariable,
+              persistApiConfig,
             },
           ).catch(reject)
         })
+
+        // Reload profile from disk so variables/tokens persisted by this TC
+        // are available to subsequent TCs in the suite.
+        if (profilePath) {
+          try {
+            const refreshed = JSON.parse(await fs.readFile(profilePath, 'utf-8')) as Record<string, unknown>
+            profile.variables = (refreshed['variables'] as Record<string, string>) ?? {}
+            profile.api = refreshed['api'] as Profile['api']
+          } catch { /* ignore — profile reload is best-effort */ }
+        }
 
         passedSteps += caseResult.passedSteps
         failedSteps += caseResult.failedSteps

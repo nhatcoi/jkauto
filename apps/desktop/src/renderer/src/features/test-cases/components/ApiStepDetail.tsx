@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import type { KeywordMeta } from '@jkauto/core'
 import type { TestStep } from '../types'
@@ -139,6 +140,112 @@ function SingleFieldForm({ step, onChange, label, placeholder, field }: {
   )
 }
 
+// ── save-to-profile batch form ─────────────────────────────────────────────────
+
+interface SaveMapping { from: string; to: string }
+
+interface BatchConfig { type: string; mappings: SaveMapping[] }
+
+function parseBatchConfig(expected: string): BatchConfig | null {
+  if (!expected?.trim().startsWith('{')) return null
+  try {
+    const c = JSON.parse(expected) as { type?: string; mappings?: { from: string; to?: string }[] }
+    return { type: c.type ?? 'variables', mappings: (c.mappings ?? []).map((m) => ({ from: m.from, to: m.to ?? '' })) }
+  } catch { return null }
+}
+
+function writeBatchConfig(type: string, mappings: SaveMapping[]): string {
+  return JSON.stringify({ type, mappings: mappings.map((m) => ({ from: m.from, ...(m.to ? { to: m.to } : {}) })) })
+}
+
+const API_CONFIG_KEYS = ['baseUrl', 'auth.bearer.token', 'auth.basic.username', 'auth.basic.password', 'auth.api-key.key']
+
+function SaveToProfileForm({ step, onChange }: { step: TestStep; onChange: (p: Partial<TestStep>) => void }) {
+  const config: BatchConfig = useMemo(() => {
+    const batch = parseBatchConfig(step.expected)
+    if (batch) return batch
+    return { type: 'variables', mappings: [{ from: step.objectRef || '', to: step.input || '' }] }
+  }, [step.expected, step.objectRef, step.input])
+
+  const { type, mappings } = config
+
+  const update = (newType: string, newMappings: SaveMapping[]) => {
+    onChange({ expected: writeBatchConfig(newType, newMappings), objectRef: '', input: '' })
+  }
+
+  const setType = (t: string) => update(t, mappings.map((m) => ({ from: m.from, to: '' })))
+  const setMapping = (idx: number, field: 'from' | 'to', val: string) =>
+    update(type, mappings.map((m, i) => (i === idx ? { ...m, [field]: val } : m)))
+  const addMapping = () => update(type, [...mappings, { from: '', to: '' }])
+  const removeMapping = (idx: number) => update(type, mappings.filter((_, i) => i !== idx))
+
+  return (
+    <div className="flex flex-col gap-3">
+      <Field label="Save To">
+        <div className="flex gap-1">
+          {(['variables', 'api-config'] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setType(t)}
+              className={cn(
+                'text-xs px-2.5 py-1 rounded border transition-colors',
+                type === t
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-input text-muted-foreground border-border hover:border-primary/60',
+              )}
+            >
+              {t === 'variables' ? 'Env Variables' : 'API Config'}
+            </button>
+          ))}
+        </div>
+      </Field>
+
+      <div className="flex flex-col gap-1.5">
+        <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
+          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Session Variable</span>
+          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+            {type === 'api-config' ? 'API Config Key' : 'Profile Key (optional)'}
+          </span>
+          <span className="w-5" />
+        </div>
+        {mappings.map((m, idx) => (
+          <div key={idx} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
+            <TextInput value={m.from} placeholder="accessToken" onChange={(v) => setMapping(idx, 'from', v)} mono />
+            {type === 'api-config' ? (
+              <select
+                value={m.to}
+                onChange={(e) => setMapping(idx, 'to', e.target.value)}
+                className="text-xs bg-input text-foreground px-2 py-1.5 rounded border border-border focus:border-primary outline-none font-mono"
+              >
+                <option value="">— select key —</option>
+                {API_CONFIG_KEYS.map((k) => <option key={k} value={k}>{k}</option>)}
+              </select>
+            ) : (
+              <TextInput value={m.to} placeholder={m.from || 'same as variable name'} onChange={(v) => setMapping(idx, 'to', v)} mono />
+            )}
+            <button
+              type="button"
+              onClick={() => removeMapping(idx)}
+              disabled={mappings.length === 1}
+              className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors rounded disabled:opacity-30 text-sm"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={addMapping}
+          className="text-xs text-primary hover:text-primary/80 text-left mt-0.5 transition-colors"
+        >
+          + Add variable
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function StepForm({ step, onChange }: { step: TestStep; onChange: (p: Partial<TestStep>) => void }) {
   const { keyword } = step
   if (keyword === 'http-request' || keyword === 'http-request-body') {
@@ -179,6 +286,9 @@ function StepForm({ step, onChange }: { step: TestStep; onChange: (p: Partial<Te
   }
   if (keyword === 'set-variable') {
     return <KeyValueForm step={step} onChange={onChange} labelA="Variable Name" labelB="Value" placeholderA="myVar" placeholderB="value or {{other}}" fieldA="objectRef" fieldB="input" />
+  }
+  if (keyword === 'save-to-profile') {
+    return <SaveToProfileForm step={step} onChange={onChange} />
   }
   return (
     <p className="text-xs text-muted-foreground/50 italic">No configuration needed for this step.</p>
@@ -226,7 +336,7 @@ interface Props {
   stepIndex: number
   keywords: KeywordMeta[]
   stepMessage?: string
-  stepMeta?: unknown
+  stepMeta?: unknown  // last available response from any prior http step
   onChange: (patch: Partial<TestStep>) => void
 }
 
@@ -309,7 +419,9 @@ export function ApiStepDetail({ step, stepIndex, keywords, stepMessage, stepMeta
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <div className="h-px flex-1 bg-border" />
-              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Response</span>
+              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                {step.keyword === 'http-request' || step.keyword === 'http-request-body' ? 'Response' : 'Last Response'}
+              </span>
               <div className="h-px flex-1 bg-border" />
             </div>
             <ResponseViewer meta={responseMeta} />

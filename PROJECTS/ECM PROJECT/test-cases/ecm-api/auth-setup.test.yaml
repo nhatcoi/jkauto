@@ -1,0 +1,100 @@
+schemaVersion: 1
+id: 41902b54-8532-4ab7-9a52-44a7ccb86da2
+name: Auth & Setup
+description: Login with valid credentials, verify response, extract JWT tokens
+  and persist to active profile for reuse by other tests
+tags:
+  - api
+  - auth
+  - setup
+  - smoke
+platform: api
+runner: api
+variables:
+  BASE_URL: http://localhost:3001
+  USERNAME: admin
+  PASSWORD: Admin@123
+steps:
+  - id: s1
+    keyword: set-base-url
+    description: Set base URL
+    input: "{{BASE_URL}}"
+  - id: s2
+    keyword: set-variable
+    description: Store BASE_URL in session for save-to-profile
+    objectRef: BASE_URL
+    input: "{{BASE_URL}}"
+  - id: s3
+    keyword: save-to-profile
+    description: Persist BASE_URL → profile.variables.BASE_URL
+    expected: '{"type":"variables","mappings":[{"from":"BASE_URL"}]}'
+  - id: s4
+    keyword: set-request-header
+    description: Set Content-Type
+    objectRef: Content-Type
+    input: application/json
+  - id: s5
+    keyword: http-request-body
+    description: POST /auth/login
+    objectRef: POST
+    input: /auth/login
+    expected: |
+      {"username":"{{USERNAME}}","password":"{{PASSWORD}}"}
+  - id: s6
+    keyword: assert-status-code
+    description: Verify 200 OK
+    expected: "200"
+  - id: s7
+    keyword: assert-response-time
+    description: Response under 2000ms
+    expected: "2000"
+  - id: s8
+    keyword: assert-header
+    description: Response Content-Type is JSON
+    objectRef: content-type
+    expected: application/json
+  - id: s9
+    keyword: assert-response-contains
+    description: Body contains accessToken
+    expected: accessToken
+  - id: s10
+    keyword: assert-response-contains
+    description: Body contains refreshToken
+    expected: refreshToken
+  - id: s11
+    keyword: extract-body
+    description: Extract accessToken
+    objectRef: $.accessToken
+    input: accessToken
+  - id: s12
+    keyword: extract-body
+    description: Extract refreshToken
+    objectRef: $.refreshToken
+    input: refreshToken
+  - id: s13
+    keyword: extract-body
+    description: Extract user.id
+    objectRef: $.user.id
+    input: userId
+  - id: s14
+    keyword: extract-body
+    description: Extract user.role
+    objectRef: $.user.role
+    input: userRole
+  - id: s15
+    keyword: assert-json-path
+    description: Verify returned username
+    objectRef: user.username
+    expected: "{{USERNAME}}"
+  - id: s16
+    keyword: save-to-profile
+    description: Persist tokens + user info → profile.variables (batch)
+    expected: '{"type":"variables","mappings":[{"from":"accessToken"},{"from":"refreshToken"},{"from":"userId"},{"from":"userRole"},{"from":""}]}'
+  - id: s17
+    keyword: set-auth-bearer
+    description: Set default Bearer auth from extracted token
+    input: "{{accessToken}}"
+  - id: s18
+    keyword: log-response
+    description: Log login response
+    continueOnFailure: true

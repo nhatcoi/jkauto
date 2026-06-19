@@ -1,0 +1,57 @@
+schemaVersion: 1
+id: a1b2c3d4-e5f6-7890-abcd-ef1234567808
+name: System Health & Stats
+description: Verify health endpoint (no auth) and stats endpoint (admin auth)
+tags:
+  - api
+  - system
+  - smoke
+platform: api
+runner: api
+steps:
+  - id: s1
+    keyword: set-base-url
+    description: Set base URL
+    input: "{{BASE_URL}}"
+  - id: s2
+    keyword: http-request
+    description: GET /health — no auth required
+    objectRef: GET
+    input: /health
+  - id: s3
+    keyword: assert-status-code
+    description: Expect 200 OK
+    expected: "200"
+  - id: s4
+    keyword: assert-response-time
+    description: Health check under 500ms
+    expected: "500"
+  - id: s5
+    keyword: assert-response-contains
+    description: Body contains status field
+    expected: status
+  - id: s6
+    keyword: set-auth-bearer
+    description: Set Bearer token for stats
+    input: "{{accessToken}}"
+  - id: s7
+    keyword: http-request
+    description: GET /stats — system statistics (admin)
+    objectRef: GET
+    input: /stats
+  - id: s8
+    keyword: assert-status-code
+    description: Expect 200 OK
+    expected: "200"
+  - id: s9
+    keyword: assert-response-time
+    description: Stats under 2000ms
+    expected: "2000"
+  - id: s10
+    keyword: assert-response-contains
+    description: Response contains stats data
+    expected: documents
+  - id: s11
+    keyword: log-response
+    description: Log stats response
+    continueOnFailure: true

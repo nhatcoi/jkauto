@@ -1,0 +1,47 @@
+schemaVersion: 1
+id: a1b2c3d4-e5f6-7890-abcd-ef1234567807
+name: Search Documents & Folders
+description: Search API with query param, verify response structure and performance
+tags:
+  - api
+  - search
+  - smoke
+platform: api
+runner: api
+variables:
+  SEARCH_QUERY: test
+steps:
+  - id: s1
+    keyword: http-request
+    description: GET /search?q=test — search documents and folders
+    objectRef: GET
+    input: /search?q={{SEARCH_QUERY}}
+  - id: s4
+    keyword: assert-status-code
+    description: Expect 200 OK
+    expected: "200"
+  - id: s5
+    keyword: assert-response-time
+    description: Search under 2000ms
+    expected: "2000"
+  - id: s6
+    keyword: assert-response-contains
+    description: Response contains results or data array
+    expected: results
+  - id: s7
+    keyword: http-request
+    description: GET /search/suggestions?q=test — search suggestions
+    objectRef: GET
+    input: /search/suggestions?q={{SEARCH_QUERY}}
+  - id: s8
+    keyword: assert-status-code
+    description: Expect 200 OK for suggestions
+    expected: "200"
+  - id: s9
+    keyword: assert-response-time
+    description: Suggestions under 1000ms
+    expected: "1000"
+  - id: s10
+    keyword: log-response
+    description: Log search response
+    continueOnFailure: true

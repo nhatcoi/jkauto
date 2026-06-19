@@ -48,6 +48,7 @@ export class ApiAdapter implements EngineAdapter<ApiSession> {
       interpolate: helpers.interpolate,
       setVariable: helpers.setVariable,
       persistVariable: helpers.persistVariable,
+      persistApiConfig: helpers.persistApiConfig,
     })
   }
 

@@ -1,0 +1,56 @@
+schemaVersion: 1
+id: a1b2c3d4-e5f6-7890-abcd-ef1234567801
+name: Get Current User (auth/me)
+description: Verify authenticated user info using saved accessToken from profile
+tags:
+  - api
+  - auth
+  - smoke
+platform: api
+runner: api
+steps:
+  - id: s1
+    keyword: http-request
+    description: GET /auth/me
+    objectRef: GET
+    input: /auth/me
+  - id: s5
+    keyword: assert-status-code
+    description: Expect 200 OK
+    expected: "200"
+  - id: s6
+    keyword: assert-response-time
+    description: Response under 1000ms
+    expected: "1000"
+  - id: s7
+    keyword: assert-response-contains
+    description: Body contains username field
+    expected: username
+  - id: s8
+    keyword: assert-response-contains
+    description: Body contains id field
+    expected: id
+  - id: s9
+    keyword: extract-body
+    description: Extract current username
+    objectRef: $.username
+    input: currentUsername
+  - id: s10
+    keyword: extract-body
+    description: Extract current user id
+    objectRef: $.id
+    input: currentUserId
+  - id: s11
+    keyword: extract-body
+    description: Extract current user role
+    objectRef: $.role
+    input: currentRole
+  - id: s12
+    keyword: assert-json-path
+    description: Verify role is admin
+    objectRef: role
+    expected: admin
+  - id: s13
+    keyword: log-response
+    description: Log user info response
+    continueOnFailure: true

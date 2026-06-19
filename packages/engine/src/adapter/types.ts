@@ -5,6 +5,7 @@ export interface ExecutionHelpers {
   interpolate: (value: string) => string
   setVariable?: (key: string, value: string) => void
   persistVariable?: (profileKey: string, value: string) => Promise<void>
+  persistApiConfig?: (profileKey: string, value: string) => Promise<void>
 }
 
 export interface AdapterStartOptions {

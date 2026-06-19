@@ -27,6 +27,8 @@ export interface RunOptions {
   screenshotDir?: string
   /** Callback to persist a variable to the active profile file. Provided by engine handler. */
   persistVariable?: (profileKey: string, value: string) => Promise<void>
+  /** Callback to persist a value into profile.api (baseUrl, auth, defaultHeaders). */
+  persistApiConfig?: (profileKey: string, value: string) => Promise<void>
 }
 
 function buildSelector(locator: Locator, platform: Platform): string {
@@ -275,7 +277,7 @@ export async function runTestCase(
   signal?: AbortSignal,
   options: RunOptions = {},
 ): Promise<void> {
-  const { headless = false, stepDelay = 0, waitForNext, objectRepositories = [], appPath, externalSession, loadTestCase, screenshotDir, persistVariable } = options
+  const { headless = false, stepDelay = 0, waitForNext, objectRepositories = [], appPath, externalSession, loadTestCase, screenshotDir, persistVariable, persistApiConfig } = options
   const platform: Platform = testCase.platform
     ?? (testCase.runner === 'api' ? 'api' : options.platform ?? 'web')
   // When platform is 'mobile', resolve to the concrete engine adapter key.
@@ -329,7 +331,7 @@ export async function runTestCase(
         const setVariable = (key: string, value: string) => { variables[key] = value }
         const work = step.keyword === 'call-test-case'
           ? executeCalledTestCase(step.input, loadTestCase, adapter, session, { resolveLocator, interpolate }, signal)
-          : adapter.execute(session, step, { resolveLocator, interpolate, setVariable, persistVariable })
+          : adapter.execute(session, step, { resolveLocator, interpolate, setVariable, persistVariable, persistApiConfig })
         await Promise.race([
           work,
           new Promise<never>((_, reject) =>

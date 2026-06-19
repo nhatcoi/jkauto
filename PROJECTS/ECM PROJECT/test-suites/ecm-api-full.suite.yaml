@@ -1,0 +1,47 @@
+schemaVersion: 1
+id: b1c2d3e4-f5a6-7890-bcde-fa1234567902
+name: ECM API — Full Regression
+description: Full API regression suite. auth-setup first, then all CRUD flows,
+  refresh token last.
+profile: default
+continueOnFailure: false
+sharedBrowser: false
+items:
+  - testCaseId: 41902b54-8532-4ab7-9a52-44a7ccb86da2
+    testCasePath: test-cases/ecm-api/auth-setup.test.yaml
+    enabled: true
+    order: 0
+  - testCaseId: a1b2c3d4-e5f6-7890-abcd-ef1234567808
+    testCasePath: test-cases/ecm-api/system/system-health.test.yaml
+    enabled: true
+    order: 1
+  - testCaseId: a1b2c3d4-e5f6-7890-abcd-ef1234567801
+    testCasePath: test-cases/ecm-api/auth/get-auth-me.test.yaml
+    enabled: true
+    order: 2
+  - testCaseId: a1b2c3d4-e5f6-7890-abcd-ef1234567806
+    testCasePath: test-cases/ecm-api/users/users-management.test.yaml
+    enabled: true
+    order: 3
+  - testCaseId: a1b2c3d4-e5f6-7890-abcd-ef1234567805
+    testCasePath: test-cases/ecm-api/tags/tags-crud.test.yaml
+    enabled: true
+    order: 4
+  - testCaseId: a1b2c3d4-e5f6-7890-abcd-ef1234567803
+    testCasePath: test-cases/ecm-api/folders/folders-crud.test.yaml
+    enabled: true
+    order: 5
+  - testCaseId: a1b2c3d4-e5f6-7890-abcd-ef1234567804
+    testCasePath: test-cases/ecm-api/documents/documents-crud.test.yaml
+    enabled: true
+    order: 6
+  - testCaseId: a1b2c3d4-e5f6-7890-abcd-ef1234567807
+    testCasePath: test-cases/ecm-api/search/search-documents.test.yaml
+    enabled: true
+    order: 7
+  - testCaseId: a1b2c3d4-e5f6-7890-abcd-ef1234567802
+    testCasePath: test-cases/ecm-api/auth/refresh-token.test.yaml
+    enabled: true
+    order: 8
+createdAt: 2026-06-19T00:00:00.000Z
+updatedAt: 2026-06-19T13:06:16.602Z

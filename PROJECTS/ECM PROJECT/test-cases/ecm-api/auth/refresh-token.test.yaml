@@ -1,0 +1,46 @@
+schemaVersion: 1
+id: a1b2c3d4-e5f6-7890-abcd-ef1234567802
+name: Refresh Access Token
+description: Use refreshToken from profile to get a new accessToken and persist it back
+tags:
+  - api
+  - auth
+platform: api
+runner: api
+steps:
+  - id: s1
+    keyword: http-request-body
+    description: POST /auth/refresh with current refreshToken
+    objectRef: POST
+    input: /auth/refresh
+    expected: '{"refreshToken":"{{refreshToken}}"}'
+  - id: s4
+    keyword: assert-status-code
+    description: Expect 200 OK
+    expected: "200"
+  - id: s5
+    keyword: assert-response-time
+    description: Response under 2000ms
+    expected: "2000"
+  - id: s6
+    keyword: assert-response-contains
+    description: Body contains new accessToken
+    expected: accessToken
+  - id: s7
+    keyword: extract-body
+    description: Extract new accessToken
+    objectRef: $.accessToken
+    input: newAccessToken
+  - id: s8
+    keyword: extract-body
+    description: Extract new refreshToken
+    objectRef: $.refreshToken
+    input: newRefreshToken
+  - id: s9
+    keyword: save-to-profile
+    description: Persist new tokens to profile
+    expected: '{"type":"variables","mappings":[{"from":"newAccessToken","to":"accessToken"},{"from":"newRefreshToken","to":"refreshToken"}]}'
+  - id: s10
+    keyword: log-response
+    description: Log refresh response
+    continueOnFailure: true

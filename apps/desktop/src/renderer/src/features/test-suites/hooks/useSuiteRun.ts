@@ -5,7 +5,7 @@ import type { RunCompleteEvent, RunRecord, StepResult, StepEvent, SuiteEvent, Te
 import { invoke } from '@/lib/utils'
 import { useProjectStore } from '@/store/project.store'
 import { useRunStore } from '@/store/run.store'
-import { readEnv } from '@/features/env/api'
+import { readProfile } from '@/features/env/api'
 
 export type CaseStatus = 'idle' | 'running' | 'passed' | 'failed' | 'skipped'
 
@@ -40,14 +40,20 @@ export function useSuiteRun(
       const event = payload as SuiteEvent
       handleSuiteEvent(event)
 
-      if (event.type === 'case-start' && event.testCasePath) {
-        setCaseStatuses((prev) => ({ ...prev, [event.testCasePath!]: 'running' }))
+      if (event.type === 'case-start') {
+        const item = suiteRef.current?.items.find((c) => c.testCaseId === event.testCaseId)
+        const key = item?.testCasePath ?? event.testCasePath
+        if (key) setCaseStatuses((prev) => ({ ...prev, [key]: 'running' }))
       }
-      if (event.type === 'case-complete' && event.testCasePath) {
-        const status: CaseStatus = event.status === 'stopped' ? 'skipped' : (event.status as CaseStatus) ?? 'idle'
-        setCaseStatuses((prev) => ({ ...prev, [event.testCasePath!]: status }))
-        if (event.message) {
-          setCaseMessages((prev) => ({ ...prev, [event.testCasePath!]: event.message ?? '' }))
+      if (event.type === 'case-complete') {
+        const item = suiteRef.current?.items.find((c) => c.testCaseId === event.testCaseId)
+        const key = item?.testCasePath ?? event.testCasePath
+        if (key) {
+          const status: CaseStatus = event.status === 'stopped' ? 'skipped' : (event.status as CaseStatus) ?? 'idle'
+          setCaseStatuses((prev) => ({ ...prev, [key]: status }))
+          if (event.message) {
+            setCaseMessages((prev) => ({ ...prev, [key]: event.message ?? '' }))
+          }
         }
       }
     })
@@ -119,12 +125,14 @@ export function useSuiteRun(
     }
   }, [filePath, handleSuiteEvent, handleStepEvent, handleRunComplete, appendRunRecord, suiteRef])
 
-  const loadProfileVars = async (profileName: string): Promise<Record<string, string>> => {
-    if (!activeProject) return {}
+  const loadProfile = async (profileName: string) => {
+    if (!activeProject) return { variables: {}, api: undefined, profilePath: undefined }
+    const profilePath = `${activeProject.path}/profiles/${profileName}.env.json`
     try {
-      return await readEnv(`${activeProject.path}/profiles/${profileName}.env.json`)
+      const profile = await readProfile(profilePath)
+      return { variables: profile.variables ?? {}, api: profile.api, profilePath }
     } catch {
-      return {}
+      return { variables: {}, api: undefined, profilePath }
     }
   }
 
@@ -135,7 +143,7 @@ export function useSuiteRun(
 
     const normalized = await saveSuiteToFile(current)
     const profileName = normalized.profile || activeProject?.activeProfile || 'default'
-    const profileVariables = await loadProfileVars(profileName)
+    const { variables: profileVariables, api: profileApi, profilePath } = await loadProfile(profileName)
 
     setCaseStatuses({})
     setCaseMessages({})
@@ -145,6 +153,8 @@ export function useSuiteRun(
     const result = await invoke<{ runId: string }>(IpcChannels.ENGINE_RUN_SUITE, {
       filePath,
       profileVariables,
+      profileApi,
+      profilePath,
       projectPath: activeProject?.path,
     })
     startRun(result.runId, filePath, false)
@@ -154,7 +164,7 @@ export function useSuiteRun(
     if (runStatus === 'running') return
     const current = suiteRef.current
     const profileName = current?.profile ?? activeProject?.activeProfile ?? 'default'
-    const profileVariables = await loadProfileVars(profileName)
+    const { variables: profileVariables, api: profileApi, profilePath } = await loadProfile(profileName)
 
     runModeRef.current = testCasePath
     setCaseStatuses((prev) => ({ ...prev, [testCasePath]: 'running' }))
@@ -164,6 +174,8 @@ export function useSuiteRun(
       filePath: testCasePath,
       debugMode: false,
       profileVariables,
+      profileApi,
+      profilePath,
       projectPath: activeProject?.path,
     })
     startRun(result.runId, testCasePath, false)

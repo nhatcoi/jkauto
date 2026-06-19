@@ -1,0 +1,112 @@
+schemaVersion: 1
+id: a1b2c3d4-e5f6-7890-abcd-ef1234567804
+name: Documents CRUD Lifecycle
+description: Create draft document → get → list → update to published → delete
+tags:
+  - api
+  - documents
+  - crud
+platform: api
+runner: api
+variables:
+  DOC_TITLE: Test Document Auto
+  DOC_TITLE_UPDATED: Test Document Auto (Updated)
+  DOC_DESCRIPTION: Created by automated API test
+steps:
+  - id: s1
+    keyword: http-request-body
+    description: POST /documents — create draft document
+    objectRef: POST
+    input: /documents
+    expected: '{"title":"{{DOC_TITLE}}","description":"{{DOC_DESCRIPTION}}","status":"draft"}'
+  - id: s5
+    keyword: assert-status-code
+    description: Expect 200/201 Created
+    expected: "201"
+  - id: s6
+    keyword: assert-response-contains
+    description: Response contains document id
+    expected: id
+  - id: s7
+    keyword: assert-response-contains
+    description: Response contains title
+    expected: "{{DOC_TITLE}}"
+  - id: s8
+    keyword: extract-body
+    description: Extract document id
+    objectRef: $.id
+    input: docId
+  - id: s9
+    keyword: http-request
+    description: GET /documents/:id — get created document
+    objectRef: GET
+    input: /documents/{{docId}}
+  - id: s10
+    keyword: assert-status-code
+    description: Expect 200 OK
+    expected: "200"
+  - id: s11
+    keyword: assert-json-path
+    description: Verify title matches
+    objectRef: title
+    expected: "{{DOC_TITLE}}"
+  - id: s12
+    keyword: assert-json-path
+    description: Verify status is draft
+    objectRef: status
+    expected: draft
+  - id: s13
+    keyword: http-request
+    description: GET /documents — list all documents
+    objectRef: GET
+    input: /documents
+  - id: s14
+    keyword: assert-status-code
+    description: Expect 200 OK
+    expected: "200"
+  - id: s15
+    keyword: assert-response-time
+    description: List under 2000ms
+    expected: "2000"
+  - id: s16
+    keyword: http-request-body
+    description: PUT /documents/:id — update title and publish
+    objectRef: PUT
+    input: /documents/{{docId}}
+    expected: '{"title":"{{DOC_TITLE_UPDATED}}","description":"{{DOC_DESCRIPTION}}","status":"published"}'
+  - id: s17
+    keyword: assert-status-code
+    description: Expect 200 OK after update
+    expected: "200"
+  - id: s18
+    keyword: http-request
+    description: GET /documents/:id — verify update
+    objectRef: GET
+    input: /documents/{{docId}}
+  - id: s19
+    keyword: assert-status-code
+    description: Expect 200 OK
+    expected: "200"
+  - id: s20
+    keyword: assert-json-path
+    description: Verify title updated
+    objectRef: title
+    expected: "{{DOC_TITLE_UPDATED}}"
+  - id: s21
+    keyword: assert-json-path
+    description: Verify status is published
+    objectRef: status
+    expected: published
+  - id: s22
+    keyword: http-request
+    description: DELETE /documents/:id — soft delete
+    objectRef: DELETE
+    input: /documents/{{docId}}
+  - id: s23
+    keyword: assert-status-code
+    description: Expect 200 after delete
+    expected: "200"
+  - id: s24
+    keyword: log-response
+    description: Log delete response
+    continueOnFailure: true

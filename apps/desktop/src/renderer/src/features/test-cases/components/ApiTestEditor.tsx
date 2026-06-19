@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { parse as yamlParse } from 'yaml'
 import { AlertCircle } from 'lucide-react'
 import { useProjectStore } from '@/store/project.store'
@@ -18,6 +18,7 @@ import { StepContextMenu } from './StepContextMenu'
 import { CallTestCaseDialog } from './CallTestCaseDialog'
 import { ApiStepList } from './ApiStepList'
 import { ApiStepDetail } from './ApiStepDetail'
+import { TestCaseVariables } from './TestCaseVariables'
 import { ApiUrlConfigDialog } from '@/features/env/ApiUrlConfigDialog'
 import type { TestCase } from '../types'
 
@@ -49,6 +50,15 @@ export function ApiTestEditor({ filePath }: { filePath: string }) {
 
   const dragDrop = useStepDragDrop({ mutate, setSelectedIdx })
   const { contextMenu, handleContextMenu, closeContextMenu } = useStepContextMenu(setSelectedIdx)
+
+  // Show last known response for any step, not just http-request steps
+  const lastResponseMeta = useMemo(() => {
+    if (selectedIdx === null) return undefined
+    for (let i = selectedIdx; i >= 0; i--) {
+      if (stepMeta[i] != null) return stepMeta[i]
+    }
+    return undefined
+  }, [stepMeta, selectedIdx])
 
   useEffect(() => {
     setSelectedIdx(null)
@@ -163,6 +173,13 @@ export function ApiTestEditor({ filePath }: { filePath: string }) {
         onOpenApiConfig={() => setShowApiConfig(true)}
       />
 
+      {viewMode !== 'yaml' && (
+        <TestCaseVariables
+          variables={tc.variables ?? {}}
+          onChange={(vars) => mutate((prev) => ({ ...prev, variables: Object.keys(vars).length ? vars : undefined }))}
+        />
+      )}
+
       {viewMode === 'yaml' ? (
         <>
           {yamlError && (
@@ -206,7 +223,7 @@ export function ApiTestEditor({ filePath }: { filePath: string }) {
                 stepIndex={selectedIdx}
                 keywords={keywords}
                 stepMessage={stepMessages[selectedIdx]}
-                stepMeta={stepMeta[selectedIdx]}
+                stepMeta={lastResponseMeta}
                 onChange={(patch) => updateStep(selectedIdx, patch)}
               />
             ) : (

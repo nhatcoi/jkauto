@@ -133,7 +133,37 @@ const logResponseFn: ApiKeywordExecutor = async ({ session }) => {
   // Logged via step message — just validate response exists
 }
 
-const saveToProfileFn: ApiKeywordExecutor = async ({ session, objectRef, input, interpolate, persistVariable }) => {
+const saveToProfileFn: ApiKeywordExecutor = async ({ session, objectRef, input, expected, interpolate, persistVariable, persistApiConfig }) => {
+  if (!persistVariable && !persistApiConfig) throw new Error('save-to-profile: no active profile to save to')
+
+  // Batch mode: expected = JSON { type: 'variables'|'api-config', mappings: [{from, to?}][] }
+  const trimmed = expected?.trim()
+  if (trimmed?.startsWith('{')) {
+    try {
+      const config = JSON.parse(interpolate(expected)) as {
+        type?: string
+        mappings?: Array<{ from: string; to?: string }>
+      }
+      const mappings = config.mappings ?? []
+      const isApiConfig = config.type === 'api-config'
+      const persist = isApiConfig ? (persistApiConfig ?? persistVariable) : persistVariable
+      if (!persist) throw new Error('save-to-profile: no active profile to save to')
+      for (const m of mappings) {
+        const varName = interpolate(m.from)
+        if (!varName) continue
+        const profileKey = m.to ? interpolate(m.to) : varName
+        const value = session.variables[varName] ?? ''
+        await persist(profileKey, value)
+        session.variables[profileKey] = value
+      }
+      return
+    } catch (e) {
+      if ((e as Error).message.startsWith('save-to-profile:')) throw e
+      // fall through to single mode
+    }
+  }
+
+  // Single mode (backward compat)
   const varName = interpolate(objectRef)
   if (!varName) throw new Error('save-to-profile: objectRef must be the session variable name')
   const profileKey = interpolate(input) || varName
@@ -141,7 +171,6 @@ const saveToProfileFn: ApiKeywordExecutor = async ({ session, objectRef, input, 
   if (value === undefined) throw new Error(`save-to-profile: variable "${varName}" not found in session`)
   if (!persistVariable) throw new Error('save-to-profile: no active profile to save to')
   await persistVariable(profileKey, value)
-  // keep in session under the profile key too so subsequent steps can use it
   session.variables[profileKey] = value
 }
 
@@ -378,15 +407,16 @@ export const apiKeywords: KeywordDef[] = [
     name: 'save-to-profile',
     label: 'Save to Profile',
     color: 'bg-teal-600',
-    description: 'Persist a session variable into the active profile. objectRef=sessionVarName, input=profileVarName (optional)',
+    description: 'Persist session variables into active profile. Batch mode: expected=JSON {type,mappings}. Single mode: objectRef=sessionVarName, input=profileKey',
     platforms: ['api'],
     params: [
-      { name: 'objectRef', description: 'Session variable name to read from (e.g. accessToken)', required: true },
-      { name: 'input', description: 'Profile variable key to save as (defaults to objectRef)', required: false },
+      { name: 'objectRef', description: 'Session variable name (single mode)', required: false },
+      { name: 'input', description: 'Profile variable key (single mode, defaults to objectRef)', required: false },
+      { name: 'expected', description: 'Batch config JSON: {"type":"variables","mappings":[{"from":"accessToken"}]}', required: false },
     ],
     hasObject: true,
     hasInput: true,
-    hasExpected: false,
+    hasExpected: true,
     objectPlaceholder: 'accessToken',
     inputPlaceholder: 'ACCESS_TOKEN',
     executors: { api: saveToProfileFn },

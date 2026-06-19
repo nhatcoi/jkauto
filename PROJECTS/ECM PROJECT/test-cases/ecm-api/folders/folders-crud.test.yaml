@@ -1,0 +1,100 @@
+schemaVersion: 1
+id: a1b2c3d4-e5f6-7890-abcd-ef1234567803
+name: Folders CRUD Lifecycle
+description: Create → get → list children → rename → delete a folder
+tags:
+  - api
+  - folders
+  - crud
+platform: api
+runner: api
+variables:
+  FOLDER_NAME: Test Folder CRUD
+  FOLDER_NAME_UPDATED: Test Folder CRUD (Updated)
+steps:
+  - id: s1
+    keyword: http-request-body
+    description: POST /folders — create test folder
+    objectRef: POST
+    input: /folders
+    expected: '{"name":"{{FOLDER_NAME}}"}'
+  - id: s5
+    keyword: assert-status-code
+    description: Expect 200/201 Created
+    expected: "201"
+  - id: s6
+    keyword: assert-response-contains
+    description: Response contains folder id
+    expected: id
+  - id: s7
+    keyword: assert-response-contains
+    description: Response contains folder name
+    expected: "{{FOLDER_NAME}}"
+  - id: s8
+    keyword: extract-body
+    description: Extract created folder id
+    objectRef: $.id
+    input: folderId
+  - id: s9
+    keyword: http-request
+    description: GET /folders — list all folders
+    objectRef: GET
+    input: /folders
+  - id: s10
+    keyword: assert-status-code
+    description: Expect 200 OK
+    expected: "200"
+  - id: s11
+    keyword: assert-response-time
+    description: Response under 2000ms
+    expected: "2000"
+  - id: s12
+    keyword: http-request
+    description: GET /folders/:id — get created folder
+    objectRef: GET
+    input: /folders/{{folderId}}
+  - id: s13
+    keyword: assert-status-code
+    description: Expect 200 OK
+    expected: "200"
+  - id: s14
+    keyword: assert-json-path
+    description: Verify folder name
+    objectRef: name
+    expected: "{{FOLDER_NAME}}"
+  - id: s15
+    keyword: http-request
+    description: GET /folders/:id/children — list child folders (should be empty)
+    objectRef: GET
+    input: /folders/{{folderId}}/children
+  - id: s16
+    keyword: assert-status-code
+    description: Expect 200 OK
+    expected: "200"
+  - id: s17
+    keyword: http-request-body
+    description: PUT /folders/:id — rename folder
+    objectRef: PUT
+    input: /folders/{{folderId}}
+    expected: '{"name":"{{FOLDER_NAME_UPDATED}}"}'
+  - id: s18
+    keyword: assert-status-code
+    description: Expect 200 OK after rename
+    expected: "200"
+  - id: s19
+    keyword: assert-response-contains
+    description: Response reflects updated name
+    expected: "{{FOLDER_NAME_UPDATED}}"
+  - id: s20
+    keyword: http-request
+    description: DELETE /folders/:id — soft delete
+    objectRef: DELETE
+    input: /folders/{{folderId}}
+  - id: s21
+    keyword: assert-status-code
+    description: Expect 200 OK after delete
+    expected: "200"
+  - id: s22
+    keyword: log-response
+    description: Log delete response
+    continueOnFailure: true
