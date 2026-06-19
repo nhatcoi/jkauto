@@ -4,7 +4,7 @@ import type { RunRecord, StepResult } from "@jkauto/core";
 import { invoke } from "@/lib/utils";
 import { useProjectStore } from "@/store/project.store";
 import { useRunStore } from "@/store/run.store";
-import { readEnv } from "@/features/env/api";
+import { readProfile } from "@/features/env/api";
 import type { TestCase } from "../types";
 
 interface Options {
@@ -101,11 +101,14 @@ export function useTestCaseRun({ filePath, tcRef, serialize }: Options) {
         markTabDirty(filePath, false);
       }
       let profileVariables: Record<string, string> = {};
+      let profileApi = undefined;
+      let profilePath: string | undefined;
       if (activeProject) {
+        profilePath = `${activeProject.path}/profiles/${activeProject.activeProfile ?? 'default'}.env.json`;
         try {
-          profileVariables = await readEnv(
-            `${activeProject.path}/profiles/${activeProject.activeProfile}.env.json`,
-          );
+          const profile = await readProfile(profilePath);
+          profileVariables = profile.variables;
+          profileApi = profile.api;
         } catch {
           /* profile missing — ignore */
         }
@@ -116,6 +119,8 @@ export function useTestCaseRun({ filePath, tcRef, serialize }: Options) {
           filePath,
           debugMode,
           profileVariables,
+          profileApi,
+          profilePath,
           projectPath: activeProject?.path,
         },
       );

@@ -23,6 +23,8 @@ interface RunPayload {
   filePath: string
   debugMode?: boolean
   profileVariables?: Record<string, string>
+  profileApi?: import('@jkauto/core').ApiProfileConfig
+  profilePath?: string
   projectPath?: string
   appPath?: string
 }
@@ -167,7 +169,7 @@ function applyBrowsersPath(settings: AppSettings): void {
 
 export function registerEngineHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(IpcChannels.ENGINE_RUN_CASE, async (event, payload: RunPayload) => {
-    const { filePath, debugMode = false, profileVariables = {}, projectPath, appPath } = payload
+    const { filePath, debugMode = false, profileVariables = {}, profileApi, profilePath, projectPath, appPath } = payload
     const settings = await getSettings()
     applyBrowsersPath(settings)
 
@@ -187,6 +189,7 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
       schemaVersion: 1,
       name: 'default',
       variables: resolvedVars,
+      api: profileApi,
     }
 
     const runId = randomUUID()
@@ -198,6 +201,15 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
     const loadTestCase = readTestCase
 
     const stepDelay = testCase.config?.stepDelayMs ?? testCase.stepDelayMs ?? settings.execution.stepDelayMs
+
+    const persistVariable = profilePath
+      ? async (profileKey: string, value: string) => {
+          const raw = await fs.readFile(profilePath, 'utf-8')
+          const parsed = JSON.parse(raw) as Record<string, unknown>
+          const updated = { ...parsed, variables: { ...(parsed['variables'] as Record<string, string> ?? {}), [profileKey]: value } }
+          await fs.writeFile(profilePath, JSON.stringify(updated, null, 2), 'utf-8')
+        }
+      : undefined
 
     runTestCase(
       testCase,
@@ -221,6 +233,7 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
             objectRepositories,
             appPath: appPath ?? testCase.app?.path,
             loadTestCase,
+            persistVariable,
             waitForNext: (stepIndex: number) =>
               new Promise<void>((resolve) => {
                 debugNextResolvers.set(runId, resolve)
@@ -229,7 +242,7 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
                 }
               }),
           }
-        : { headless: settings.execution.headless, objectRepositories, appPath: appPath ?? testCase.app?.path, loadTestCase, stepDelay, screenshotDir: projectPath ? path.join(projectPath, '.autotest', 'screenshots') : undefined },
+        : { headless: settings.execution.headless, objectRepositories, appPath: appPath ?? testCase.app?.path, loadTestCase, stepDelay, persistVariable, screenshotDir: projectPath ? path.join(projectPath, '.autotest', 'screenshots') : undefined },
     ).catch((err) => {
       activeRuns.delete(runId)
       if (!webContents.isDestroyed()) {

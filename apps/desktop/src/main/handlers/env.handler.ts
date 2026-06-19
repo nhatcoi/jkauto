@@ -2,7 +2,7 @@ import type { IpcMain } from 'electron'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { IpcChannels } from '@jkauto/core'
-import type { EnvEntry, EnvWritePayload, EnvCreatePayload } from '@jkauto/core'
+import type { EnvEntry, EnvWritePayload, EnvCreatePayload, Profile } from '@jkauto/core'
 
 export function registerEnvHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(IpcChannels.ENV_LIST, async (_, projectPath: string): Promise<EnvEntry[]> => {
@@ -24,8 +24,19 @@ export function registerEnvHandlers(ipcMain: IpcMain): void {
     return (parsed.variables ?? {}) as Record<string, string>
   })
 
+  ipcMain.handle(IpcChannels.ENV_READ_PROFILE, async (_, filePath: string): Promise<Profile> => {
+    const raw = await fs.readFile(filePath, 'utf-8')
+    const parsed = JSON.parse(raw)
+    return {
+      schemaVersion: parsed.schemaVersion ?? 1,
+      name: parsed.name ?? path.basename(filePath, '.env.json'),
+      variables: parsed.variables ?? {},
+      api: parsed.api,
+    } as Profile
+  })
+
   ipcMain.handle(IpcChannels.ENV_WRITE, async (_, payload: EnvWritePayload): Promise<void> => {
-    const { filePath, variables } = payload
+    const { filePath, variables, api } = payload
     let existing: Record<string, unknown> = {
       schemaVersion: 1,
       name: path.basename(filePath, '.env.json'),
@@ -33,7 +44,15 @@ export function registerEnvHandlers(ipcMain: IpcMain): void {
     try {
       existing = JSON.parse(await fs.readFile(filePath, 'utf-8'))
     } catch { /* new file */ }
-    await fs.writeFile(filePath, JSON.stringify({ ...existing, variables }, null, 2), 'utf-8')
+    const updated = { ...existing, variables }
+    if (api !== undefined) {
+      if (api.baseUrl === '' && Object.keys(api.defaultHeaders).length === 0 && api.auth.type === 'none') {
+        delete (updated as Record<string, unknown>).api
+      } else {
+        (updated as Record<string, unknown>).api = api
+      }
+    }
+    await fs.writeFile(filePath, JSON.stringify(updated, null, 2), 'utf-8')
   })
 
   ipcMain.handle(IpcChannels.ENV_CREATE, async (_, payload: EnvCreatePayload): Promise<EnvEntry> => {
@@ -41,7 +60,7 @@ export function registerEnvHandlers(ipcMain: IpcMain): void {
     const profilesDir = path.join(projectPath, 'profiles')
     await fs.mkdir(profilesDir, { recursive: true })
     const filePath = path.join(profilesDir, `${name}.env.json`)
-    const profile = { schemaVersion: 1, name, variables: { baseUrl: '' } }
+    const profile = { schemaVersion: 1, name, variables: {} }
     await fs.writeFile(filePath, JSON.stringify(profile, null, 2), 'utf-8')
     return { name, path: filePath }
   })

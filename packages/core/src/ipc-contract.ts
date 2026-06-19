@@ -53,6 +53,7 @@ export const IpcChannels = {
 
   ENV_LIST: 'env:list',
   ENV_READ: 'env:read',
+  ENV_READ_PROFILE: 'env:read-profile',
   ENV_WRITE: 'env:write',
   ENV_CREATE: 'env:create',
   ENV_DELETE: 'env:delete',
@@ -319,6 +320,7 @@ export interface EnvEntry {
 export interface EnvWritePayload {
   filePath: string
   variables: Record<string, string>
+  api?: import('./schemas/profile').ApiProfileConfig
 }
 
 export interface EnvCreatePayload {

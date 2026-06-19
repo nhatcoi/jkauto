@@ -18,6 +18,7 @@ import { StepContextMenu } from './StepContextMenu'
 import { CallTestCaseDialog } from './CallTestCaseDialog'
 import { ApiStepList } from './ApiStepList'
 import { ApiStepDetail } from './ApiStepDetail'
+import { ApiUrlConfigDialog } from '@/features/env/ApiUrlConfigDialog'
 import type { TestCase } from '../types'
 
 export function ApiTestEditor({ filePath }: { filePath: string }) {
@@ -25,6 +26,7 @@ export function ApiTestEditor({ filePath }: { filePath: string }) {
   const [viewMode, setViewMode] = useState<TestCaseViewMode>('table')
   const [yamlDraft, setYamlDraft] = useState('')
   const [yamlError, setYamlError] = useState('')
+  const [showApiConfig, setShowApiConfig] = useState(false)
 
   const { tc, tcRef, tcHistory, error, saving, mutate, save, saveRaw, serialize } = useTestCaseFile(filePath)
   const keywords = useKeywords('api')
@@ -158,6 +160,7 @@ export function ApiTestEditor({ filePath }: { filePath: string }) {
         onSave={handleSave}
         saving={saving}
         saveHint={km.save.hint}
+        onOpenApiConfig={() => setShowApiConfig(true)}
       />
 
       {viewMode === 'yaml' ? (
@@ -201,6 +204,7 @@ export function ApiTestEditor({ filePath }: { filePath: string }) {
               <ApiStepDetail
                 step={selectedStep}
                 stepIndex={selectedIdx}
+                keywords={keywords}
                 stepMessage={stepMessages[selectedIdx]}
                 stepMeta={stepMeta[selectedIdx]}
                 onChange={(patch) => updateStep(selectedIdx, patch)}
@@ -237,6 +241,11 @@ export function ApiTestEditor({ filePath }: { filePath: string }) {
         open={showCallDialog}
         onOpenChange={setShowCallDialog}
         onSelect={handleCallTestCaseSelect}
+      />
+
+      <ApiUrlConfigDialog
+        open={showApiConfig}
+        onClose={() => setShowApiConfig(false)}
       />
     </div>
   )

@@ -10,8 +10,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { useProjectStore } from '@/store/project.store'
-import { listEnvs, readEnv, writeEnv, createEnv, deleteEnv } from './api'
+import { listEnvs, readProfile, writeEnv, createEnv, deleteEnv } from './api'
+import { ApiProfileForm, fromApiProfileConfig, toApiProfileConfig } from './ApiProfileForm'
+import type { ApiConfigState } from './ApiProfileForm'
 import type { EnvEntry } from '@jkauto/core'
+
+type Tab = 'variables' | 'api'
+
 
 interface EnvRow {
   id: string
@@ -42,6 +47,8 @@ export function EnvManagerDialog({ open, onClose }: Props) {
   const [envs, setEnvs] = useState<EnvEntry[]>([])
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [rows, setRows] = useState<EnvRow[]>([])
+  const [apiConfig, setApiConfig] = useState<ApiConfigState>(fromApiProfileConfig(undefined))
+  const [tab, setTab] = useState<Tab>('variables')
   const [loadingVars, setLoadingVars] = useState(false)
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
@@ -70,9 +77,12 @@ export function EnvManagerDialog({ open, onClose }: Props) {
     if (!selectedPath) return
     setLoadingVars(true)
     setDirty(false)
-    readEnv(selectedPath)
-      .then((vars) => setRows(toRows(vars)))
-      .catch(() => setRows([]))
+    readProfile(selectedPath)
+      .then((profile) => {
+        setRows(toRows(profile.variables))
+        setApiConfig(fromApiProfileConfig(profile.api))
+      })
+      .catch(() => { setRows([]); setApiConfig(fromApiProfileConfig(undefined)) })
       .finally(() => setLoadingVars(false))
   }, [selectedPath])
 
@@ -102,7 +112,7 @@ export function EnvManagerDialog({ open, onClose }: Props) {
     if (!selectedPath) return
     setSaving(true)
     try {
-      await writeEnv(selectedPath, fromRows(rows))
+      await writeEnv(selectedPath, fromRows(rows), toApiProfileConfig(apiConfig))
       setDirty(false)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Save failed')
@@ -250,72 +260,92 @@ export function EnvManagerDialog({ open, onClose }: Props) {
           <div className="flex-1 flex flex-col overflow-hidden">
             {selectedEnv ? (
               <>
-                <div className="flex items-center gap-2 px-4 py-2 border-b border-border shrink-0">
-                  <span className="text-xs font-medium text-foreground">{selectedEnv.name}</span>
-                  {selectedEnv.name === activeProfileName && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-400/15 text-green-400 font-medium">
-                      active
-                    </span>
-                  )}
-                  <div className="flex-1" />
-                  {dirty && (
-                    <span className="text-[10px] text-yellow-400">unsaved changes</span>
-                  )}
-                  <Button size="sm" onClick={save} disabled={saving || !dirty} className="h-6 px-3 text-xs">
-                    {saving && <Loader2 className="w-3 h-3 animate-spin mr-1" />}
-                    Save
-                  </Button>
+                {/* header with tabs */}
+                <div className="flex items-center border-b border-border shrink-0">
+                  <div className="flex items-center gap-0 px-2 py-1.5 flex-1">
+                    <span className="text-xs font-medium text-foreground mr-2">{selectedEnv.name}</span>
+                    {selectedEnv.name === activeProfileName && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-400/15 text-green-400 font-medium mr-2">
+                        active
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setTab('variables')}
+                      className={cn('text-[11px] px-2.5 py-1 rounded transition-colors', tab === 'variables' ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:text-foreground')}
+                    >
+                      Variables
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTab('api')}
+                      className={cn('text-[11px] px-2.5 py-1 rounded transition-colors', tab === 'api' ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:text-foreground')}
+                    >
+                      API Config
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 px-3">
+                    {dirty && <span className="text-[10px] text-yellow-400">unsaved</span>}
+                    <Button size="sm" onClick={save} disabled={saving || !dirty} className="h-6 px-3 text-xs">
+                      {saving && <Loader2 className="w-3 h-3 animate-spin mr-1" />}
+                      Save
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="flex-1 overflow-auto p-3">
-                  {loadingVars ? (
-                    <div className="flex items-center justify-center h-20 text-xs text-muted-foreground">
-                      Loading…
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-0">
-                      {/* header */}
-                      <div className="grid grid-cols-[1fr_1fr_24px] gap-2 px-2 py-1 mb-1">
-                        <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Variable</span>
-                        <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Value</span>
-                        <span />
+                {tab === 'api' ? (
+                  <ApiProfileForm
+                    state={apiConfig}
+                    onChange={(s) => { setApiConfig(s); setDirty(true) }}
+                  />
+                ) : (
+                  <div className="flex-1 overflow-auto p-3">
+                    {loadingVars ? (
+                      <div className="flex items-center justify-center h-20 text-xs text-muted-foreground">
+                        Loading…
                       </div>
-
-                      {rows.map((row) => (
-                        <div key={row.id} className="grid grid-cols-[1fr_1fr_24px] gap-2 items-center py-0.5">
-                          <Input
-                            value={row.key}
-                            onChange={(e) => updateRow(row.id, 'key', e.target.value)}
-                            placeholder="VARIABLE_NAME"
-                            className="h-7 text-xs font-mono"
-                          />
-                          <Input
-                            value={row.value}
-                            onChange={(e) => updateRow(row.id, 'value', e.target.value)}
-                            placeholder="value"
-                            className="h-7 text-xs font-mono"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeRow(row.id)}
-                            className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/20 transition-colors"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
+                    ) : (
+                      <div className="flex flex-col gap-0">
+                        <div className="grid grid-cols-[1fr_1fr_24px] gap-2 px-2 py-1 mb-1">
+                          <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Variable</span>
+                          <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Value</span>
+                          <span />
                         </div>
-                      ))}
-
-                      <button
-                        type="button"
-                        onClick={addRow}
-                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mt-2 py-1 rounded hover:bg-secondary/50 transition-colors w-fit px-1"
-                      >
-                        <Plus className="w-3 h-3" />
-                        Add Variable
-                      </button>
-                    </div>
-                  )}
-                </div>
+                        {rows.map((row) => (
+                          <div key={row.id} className="grid grid-cols-[1fr_1fr_24px] gap-2 items-center py-0.5">
+                            <Input
+                              value={row.key}
+                              onChange={(e) => updateRow(row.id, 'key', e.target.value)}
+                              placeholder="VARIABLE_NAME"
+                              className="h-7 text-xs font-mono"
+                            />
+                            <Input
+                              value={row.value}
+                              onChange={(e) => updateRow(row.id, 'value', e.target.value)}
+                              placeholder="value"
+                              className="h-7 text-xs font-mono"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeRow(row.id)}
+                              className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/20 transition-colors"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={addRow}
+                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mt-2 py-1 rounded hover:bg-secondary/50 transition-colors w-fit px-1"
+                        >
+                          <Plus className="w-3 h-3" />
+                          Add Variable
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             ) : (
               <div className="flex items-center justify-center h-full text-xs text-muted-foreground/50">

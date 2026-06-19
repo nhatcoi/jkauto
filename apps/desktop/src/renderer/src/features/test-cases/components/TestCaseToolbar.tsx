@@ -14,6 +14,7 @@ import {
   StepForward,
   Undo2,
   Redo2,
+  Globe,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -103,6 +104,7 @@ interface Props {
   onSave: () => void;
   saving: boolean;
   saveHint: string;
+  onOpenApiConfig?: () => void;
 }
 
 export function TestCaseToolbar({
@@ -130,6 +132,7 @@ export function TestCaseToolbar({
   onSave,
   saving,
   saveHint,
+  onOpenApiConfig,
 }: Props) {
   return (
     <div className="flex flex-wrap items-center gap-1 gap-y-1.5 px-2 py-1 border-b border-border bg-panel shrink-0">
@@ -330,6 +333,25 @@ export function TestCaseToolbar({
           className="text-xs bg-input text-foreground px-1.5 py-0.5 rounded border border-border focus:border-primary outline-none w-20"
         />
       </div>
+
+      {platform === 'api' && onOpenApiConfig && (
+        <>
+          <div className="w-px h-4 bg-border mx-0.5" />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={onOpenApiConfig}
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded hover:bg-secondary transition-colors text-foreground/80"
+              >
+                <Globe className="w-3.5 h-3.5" />
+                URL Config
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Configure base URL &amp; auth for active profile</TooltipContent>
+          </Tooltip>
+        </>
+      )}
 
       <div className="flex-1" />
 

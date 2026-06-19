@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import type { KeywordMeta } from '@jkauto/core'
 import type { TestStep } from '../types'
 
 // ── helpers ────────────────────────────────────────────────────────────────────
@@ -223,20 +224,33 @@ function ResponseViewer({ meta }: { meta: ApiResponseMeta }) {
 interface Props {
   step: TestStep
   stepIndex: number
+  keywords: KeywordMeta[]
   stepMessage?: string
   stepMeta?: unknown
   onChange: (patch: Partial<TestStep>) => void
 }
 
-export function ApiStepDetail({ step, stepIndex, stepMessage, stepMeta, onChange }: Props) {
+export function ApiStepDetail({ step, stepIndex, keywords, stepMessage, stepMeta, onChange }: Props) {
   const responseMeta = isApiResponseMeta(stepMeta) ? stepMeta : null
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
       {/* header */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-muted/20 shrink-0">
-        <span className="text-[10px] text-muted-foreground">Step {stepIndex + 1}</span>
-        <span className="text-xs font-mono text-foreground/70">{step.keyword}</span>
+        <span className="text-[10px] text-muted-foreground shrink-0">Step {stepIndex + 1}</span>
+        <select
+          value={step.keyword}
+          onChange={(e) => onChange({ keyword: e.target.value, objectRef: '', input: '', expected: '' })}
+          className="text-xs font-mono bg-input text-foreground px-2 py-1 rounded border border-border focus:border-primary outline-none flex-1 max-w-[220px]"
+        >
+          {keywords.map((kw) => (
+            <option key={kw.name} value={kw.name}>{kw.label}</option>
+          ))}
+          {/* fallback if keyword not in list */}
+          {!keywords.some((k) => k.name === step.keyword) && (
+            <option value={step.keyword}>{step.keyword}</option>
+          )}
+        </select>
       </div>
 
       <div className="flex-1 flex flex-col gap-5 p-4">

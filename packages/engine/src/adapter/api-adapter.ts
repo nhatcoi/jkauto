@@ -9,12 +9,29 @@ export class ApiAdapter implements EngineAdapter<ApiSession> {
   readonly platform = 'api' as const
 
   async start(profile: Profile, _options: AdapterStartOptions): Promise<ApiSession> {
-    return {
-      baseUrl: profile.variables['BASE_URL'] ?? '',
-      defaultHeaders: {},
-      lastResponse: null,
-      variables: { ...profile.variables },
+    const vars = { ...profile.variables }
+    const iv = (s: string) => s.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? `{{${k}}}`)
+
+    const apiCfg = profile.api
+    const baseUrl = iv(apiCfg?.baseUrl || '')
+    const defaultHeaders: Record<string, string> = {}
+    for (const [k, v] of Object.entries(apiCfg?.defaultHeaders ?? {})) {
+      defaultHeaders[k] = iv(v)
     }
+
+    if (apiCfg?.auth) {
+      const auth = apiCfg.auth
+      if (auth.type === 'bearer' && auth.token) {
+        defaultHeaders['Authorization'] = `Bearer ${iv(auth.token)}`
+      } else if (auth.type === 'basic' && auth.username) {
+        const b64 = Buffer.from(`${iv(auth.username)}:${iv(auth.password)}`).toString('base64')
+        defaultHeaders['Authorization'] = `Basic ${b64}`
+      } else if (auth.type === 'api-key' && auth.key && auth.value && auth.in === 'header') {
+        defaultHeaders[iv(auth.key)] = iv(auth.value)
+      }
+    }
+
+    return { baseUrl, defaultHeaders, lastResponse: null, variables: vars }
   }
 
   async execute(session: ApiSession, step: Step, helpers: ExecutionHelpers): Promise<void> {
@@ -30,6 +47,7 @@ export class ApiAdapter implements EngineAdapter<ApiSession> {
       resolveLocator: helpers.resolveLocator,
       interpolate: helpers.interpolate,
       setVariable: helpers.setVariable,
+      persistVariable: helpers.persistVariable,
     })
   }
 

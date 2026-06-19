@@ -28,9 +28,12 @@ MyAutoTestProject/
 │  ├─ default.env.json
 │  └─ staging.env.json
 ├─ test-cases/
-│  └─ login-success.test.json
-├─ api-request/
-│  └─ login-page.objects.json
+│  ├─ login-success.test.json          # platform: web/mobile/desktop
+│  └─ get-users-api.test.json          # platform: api — multi-step HTTP test
+├─ api-requests/                       # Postman-style manual HTTP explorer
+│  └─ login.request.json               # single request: method, url, headers, body, assertions
+├─ object-repository/                  # web element selectors (objectRef lookup)
+│  └─ login-page.objects.json          # name → locators[] (css/xpath/testid/role...)
 ├─ test-suites/
 │  └─ smoke.suite.json
 ├─ keywords/
@@ -73,8 +76,8 @@ jkauto/
 renderer/src/features/
 ├─ project/          # init dialog, open, recent
 ├─ explorer/         # tree, context menu, file ops
-├─ test-cases/       # table editor, step CRUD
-├─ api-request/# selector editor, capture
+├─ test-cases/       # step editor (web/mobile/desktop/api platform), run controls
+├─ api-request/      # 2 editor: RequestEditor (.request.json — Postman-style explorer) + ObjectEditor (.objects.json — element repo)
 ├─ test-suites/      # suite composer
 ├─ keywords/         # custom keyword manager
 ├─ execution/        # run, progress, live log
@@ -170,7 +173,7 @@ step_results(id, run_id, step_index, status, message, duration_ms, screenshot_pa
 | M2 | Explorer | react-arborist tree, watch FS (chokidar), context menu đầy đủ, file ops | ✅ |
 | M3 | Test case editor | Table editor steps, keyword autocomplete, objectRef picker, save JSON/YAML, dirty/undo | ☐ |
 | M4 | Engine v1 | Keyword registry ~15 built-ins, Playwright runner, chạy 1 test case, console + progress realtime | ☐ |
-| M5 | Object repo + Suites | Object editor, multi-locator, suite composer, chạy suite | ☐ |
+| M5 | Object repo + API explorer + Suites | ObjectEditor (.objects.json, multi-locator), RequestEditor (.request.json, Postman-style), suite composer, chạy suite | ☐ |
 | M6 | Reports + SQLite | runs.db, run history view, step results, screenshots, problems pane | ☐ |
 | M7 | Profiles + Data-driven | Env switching, data-files CSV/JSON binding vào steps | ☐ |
 | M8 | Clerk + Sync | Login, chỉ sync khi login, project metadata lên cloud | ☐ |

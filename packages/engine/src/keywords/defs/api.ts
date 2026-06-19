@@ -133,6 +133,18 @@ const logResponseFn: ApiKeywordExecutor = async ({ session }) => {
   // Logged via step message — just validate response exists
 }
 
+const saveToProfileFn: ApiKeywordExecutor = async ({ session, objectRef, input, interpolate, persistVariable }) => {
+  const varName = interpolate(objectRef)
+  if (!varName) throw new Error('save-to-profile: objectRef must be the session variable name')
+  const profileKey = interpolate(input) || varName
+  const value = session.variables[varName]
+  if (value === undefined) throw new Error(`save-to-profile: variable "${varName}" not found in session`)
+  if (!persistVariable) throw new Error('save-to-profile: no active profile to save to')
+  await persistVariable(profileKey, value)
+  // keep in session under the profile key too so subsequent steps can use it
+  session.variables[profileKey] = value
+}
+
 export const apiKeywords: KeywordDef[] = [
   {
     name: 'http-request',
@@ -361,5 +373,22 @@ export const apiKeywords: KeywordDef[] = [
     hasInput: false,
     hasExpected: false,
     executors: { api: logResponseFn },
+  },
+  {
+    name: 'save-to-profile',
+    label: 'Save to Profile',
+    color: 'bg-teal-600',
+    description: 'Persist a session variable into the active profile. objectRef=sessionVarName, input=profileVarName (optional)',
+    platforms: ['api'],
+    params: [
+      { name: 'objectRef', description: 'Session variable name to read from (e.g. accessToken)', required: true },
+      { name: 'input', description: 'Profile variable key to save as (defaults to objectRef)', required: false },
+    ],
+    hasObject: true,
+    hasInput: true,
+    hasExpected: false,
+    objectPlaceholder: 'accessToken',
+    inputPlaceholder: 'ACCESS_TOKEN',
+    executors: { api: saveToProfileFn },
   },
 ]

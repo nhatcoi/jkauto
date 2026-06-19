@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { X, FileText, Globe, Database, Layers, BarChart2, Braces } from 'lucide-react'
+import { X, FileText, Globe, Database, Layers, BarChart2, Braces, SlidersHorizontal } from 'lucide-react'
 import { useProjectStore } from '@/store/project.store'
 import { IpcChannels } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
@@ -11,6 +11,7 @@ import { SuiteEditor } from '@/features/test-suites/SuiteEditor'
 import { KeywordEditor } from '@/features/keywords/KeywordEditor'
 import { KeywordsView } from '@/features/keywords/KeywordsView'
 import { ReportsView } from '@/features/reports/ReportsView'
+import { ProfileEditor } from '@/features/env/ProfileEditor'
 import { useTabDnd } from '@/hooks/useTabDnd'
 import { REPORTS_TAB_PATH, KEYWORDS_TAB_PATH } from '@/shared/keymaps'
 
@@ -34,6 +35,10 @@ function isKeywords(path: string) {
   return path.endsWith('.keywords.json') || path.endsWith('.keywords.yaml')
 }
 
+function isProfile(path: string) {
+  return path.endsWith('.env.json')
+}
+
 function getTabIcon(path: string): React.ElementType {
   if (path === REPORTS_TAB_PATH) return BarChart2
   if (path === KEYWORDS_TAB_PATH) return Braces
@@ -41,6 +46,7 @@ function getTabIcon(path: string): React.ElementType {
   if (isObjectRepo(path)) return Database
   if (isTestSuite(path)) return Layers
   if (isKeywords(path)) return Braces
+  if (isProfile(path)) return SlidersHorizontal
   return FileText
 }
 
@@ -85,6 +91,7 @@ function TabContent({ path }: { path: string }) {
   if (isApiRequest(path)) return <RequestEditor key={path} filePath={path} />
   if (isObjectRepo(path)) return <ObjectEditor key={path} filePath={path} />
   if (isKeywords(path)) return <KeywordEditor key={path} filePath={path} />
+  if (isProfile(path)) return <ProfileEditor key={path} filePath={path} />
   return <FileContent path={path} />
 }
 

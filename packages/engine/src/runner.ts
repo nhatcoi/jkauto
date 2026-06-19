@@ -25,6 +25,8 @@ export interface RunOptions {
   loadTestCase?: (path: string) => Promise<TestCase>
   /** Directory to save on-failure screenshots. When set, a PNG is captured after each failed step. */
   screenshotDir?: string
+  /** Callback to persist a variable to the active profile file. Provided by engine handler. */
+  persistVariable?: (profileKey: string, value: string) => Promise<void>
 }
 
 function buildSelector(locator: Locator, platform: Platform): string {
@@ -273,7 +275,7 @@ export async function runTestCase(
   signal?: AbortSignal,
   options: RunOptions = {},
 ): Promise<void> {
-  const { headless = false, stepDelay = 0, waitForNext, objectRepositories = [], appPath, externalSession, loadTestCase, screenshotDir } = options
+  const { headless = false, stepDelay = 0, waitForNext, objectRepositories = [], appPath, externalSession, loadTestCase, screenshotDir, persistVariable } = options
   const platform: Platform = testCase.platform
     ?? (testCase.runner === 'api' ? 'api' : options.platform ?? 'web')
   // When platform is 'mobile', resolve to the concrete engine adapter key.
@@ -327,7 +329,7 @@ export async function runTestCase(
         const setVariable = (key: string, value: string) => { variables[key] = value }
         const work = step.keyword === 'call-test-case'
           ? executeCalledTestCase(step.input, loadTestCase, adapter, session, { resolveLocator, interpolate }, signal)
-          : adapter.execute(session, step, { resolveLocator, interpolate, setVariable })
+          : adapter.execute(session, step, { resolveLocator, interpolate, setVariable, persistVariable })
         await Promise.race([
           work,
           new Promise<never>((_, reject) =>
