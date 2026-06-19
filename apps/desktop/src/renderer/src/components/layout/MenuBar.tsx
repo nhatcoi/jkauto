@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils'
 
 const M = modKey()
 
-function Hint({ children }: { children: string }) {
+function Hint({ children }: { children: React.ReactNode }) {
   return (
     <span className="ml-auto pl-6 text-[10px] text-muted-foreground/55 shrink-0 tabular-nums">
       {children}

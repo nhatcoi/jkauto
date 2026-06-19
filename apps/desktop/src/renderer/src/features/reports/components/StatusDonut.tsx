@@ -74,7 +74,7 @@ export function StatusDonut({ records }: { records: RunRecord[] }) {
             fontSize: 12,
             color: 'hsl(var(--foreground))',
           }}
-          formatter={(value: number, name: string) => [value, name]}
+          formatter={(value, name) => [Number(value ?? 0), String(name)]}
         />
         <Legend
           iconType="circle"

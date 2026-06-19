@@ -54,7 +54,10 @@ export function TrendChart({ records }: { records: RunRecord[] }) {
             color: 'hsl(var(--foreground))',
           }}
           cursor={{ fill: 'hsl(var(--muted)/0.3)' }}
-          formatter={(value: number, name: string) => [value, name === 'passed' ? 'Passed steps' : 'Failed steps']}
+          formatter={(value, name) => [
+            Number(value ?? 0),
+            name === 'passed' ? 'Passed steps' : 'Failed steps',
+          ]}
           labelFormatter={(i) => data[+i - 1] ? `Run #${i}: ${data[+i - 1].label}` : `Run #${i}`}
         />
         <Legend
