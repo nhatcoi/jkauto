@@ -4,6 +4,9 @@ import {
   Layers,
   FolderPlus,
   BarChart2,
+  Minus,
+  Square,
+  X,
 } from "lucide-react";
 import logoUrl from "@/assets/logo.svg";
 import { Button } from "@/components/ui/button";
@@ -53,8 +56,28 @@ export function TitleBar() {
     moveTabRight: () => moveTabRight(),
   });
 
+  const isMac = window.api.platform === "darwin";
+
+  const handleMinimize = () => {
+    invoke("window:minimize" as any);
+  };
+
+  const handleMaximize = () => {
+    invoke("window:maximize" as any);
+  };
+
+  const handleClose = () => {
+    invoke("window:close" as any);
+  };
+
   return (
-    <div className="flex items-center h-9 bg-titlebar border-b border-border px-3 gap-3 shrink-0 select-none">
+    <div
+      className={cn(
+        "flex items-center h-9 bg-titlebar border-b border-border gap-3 shrink-0 select-none",
+        isMac ? "pl-[72px] pr-3" : "px-3",
+      )}
+      style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
+    >
       {/* Logo */}
       <div className="flex items-center gap-2 min-w-0">
         <img
@@ -94,7 +117,10 @@ export function TitleBar() {
       <div className="flex-1" />
 
       {/* Actions */}
-      <div className="flex items-center gap-0.5">
+      <div
+        className="flex items-center gap-0.5"
+        style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+      >
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -161,6 +187,40 @@ export function TitleBar() {
           </TooltipContent>
         </Tooltip>
       </div>
+
+      {/* Custom Window Controls for Windows/Linux */}
+      {!isMac && (
+        <div
+          className="flex items-center h-full border-l border-border/50 ml-1.5 pl-1.5"
+          style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+        >
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground rounded-sm hover:bg-white/5"
+            onClick={handleMinimize}
+          >
+            <Minus className="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground rounded-sm hover:bg-white/5"
+            onClick={handleMaximize}
+          >
+            <Square className="w-3 h-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-red-500 rounded-sm hover:bg-red-500/10"
+            onClick={handleClose}
+          >
+            <X className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
+

@@ -135,6 +135,10 @@ export const IpcChannels = {
   AUTOGEN_GENERATE: 'autogen:generate',
   AUTOGEN_GENERATE_PROGRESS: 'autogen:generate-progress',
   AUTOGEN_CANCEL: 'autogen:cancel',
+
+  WINDOW_MINIMIZE: 'window:minimize',
+  WINDOW_MAXIMIZE: 'window:maximize',
+  WINDOW_CLOSE: 'window:close',
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]

@@ -25,6 +25,10 @@
   <img src="https://img.shields.io/badge/license-MIT-purple?style=flat-square" />
 </p>
 
+<p align="center">
+  <img src="apps/desktop/src/renderer/src/assets/demo.png" alt="JKAuto Screenshot" width="800" />
+</p>
+
 ---
 
 ## Why JKAuto?

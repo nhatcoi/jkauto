@@ -19,6 +19,7 @@ import {
   stopAppiumSessionOnQuit,
 } from './handlers/appium-session.handler'
 import { registerScrcpyHandlers, stopScrcpyOnQuit } from './handlers/scrcpy.handler'
+import { registerWindowHandlers } from './handlers/window.handler'
 import { registerMaestroHandlers } from './handlers/maestro.handler'
 import { registerMobileToolsHandlers } from './handlers/mobile-tools.handler'
 import { registerAutogenHandlers } from './handlers/autogen-handler'
@@ -41,6 +42,8 @@ function openInspectorWindow(): void {
     minHeight: 500,
     title: 'Mobile Inspector',
     backgroundColor: '#1a1d23',
+    frame: process.platform === 'darwin',
+    titleBarStyle: process.platform === 'darwin' ? 'hidden' : 'default',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -69,6 +72,8 @@ function createWindow(): BrowserWindow {
     show: false,
     autoHideMenuBar: true,
     backgroundColor: '#1a1d23',
+    frame: process.platform === 'darwin',
+    titleBarStyle: process.platform === 'darwin' ? 'hidden' : 'default',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -113,6 +118,7 @@ app.whenReady().then(() => {
   registerMobileToolsHandlers(ipcMain)
   registerAutogenHandlers(ipcMain)
   registerScrcpyHandlers(ipcMain)
+  registerWindowHandlers(ipcMain)
   ipcMain.handle(IpcChannels.APPIUM_INSPECTOR_OPEN, () => {
     openInspectorWindow()
     return { ok: true }
