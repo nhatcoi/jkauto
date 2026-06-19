@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="apps/desktop/src/renderer/src/assets/logo.png" alt="JKAuto Logo" width="120" />
+  <img src="apps/desktop/src/renderer/src/assets/logo.svg" alt="JKAuto Logo" width="120" />
 </p>
 
 <h1 align="center">JKAuto</h1>

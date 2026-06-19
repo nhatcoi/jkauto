@@ -1,41 +1,55 @@
 schemaVersion: 1
-id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
-name: dasd
-description: GET users, create post, verify response chain
-tags:
-  - api
-  - smoke
-  - jsonplaceholder
+id: user-crud-flow
+name: JSONPlaceholder - User CRUD flow
+description: GET users → extract id → POST post with that userId
 platform: api
 runner: api
-variables:
-  BASE_URL: https://jsonplaceholder.typicode.com
 steps:
-  - id: s1
-    keyword: set-base-url
-    description: Set base URL from variable
-    input: ${BASE_URL}
-  - id: s2
-    keyword: set-request-header
-    description: Set content type
-    objectRef: Content-Type
-    input: application/json
-  - id: s3
+  - id: 86c5d5c2-7670-4391-9b20-742bc9b2ba07
     keyword: http-request
-    description: GET list of users
+    description: Get list of users
     objectRef: GET
     input: /users
-  - id: s4
+  - id: 9ea9db25-99c9-4e09-a7fc-5dbf1e328c27
     keyword: assert-status-code
     description: Verify 200 OK
     expected: "200"
-  - id: s5
+  - id: 576f4e2b-ad74-4ba9-ad57-be64db9b8d2b
     keyword: assert-header
     description: Response is JSON
     objectRef: content-type
     expected: application/json
-  - id: s6
+  - id: fc7efc1d-a4ce-4738-ae10-0dc2f3c92a0e
     keyword: assert-json-path
     description: First user has id=1
     objectRef: 0.id
     expected: "1"
+  - id: 08b28dc8-323e-4535-b0f8-63aed879b45e
+    keyword: extract-body
+    description: Extract first user id
+    objectRef: 0.id
+    input: userId
+  - id: 04fc0ba0-6b14-4bbb-a210-4b9be51cf473
+    keyword: http-request-body
+    description: Create a post for extracted user
+    objectRef: POST
+    input: /posts
+    expected: |
+      {
+        "title": "Smoke test post",
+        "body": "auto generated",
+        "userId": "{{userId}}"
+      }
+  - id: 9d05c8b1-613b-47e3-9279-3f4d339c86e8
+    keyword: assert-status-code
+    description: Verify 201 Created
+    expected: "201"
+  - id: e77d2078-d961-4a58-8c1d-0ffdd80d10e4
+    keyword: assert-json-path
+    description: Response has correct title
+    objectRef: title
+    expected: Smoke test post
+  - id: aaf066bf-db34-4005-af94-752668c2de0e
+    keyword: assert-response-time
+    description: Under 3s
+    expected: "3000"
