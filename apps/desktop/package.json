@@ -1,11 +1,23 @@
 {
   "name": "@jkauto/desktop",
   "version": "0.1.0",
+  "description": "Desktop IDE for authoring and running automated tests",
+  "author": {
+    "name": "Nhat",
+    "email": "vnhat.dev@gmail.com"
+  },
+  "homepage": "https://github.com/nhatcoi/jkauto",
+  "license": "MIT",
+  "desktopName": "JKAuto",
   "private": true,
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev -- --no-sandbox --disable-gpu",
     "build": "electron-vite build",
+    "package": "pnpm build && electron-builder --publish never",
+    "package:linux": "pnpm build && electron-builder --linux AppImage deb --publish never",
+    "package:windows": "pnpm build && electron-builder --win nsis --publish never",
+    "package:mac": "pnpm build && electron-builder --mac dmg --publish never",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "fetch-scrcpy-server": "fetch-scrcpy-server 3.1",
@@ -77,6 +89,7 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "electron": "^32.2.0",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^2.3.0",
     "lucide-react": "^0.462.0",
     "postcss": "^8.4.47",
@@ -89,5 +102,54 @@
     "typescript": "^5.5.4",
     "vite": "^5.4.10",
     "zustand": "^5.0.1"
+  },
+  "build": {
+    "appId": "dev.vnhat.jkauto",
+    "productName": "JKAuto",
+    "asar": true,
+    "asarUnpack": [
+      "**/*.node"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "node_modules/@yume-chan/fetch-scrcpy-server/server.bin",
+        "to": "scrcpy/server.bin"
+      }
+    ],
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "linux": {
+      "icon": "src/renderer/src/assets/logo.png",
+      "syncDesktopName": true,
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Development",
+      "executableName": "jkauto"
+    },
+    "win": {
+      "icon": "src/renderer/src/assets/logo.png",
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "icon": "src/renderer/src/assets/logo.png",
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.developer-tools"
+    }
   }
 }

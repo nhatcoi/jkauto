@@ -5,6 +5,7 @@ allowBuilds:
   better-sqlite3: true
   edgedriver: true
   electron: true
+  electron-winstaller: true
   esbuild: true
   geckodriver: true
   tree-sitter: true

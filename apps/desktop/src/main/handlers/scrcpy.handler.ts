@@ -31,6 +31,7 @@ const SCRCPY_BUTTON_KEYCODES: Record<AppiumButton, AndroidKeyCodeType | undefine
 function getServerBinPath(): string {
   const appRoot = app.getAppPath()
   const candidates = [
+    join(process.resourcesPath, 'scrcpy', 'server.bin'),
     join(appRoot, 'node_modules', '@yume-chan', 'fetch-scrcpy-server', 'scrcpy-server-v3.1'),
     join(appRoot, 'node_modules', '@yume-chan', 'fetch-scrcpy-server', 'server.bin'),
     // pnpm hoisting fallback
