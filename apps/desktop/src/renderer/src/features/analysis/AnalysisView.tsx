@@ -29,9 +29,15 @@ import { useProjectStore } from '@/store/project.store'
 
 const ARTIFACT_ICONS: Record<CodeAnalysisArtifactType, typeof Code2> = {
   'project-summary': Network,
+  'project-classification': GitBranch,
+  'module-catalog': Boxes,
   'route-catalog': Route,
   'ui-catalog': Boxes,
   'symbol-catalog': Braces,
+  'knowledge-graph': Network,
+  'analysis-coverage': CheckCircle2,
+  'known-unknowns': AlertCircle,
+  'test-targets': Play,
   'runtime-requirements': Play,
   documentation: BookOpen,
 }
@@ -125,9 +131,9 @@ export function AnalysisView({ projectPath }: { projectPath: string }) {
           <Network className="h-4 w-4 text-violet-400" />
         </div>
         <div className="min-w-0 flex-1">
-          <h1 className="text-sm font-semibold">Code Analysis</h1>
+          <h1 className="text-sm font-semibold">Code Intelligence</h1>
           <p className="truncate text-[11px] text-muted-foreground">
-            Deterministic AST/code-map artifacts persisted for Agent retrieval.
+            Continuous code intelligence with modules, evidence, graph, and Agent memory.
           </p>
         </div>
         {report ? (
@@ -171,7 +177,7 @@ export function AnalysisView({ projectPath }: { projectPath: string }) {
             ) : (
               <Play className="mr-1.5 h-3.5 w-3.5" />
             )}
-            {report ? 'Refresh' : 'Analyze'}
+            {report ? 'Refresh Intelligence' : 'Build Intelligence'}
           </Button>
         </div>
         {running && progress ? (
@@ -197,7 +203,7 @@ export function AnalysisView({ projectPath }: { projectPath: string }) {
           <div>
             <p className="text-sm font-medium">No analysis artifacts yet</p>
             <p className="mt-1 max-w-md text-xs leading-5 text-muted-foreground">
-              Analyze a repository or local source directory to build reusable project context.
+              Build project classification, verified code maps, knowledge graph, and reusable Agent memory.
               You can also run <code>/analysis refresh</code> from Agent Chat.
             </p>
           </div>
@@ -220,6 +226,15 @@ export function AnalysisView({ projectPath }: { projectPath: string }) {
               <p className="mt-1 text-[10px] text-muted-foreground">
                 Updated {formatDate(report.run.completedAt)}
               </p>
+              <div className="mt-2 grid grid-cols-2 gap-1">
+                <MiniMetric label="Modules" value={report.summary.moduleCount} />
+                <MiniMetric
+                  label="Coverage"
+                  value={`${Math.round(report.summary.coverage * 100)}%`}
+                />
+                <MiniMetric label="Graph" value={report.summary.graphNodeCount} />
+                <MiniMetric label="Unknowns" value={report.summary.gapCount} />
+              </div>
             </div>
             <div className="space-y-1">
               {report.artifacts.map((artifact) => {
@@ -318,6 +333,17 @@ function Metric({ label, value }: { label: string; value: string | number }) {
     <div className="rounded-lg border border-border bg-card/40 px-3 py-2">
       <div className="text-[10px] text-muted-foreground">{label}</div>
       <div className="mt-0.5 text-sm font-semibold">{value}</div>
+    </div>
+  )
+}
+
+function MiniMetric({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded border border-border/70 bg-background/40 px-1.5 py-1">
+      <div className="text-[8px] uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
+      <div className="text-[10px] font-medium">{value}</div>
     </div>
   )
 }

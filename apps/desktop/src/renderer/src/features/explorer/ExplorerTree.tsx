@@ -456,7 +456,7 @@ function NodeRow({
       if (node.id === 'analysis') {
         openTab(
           `${ANALYSIS_TAB_PREFIX}${encodeURIComponent(projectPath)}`,
-          'Code Analysis',
+          'Code Intelligence',
           projectPath,
         )
       }
