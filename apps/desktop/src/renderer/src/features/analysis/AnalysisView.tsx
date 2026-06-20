@@ -27,10 +27,17 @@ import { Progress } from '@/components/ui/progress'
 import { cn, invoke } from '@/lib/utils'
 import { useProjectStore } from '@/store/project.store'
 import { CoverageChart } from './components/CoverageChart'
+import { DocumentationView } from './components/DocumentationView'
 import { KnowledgeGraphView } from './components/KnowledgeGraphView'
 import { KnownUnknownsView } from './components/KnownUnknownsView'
+import { ModuleCatalogView } from './components/ModuleCatalogView'
+import { ProjectClassificationView } from './components/ProjectClassificationView'
 import { ProjectSummaryChart } from './components/ProjectSummaryChart'
+import { RouteCatalogView } from './components/RouteCatalogView'
+import { RuntimeRequirementsView } from './components/RuntimeRequirementsView'
+import { SymbolCatalogView } from './components/SymbolCatalogView'
 import { TestTargetsView } from './components/TestTargetsView'
+import { UICatalogView } from './components/UICatalogView'
 
 const ARTIFACT_ICONS: Record<CodeAnalysisArtifactType, typeof Code2> = {
   'project-summary': Network,
@@ -282,34 +289,41 @@ export function AnalysisView({ projectPath }: { projectPath: string }) {
   )
 }
 
-const VIZ_TYPES = new Set<CodeAnalysisArtifactType>([
-  'project-summary',
-  'analysis-coverage',
-  'knowledge-graph',
-  'known-unknowns',
-  'test-targets',
-])
-
 function ArtifactViz({ artifact }: { artifact: CodeAnalysisArtifact }) {
   switch (artifact.type) {
     case 'project-summary':
       return <ProjectSummaryChart contentJson={artifact.contentJson} />
-    case 'analysis-coverage':
-      return <CoverageChart contentJson={artifact.contentJson} />
+    case 'project-classification':
+      return <ProjectClassificationView contentJson={artifact.contentJson} />
+    case 'module-catalog':
+      return <ModuleCatalogView contentJson={artifact.contentJson} />
+    case 'route-catalog':
+      return <RouteCatalogView contentJson={artifact.contentJson} />
+    case 'ui-catalog':
+      return <UICatalogView contentJson={artifact.contentJson} />
+    case 'symbol-catalog':
+      return <SymbolCatalogView contentJson={artifact.contentJson} />
     case 'knowledge-graph':
       return <KnowledgeGraphView contentJson={artifact.contentJson} />
+    case 'analysis-coverage':
+      return <CoverageChart contentJson={artifact.contentJson} />
     case 'known-unknowns':
       return <KnownUnknownsView contentJson={artifact.contentJson} />
     case 'test-targets':
       return <TestTargetsView contentJson={artifact.contentJson} />
+    case 'runtime-requirements':
+      return <RuntimeRequirementsView contentJson={artifact.contentJson} />
+    case 'documentation':
+      return <DocumentationView contentJson={artifact.contentJson} />
     default:
       return null
   }
 }
 
+type ViewMode = 'visualize' | 'file'
+
 function ArtifactDetail({ artifact }: { artifact: CodeAnalysisArtifact }) {
-  const hasViz = VIZ_TYPES.has(artifact.type)
-  const [showRaw, setShowRaw] = useState(false)
+  const [mode, setMode] = useState<ViewMode>('visualize')
 
   return (
     <div className="mx-auto max-w-5xl space-y-4 p-5">
@@ -319,15 +333,23 @@ function ArtifactDetail({ artifact }: { artifact: CodeAnalysisArtifact }) {
           <Badge variant="secondary" className="text-[9px]">
             {artifact.type}
           </Badge>
-          {hasViz && (
-            <button
-              type="button"
-              onClick={() => setShowRaw((prev) => !prev)}
-              className="ml-auto text-[10px] text-muted-foreground hover:text-foreground"
-            >
-              {showRaw ? 'Hide raw' : 'Show raw JSON'}
-            </button>
-          )}
+          <div className="ml-auto flex rounded-md border border-border p-0.5">
+            {(['visualize', 'file'] as ViewMode[]).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                className={cn(
+                  'rounded px-2 py-0.5 text-[10px] font-medium capitalize transition-colors',
+                  mode === m
+                    ? 'bg-secondary text-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
         </div>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">
           {artifact.summary}
@@ -340,36 +362,38 @@ function ArtifactDetail({ artifact }: { artifact: CodeAnalysisArtifact }) {
         <Metric label="Sources" value={artifact.sourceRefs.length} />
       </div>
 
-      {hasViz && !showRaw ? (
+      {mode === 'visualize' ? (
         <ArtifactViz artifact={artifact} />
       ) : (
-        <section>
-          <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            Artifact data
-          </h3>
-          <pre className="overflow-auto rounded-lg border border-border bg-card/50 p-4 text-[11px] leading-5 text-foreground/85">
-            {prettyJson(artifact.contentJson)}
-          </pre>
-        </section>
-      )}
+        <>
+          <section>
+            <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Raw JSON
+            </h3>
+            <pre className="overflow-auto rounded-lg border border-border bg-card/50 p-4 text-[11px] leading-5 text-foreground/85">
+              {prettyJson(artifact.contentJson)}
+            </pre>
+          </section>
 
-      {artifact.sourceRefs.length > 0 && !hasViz ? (
-        <section>
-          <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            Source references
-          </h3>
-          <div className="rounded-lg border border-border bg-card/30">
-            {artifact.sourceRefs.slice(0, 100).map((source) => (
-              <div
-                key={source}
-                className="border-b border-border/60 px-3 py-1.5 font-mono text-[10px] text-muted-foreground last:border-b-0"
-              >
-                {source}
+          {artifact.sourceRefs.length > 0 && (
+            <section>
+              <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Source references
+              </h3>
+              <div className="rounded-lg border border-border bg-card/30">
+                {artifact.sourceRefs.slice(0, 100).map((source) => (
+                  <div
+                    key={source}
+                    className="border-b border-border/60 px-3 py-1.5 font-mono text-[10px] text-muted-foreground last:border-b-0"
+                  >
+                    {source}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
+            </section>
+          )}
+        </>
+      )}
     </div>
   )
 }
