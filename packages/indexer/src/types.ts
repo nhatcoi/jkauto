@@ -18,6 +18,46 @@ export type Language =
   | 'csharp'
   | 'unknown'
 
+export type ProjectType =
+  | 'web-application'
+  | 'backend-api'
+  | 'mobile-app'
+  | 'desktop-app'
+  | 'microservice'
+  | 'monorepo'
+  | 'library-sdk'
+  | 'cli-tool'
+  | 'automation-test'
+  | 'data-ai'
+  | 'infrastructure-devops'
+  | 'database'
+  | 'unknown-mixed'
+
+export type ModuleRole =
+  | 'frontend'
+  | 'backend'
+  | 'mobile'
+  | 'desktop'
+  | 'library'
+  | 'cli'
+  | 'automation'
+  | 'data'
+  | 'infrastructure'
+  | 'database'
+  | 'unknown'
+
+export interface SourceRef {
+  file: string
+  line?: number
+  symbol?: string
+}
+
+export interface ProjectTag {
+  type: ProjectType
+  confidence: number
+  evidence: SourceRef[]
+}
+
 export interface DetectedStack {
   framework: Framework
   language: Language
@@ -26,6 +66,82 @@ export interface DetectedStack {
   hasReadme: boolean
   readmePath?: string
   testFramework?: string
+}
+
+export interface DetectedModule {
+  id: string
+  name: string
+  root: string
+  relativeRoot: string
+  role: ModuleRole
+  stack: DetectedStack
+  tags: ProjectTag[]
+  manifests: string[]
+}
+
+export interface SourceFileInfo {
+  path: string
+  relativePath: string
+  moduleId: string
+  language: Language | 'sql' | 'yaml' | 'json' | 'markdown' | 'other'
+  size: number
+  contentHash: string
+  preview?: string
+}
+
+export interface CodeRelation {
+  from: string
+  to: string
+  type:
+    | 'contains'
+    | 'imports'
+    | 'declares'
+    | 'renders'
+    | 'exposes'
+    | 'reads'
+    | 'calls'
+    | 'depends-on'
+  sourceRef?: SourceRef
+  confidence: number
+}
+
+export interface AnalysisFinding {
+  id: string
+  kind: 'entrypoint' | 'documentation' | 'configuration' | 'auth' | 'database' | 'test-target'
+  name: string
+  summary: string
+  status: 'verified' | 'inferred' | 'unknown'
+  confidence: number
+  sourceRefs: SourceRef[]
+  moduleId?: string
+}
+
+export interface KnowledgeGap {
+  id: string
+  kind: 'entrypoint' | 'routes' | 'api' | 'ui' | 'database' | 'auth' | 'runtime' | 'framework'
+  title: string
+  reason: string
+  priority: 'critical' | 'high' | 'normal' | 'low'
+  moduleId?: string
+  suggestedActions: string[]
+}
+
+export interface WorkspaceAnalysis {
+  root: string
+  tags: ProjectTag[]
+  modules: DetectedModule[]
+  files: SourceFileInfo[]
+  relations: CodeRelation[]
+  findings: AnalysisFinding[]
+  gaps: KnowledgeGap[]
+  diagnostics: {
+    scannedFiles: number
+    parsedFiles: number
+    failedFiles: number
+    unsupportedFiles: number
+    skippedFiles: number
+    coverage: number
+  }
 }
 
 export interface CodePage {
@@ -79,6 +195,7 @@ export interface CodeMap {
   endpoints: ApiEndpoint[]
   symbols: CodeSymbol[]
   flows: string[]
+  workspace?: WorkspaceAnalysis
 }
 
 export interface IndexProgress {
