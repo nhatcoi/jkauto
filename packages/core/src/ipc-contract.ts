@@ -501,9 +501,15 @@ export interface HarnessReportPayload {
 
 export type CodeAnalysisArtifactType =
   | 'project-summary'
+  | 'project-classification'
+  | 'module-catalog'
   | 'route-catalog'
   | 'ui-catalog'
   | 'symbol-catalog'
+  | 'knowledge-graph'
+  | 'analysis-coverage'
+  | 'known-unknowns'
+  | 'test-targets'
   | 'runtime-requirements'
   | 'documentation'
 
@@ -543,6 +549,11 @@ export interface CodeAnalysisReport {
     endpointCount: number
     elementCount: number
     symbolCount: number
+    moduleCount: number
+    gapCount: number
+    graphNodeCount: number
+    graphEdgeCount: number
+    coverage: number
   }
 }
 
@@ -559,7 +570,7 @@ export interface CodeAnalysisReportPayload {
 
 export interface CodeAnalysisProgress {
   runId?: string
-  phase: 'source' | 'clone' | 'detect' | 'parse' | 'index' | 'artifacts' | 'done' | 'error'
+  phase: 'source' | 'clone' | 'detect' | 'parse' | 'index' | 'memory' | 'artifacts' | 'done' | 'error'
   message: string
   percent: number
 }
