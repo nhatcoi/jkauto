@@ -128,7 +128,26 @@ export function extractSymbolsAST(filePath: string): CodeSymbol[] {
     const nameNode = cls.childForFieldName('name')
     if (!nameNode) continue
     const exported = cls.parent?.type === 'export_statement'
-    symbols.push({ kind: 'class', name: nameNode.text, file: filePath, line: cls.startPosition.row + 1, exported })
+    const decorators = cls.descendantsOfType('decorator').map((item) => item.text).join(' ')
+    const kind = /@Component\b/.test(decorators)
+      ? 'component'
+      : /@Injectable\b/.test(decorators)
+        ? 'service'
+        : 'class'
+    symbols.push({ kind, name: nameNode.text, file: filePath, line: cls.startPosition.row + 1, exported })
+  }
+
+  for (const iface of tree.rootNode.descendantsOfType('interface_declaration')) {
+    const nameNode = iface.childForFieldName('name')
+    if (!nameNode) continue
+    const exported = iface.parent?.type === 'export_statement'
+    symbols.push({
+      kind: 'interface',
+      name: nameNode.text,
+      file: filePath,
+      line: iface.startPosition.row + 1,
+      exported,
+    })
   }
 
   return symbols

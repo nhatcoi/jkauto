@@ -83,14 +83,27 @@ function extractReactRouterRoutes(repoPath: string): CodePage[] {
 
 function extractAngularRoutes(repoPath: string): CodePage[] {
   const pages: CodePage[] = []
-  const routingFile = path.join(repoPath, 'src', 'app', 'app-routing.module.ts')
-  if (!fs.existsSync(routingFile)) return pages
-
-  const src = fs.readFileSync(routingFile, 'utf-8')
-  const pathRe = /path:\s*['"`]([^'"`]+)['"`]/g
-  let m: RegExpExecArray | null
-  while ((m = pathRe.exec(src)) !== null) {
-    pages.push({ route: '/' + m[1], componentFile: routingFile, componentName: m[1] })
+  const candidates = [
+    path.join(repoPath, 'src', 'app', 'app-routing.module.ts'),
+    path.join(repoPath, 'src', 'app', 'app.routes.ts'),
+  ]
+  for (const routingFile of candidates) {
+    if (!fs.existsSync(routingFile)) continue
+    const src = fs.readFileSync(routingFile, 'utf-8')
+    const routeRe = /\{\s*path:\s*['"`]([^'"`]*)['"`]([\s\S]*?)(?=\},?\s*(?:\{|]))/g
+    let m: RegExpExecArray | null
+    while ((m = routeRe.exec(src)) !== null) {
+      if (m[1] === '**') continue
+      const component =
+        /component:\s*(\w+)/.exec(m[2])?.[1] ??
+        /\.then\(\s*\w+\s*=>\s*\w+\.(\w+)/.exec(m[2])?.[1] ??
+        (m[1] || 'root')
+      pages.push({
+        route: m[1] ? `/${m[1]}` : '/',
+        componentFile: routingFile,
+        componentName: component,
+      })
+    }
   }
   return pages
 }

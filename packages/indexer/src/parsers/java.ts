@@ -16,6 +16,11 @@ const MAPPING_RE = /@(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMappi
 const CLASS_RE = /(?:public|protected)?\s+class\s+(\w+)/g
 const CONTROLLER_MAPPING_RE = /@RequestMapping\s*\(\s*(?:value\s*=\s*)?["']([^"']+)["']/
 
+function normalizeRoute(basePath: string, routePath: string): string {
+  const value = `${basePath}/${routePath}`.replace(/\/+/g, '/')
+  return value.length > 1 ? value.replace(/\/$/, '') : value
+}
+
 function stringFromNode(node: TsNode): string | null {
   // Java string_literal contains string_fragment
   const frag = node.descendantsOfType('string_fragment')[0]
@@ -33,11 +38,14 @@ function extractEndpointsAST(src: string, filePath: string): ApiEndpoint[] {
 
   // Class-level @RequestMapping base path
   let basePath = ''
-  for (const ann of tree.rootNode.descendantsOfType('annotation')) {
+  for (const ann of tree.rootNode.descendantsOfType(['annotation', 'marker_annotation'])) {
     const nameNode = ann.namedChild(0)
     if (nameNode?.text !== 'RequestMapping') continue
     // Check if directly on class (parent is class_declaration or modifiers)
-    if (ann.parent?.type !== 'modifiers') continue
+    if (
+      ann.parent?.type !== 'modifiers' ||
+      ann.parent.parent?.type !== 'class_declaration'
+    ) continue
     const argList = ann.descendantsOfType('annotation_argument_list')[0]
     if (!argList) continue
     const str = argList.descendantsOfType('string_literal')[0]
@@ -45,24 +53,23 @@ function extractEndpointsAST(src: string, filePath: string): ApiEndpoint[] {
   }
 
   // Method-level mapping annotations
-  for (const ann of tree.rootNode.descendantsOfType('annotation')) {
+  for (const ann of tree.rootNode.descendantsOfType(['annotation', 'marker_annotation'])) {
     const nameNode = ann.namedChild(0)
     if (!nameNode) continue
     const annName = nameNode.text
     if (!MAPPING_METHODS[annName] && annName !== 'RequestMapping') continue
+    if (
+      ann.parent?.type !== 'modifiers' ||
+      ann.parent.parent?.type !== 'method_declaration'
+    ) continue
 
     const argList = ann.descendantsOfType('annotation_argument_list')[0]
-    if (!argList) continue
-
-    // @GetMapping("/path") — direct string
-    const strLit = argList.descendantsOfType('string_literal')[0]
-    if (!strLit) continue
-
-    const routePath = stringFromNode(strLit) ?? ''
+    const strLit = argList?.descendantsOfType('string_literal')[0]
+    const routePath = strLit ? (stringFromNode(strLit) ?? '') : ''
     const method = MAPPING_METHODS[annName] ?? 'GET'
     endpoints.push({
       method,
-      path: (basePath + '/' + routePath).replace(/\/+/g, '/'),
+      path: normalizeRoute(basePath, routePath),
       sourceFile: filePath,
     })
   }
@@ -81,7 +88,7 @@ function extractEndpointsRegex(src: string, filePath: string): ApiEndpoint[] {
     const annName = m[1]
     const routePath = m[2]
     const method = annName === 'RequestMapping' ? 'GET' : (MAPPING_METHODS[annName] ?? 'GET')
-    endpoints.push({ method, path: (basePath + routePath).replace(/\/+/g, '/'), sourceFile: filePath })
+    endpoints.push({ method, path: normalizeRoute(basePath, routePath), sourceFile: filePath })
   }
   return endpoints
 }
@@ -104,7 +111,25 @@ function extractSymbolsAST(src: string, filePath: string): CodeSymbol[] {
   for (const cls of tree.rootNode.descendantsOfType('class_declaration')) {
     const nameNode = cls.childForFieldName('name')
     if (!nameNode) continue
-    symbols.push({ kind: 'class', name: nameNode.text, file: filePath, line: cls.startPosition.row + 1, exported: true })
+    const modifiers = cls.descendantsOfType('modifiers')[0]?.text ?? ''
+    const kind = /@Entity\b/.test(modifiers)
+      ? 'model'
+      : /@Service\b/.test(modifiers)
+        ? 'service'
+        : 'class'
+    symbols.push({ kind, name: nameNode.text, file: filePath, line: cls.startPosition.row + 1, exported: true })
+  }
+
+  for (const iface of tree.rootNode.descendantsOfType('interface_declaration')) {
+    const nameNode = iface.childForFieldName('name')
+    if (!nameNode) continue
+    symbols.push({
+      kind: 'interface',
+      name: nameNode.text,
+      file: filePath,
+      line: iface.startPosition.row + 1,
+      exported: true,
+    })
   }
 
   for (const method of tree.rootNode.descendantsOfType('method_declaration')) {
