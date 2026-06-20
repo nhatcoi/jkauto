@@ -8,7 +8,10 @@ import type {
   CodeAnalysisReport,
 } from '@jkauto/core'
 import type { CodeMap, DetectedStack } from '@jkauto/indexer'
-import { startIndex } from '../autogen/autogen.service'
+import {
+  getCodeKnowledgeSnapshot,
+  startIndex,
+} from '../autogen/autogen.service'
 import {
   completeAnalysisRun,
   createAnalysisRun,
@@ -83,8 +86,14 @@ function runtimeRequirements(stack: DetectedStack): Record<string, unknown> {
 async function documentationArtifact(
   sourcePath: string,
   stack: DetectedStack,
+  map: CodeMap,
 ): Promise<ArtifactInput> {
-  const refs = [stack.readmePath].filter((value): value is string => Boolean(value))
+  const refs = Array.from(new Set([
+    stack.readmePath,
+    ...(map.workspace?.files
+      .filter((file) => file.language === 'markdown')
+      .map((file) => file.path) ?? []),
+  ].filter((value): value is string => Boolean(value))))
   let excerpt = ''
   if (stack.readmePath) {
     try {
@@ -103,6 +112,13 @@ async function documentationArtifact(
       sourceRoot: sourcePath,
       files: refs,
       readmeExcerpt: excerpt,
+      previews: map.workspace?.files
+        .filter((file) => file.language === 'markdown' && file.preview)
+        .slice(0, 20)
+        .map((file) => ({
+          file: file.path,
+          preview: file.preview?.slice(0, 2_000),
+        })) ?? [],
     },
     itemCount: refs.length,
     confidence: refs.length ? 1 : 0.5,
@@ -127,6 +143,35 @@ async function buildArtifacts(
     ...map.elements.map((item) => item.sourceFile),
     ...map.symbols.map((item) => item.file),
   ].filter(Boolean)))
+  const workspace = map.workspace
+  const testTargets = [
+    ...map.pages.map((page) => ({
+      type: 'page',
+      id: page.route,
+      name: page.componentName,
+      status: 'verified',
+      confidence: 0.9,
+      sourceRefs: [page.componentFile],
+    })),
+    ...map.endpoints.map((endpoint) => ({
+      type: 'api',
+      id: `${endpoint.method} ${endpoint.path}`,
+      name: endpoint.summary ?? endpoint.path,
+      status: 'verified',
+      confidence: 0.95,
+      sourceRefs: [endpoint.sourceFile],
+    })),
+    ...(workspace?.findings
+      .filter((finding) => finding.kind === 'auth' || finding.kind === 'database')
+      .map((finding) => ({
+        type: finding.kind === 'auth' ? 'flow' : 'data',
+        id: finding.id,
+        name: finding.name,
+        status: finding.status,
+        confidence: finding.confidence,
+        sourceRefs: finding.sourceRefs.map((ref) => ref.file),
+      })) ?? []),
+  ]
 
   return [
     {
@@ -141,6 +186,31 @@ async function buildArtifacts(
       },
       itemCount: Object.values(counts).reduce((total, count) => total + count, 0),
       sourceRefs: sourceFiles.slice(0, 100),
+    },
+    {
+      type: 'project-classification',
+      title: 'Project type detection',
+      summary: workspace
+        ? `${workspace.tags.length} workspace tags detected with evidence.`
+        : 'No workspace classification is available.',
+      content: {
+        tags: workspace?.tags ?? [],
+        primaryStack: stack,
+      },
+      itemCount: workspace?.tags.length ?? 0,
+      confidence: workspace?.tags.length
+        ? Math.max(...workspace.tags.map((tag) => tag.confidence))
+        : 0,
+      sourceRefs: workspace?.tags.flatMap((tag) => tag.evidence.map((ref) => ref.file)) ?? [],
+    },
+    {
+      type: 'module-catalog',
+      title: 'Workspace modules',
+      summary: `${workspace?.modules.length ?? 0} independently classified modules discovered.`,
+      content: { modules: workspace?.modules ?? [] },
+      itemCount: workspace?.modules.length ?? 0,
+      confidence: workspace?.modules.length ? 0.95 : 0,
+      sourceRefs: workspace?.modules.flatMap((module) => module.manifests) ?? [],
     },
     {
       type: 'route-catalog',
@@ -170,6 +240,50 @@ async function buildArtifacts(
       sourceRefs: Array.from(new Set(map.symbols.map((item) => item.file).filter(Boolean))),
     },
     {
+      type: 'knowledge-graph',
+      title: 'Codebase knowledge graph',
+      summary: `${workspace?.relations.length ?? 0} verified or inferred relationships.`,
+      content: {
+        relations: workspace?.relations ?? [],
+        findings: workspace?.findings ?? [],
+      },
+      itemCount: (workspace?.relations.length ?? 0) + (workspace?.findings.length ?? 0),
+      confidence: workspace?.relations.length ? 0.85 : 0,
+      sourceRefs: workspace?.relations
+        .flatMap((relation) => relation.sourceRef?.file ? [relation.sourceRef.file] : []) ?? [],
+    },
+    {
+      type: 'analysis-coverage',
+      title: 'Analysis coverage',
+      summary: workspace
+        ? `${Math.round(workspace.diagnostics.coverage * 100)}% static file coverage; ${workspace.diagnostics.failedFiles} failures.`
+        : 'Coverage diagnostics unavailable.',
+      content: workspace?.diagnostics ?? {},
+      itemCount: workspace?.diagnostics.scannedFiles ?? 0,
+      confidence: 1,
+      sourceRefs: [],
+    },
+    {
+      type: 'known-unknowns',
+      title: 'Known unknowns',
+      summary: `${workspace?.gaps.length ?? 0} knowledge gaps require tool or runtime verification.`,
+      content: { gaps: workspace?.gaps ?? [] },
+      itemCount: workspace?.gaps.length ?? 0,
+      confidence: 1,
+      sourceRefs: [],
+    },
+    {
+      type: 'test-targets',
+      title: 'Verified test targets',
+      summary: `${testTargets.length} candidate pages, APIs, flows, and data surfaces.`,
+      content: { targets: testTargets },
+      itemCount: testTargets.length,
+      confidence: testTargets.length
+        ? testTargets.reduce((sum, target) => sum + target.confidence, 0) / testTargets.length
+        : 0,
+      sourceRefs: Array.from(new Set(testTargets.flatMap((target) => target.sourceRefs))),
+    },
+    {
       type: 'runtime-requirements',
       title: 'Runtime requirements',
       summary: `Runtime candidates inferred for ${stack.framework}.`,
@@ -178,7 +292,7 @@ async function buildArtifacts(
       confidence: 0.7,
       sourceRefs: [],
     },
-    await documentationArtifact(sourcePath, stack),
+    await documentationArtifact(sourcePath, stack, map),
   ]
 }
 
@@ -220,6 +334,12 @@ export async function startCodeAnalysis(
     const sourcePath = sourceType === 'local'
       ? path.resolve(sourceRef)
       : String(getRepoIndex(params.projectPath)?.local_path ?? sourceRef)
+    onProgress({
+      runId,
+      phase: 'memory',
+      message: `Knowledge memory: ${result.memoryUpdate.created} new, ${result.memoryUpdate.updated} updated, ${result.memoryUpdate.stale} stale.`,
+      percent: 88,
+    })
     const artifacts = await buildArtifacts(sourcePath, result.stack, result.map)
     const createdAt = new Date().toISOString()
     for (const artifact of artifacts) {
@@ -279,6 +399,23 @@ export function getCodeAnalysisReport(
   const counts = summaryArtifact
     ? (JSON.parse(summaryArtifact.contentJson) as { counts?: Record<string, number> }).counts
     : undefined
+  const classificationArtifact = artifacts.find((item) => item.type === 'module-catalog')
+  const coverageArtifact = artifacts.find((item) => item.type === 'analysis-coverage')
+  const gapsArtifact = artifacts.find((item) => item.type === 'known-unknowns')
+  const classification = classificationArtifact
+    ? JSON.parse(classificationArtifact.contentJson) as { modules?: unknown[] }
+    : {}
+  const coverage = coverageArtifact
+    ? JSON.parse(coverageArtifact.contentJson) as { coverage?: number }
+    : {}
+  const gaps = gapsArtifact
+    ? JSON.parse(gapsArtifact.contentJson) as { gaps?: unknown[] }
+    : {}
+  const knowledge = getCodeKnowledgeSnapshot(projectPath)
+  const graphNodeCount = (knowledge.counts as Array<{ count?: number }>).reduce(
+    (total, row) => total + Number(row.count ?? 0),
+    0,
+  )
   return {
     run: {
       id: rawRun.id,
@@ -300,6 +437,11 @@ export function getCodeAnalysisReport(
       endpointCount: counts?.endpoints ?? 0,
       elementCount: counts?.elements ?? 0,
       symbolCount: counts?.symbols ?? 0,
+      moduleCount: classification.modules?.length ?? 0,
+      gapCount: gaps.gaps?.length ?? 0,
+      graphNodeCount,
+      graphEdgeCount: knowledge.edgeCount,
+      coverage: coverage.coverage ?? 0,
     },
   }
 }
