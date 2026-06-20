@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { X, FileText, Globe, Database, Layers, BarChart2, Braces, SlidersHorizontal } from 'lucide-react'
+import { X, FileText, Globe, Database, Layers, BarChart2, Braces, SlidersHorizontal, Network } from 'lucide-react'
 import { useProjectStore } from '@/store/project.store'
 import { IpcChannels } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
@@ -12,8 +12,9 @@ import { KeywordEditor } from '@/features/keywords/KeywordEditor'
 import { KeywordsView } from '@/features/keywords/KeywordsView'
 import { ReportsView } from '@/features/reports/ReportsView'
 import { ProfileEditor } from '@/features/env/ProfileEditor'
+import { AnalysisView } from '@/features/analysis/AnalysisView'
 import { useTabDnd } from '@/hooks/useTabDnd'
-import { REPORTS_TAB_PATH, KEYWORDS_TAB_PATH } from '@/shared/keymaps'
+import { ANALYSIS_TAB_PREFIX, REPORTS_TAB_PATH, KEYWORDS_TAB_PATH } from '@/shared/keymaps'
 
 function isTestCase(path: string) {
   return path.endsWith('.test.json') || path.endsWith('.test.yaml') || path.endsWith('.test.yml')
@@ -40,6 +41,7 @@ function isProfile(path: string) {
 }
 
 function getTabIcon(path: string): React.ElementType {
+  if (path.startsWith(ANALYSIS_TAB_PREFIX)) return Network
   if (path === REPORTS_TAB_PATH) return BarChart2
   if (path === KEYWORDS_TAB_PATH) return Braces
   if (isApiRequest(path)) return Globe
@@ -84,6 +86,9 @@ function FileContent({ path }: { path: string }) {
 }
 
 function TabContent({ path }: { path: string }) {
+  if (path.startsWith(ANALYSIS_TAB_PREFIX)) {
+    return <AnalysisView projectPath={decodeURIComponent(path.slice(ANALYSIS_TAB_PREFIX.length))} />
+  }
   if (path === REPORTS_TAB_PATH) return <ReportsView />
   if (path === KEYWORDS_TAB_PATH) return <KeywordsView />
   if (isTestCase(path)) return <TestCaseEditor key={path} filePath={path} />

@@ -2,6 +2,9 @@ import crypto from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { parse as yamlParse, stringify as yamlStringify } from 'yaml'
+import { ProfileSchema, TestCaseSchema } from '@jkauto/core'
+import type { Profile, TestCase } from '@jkauto/core'
+import { runTestCase } from '@jkauto/engine'
 import { createBackup } from '../file-history'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
@@ -10,8 +13,24 @@ import {
   ListToolsRequestSchema,
   CallToolRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
+import {
+  markCompileAndSave,
+  recordRuntimeResult,
+  recordTestPlan,
+  recordVerification,
+  validateGeneratedTest,
+} from './harness.service'
 
 const SKIP_DIRS = new Set(['.autotest', '.git', 'node_modules', 'reports'])
+
+function assertTestCasePath(projectPath: string, filePath: string): string {
+  const resolved = path.resolve(filePath)
+  const root = path.resolve(projectPath, 'test-cases')
+  if (resolved !== root && !resolved.startsWith(`${root}${path.sep}`)) {
+    throw new Error('Test case path must be inside the project test-cases directory')
+  }
+  return resolved
+}
 
 async function findFiles(dir: string, predicate: (name: string) => boolean): Promise<string[]> {
   const results: string[] = []
@@ -175,7 +194,61 @@ Each keyword composes built-in steps. Call list_keywords to see available ones.
 Prefer custom keywords over raw built-ins when the project has relevant ones.`,
 }
 
-export async function createJkautoMcpClient(projectPath: string): Promise<Client> {
+async function loadRuntimeProfile(projectPath: string): Promise<Profile> {
+  const profileDir = path.join(projectPath, 'profiles')
+  const entries = await fs.readdir(profileDir).catch(() => [])
+  const candidate =
+    entries.find((entry) => entry === 'default.env.json') ??
+    entries.find((entry) => entry.endsWith('.env.json'))
+  if (candidate) {
+    try {
+      return ProfileSchema.parse(
+        JSON.parse(await fs.readFile(path.join(profileDir, candidate), 'utf-8')),
+      )
+    } catch {
+      // Fall through to an empty runtime profile.
+    }
+  }
+  return { schemaVersion: 1, name: 'default', variables: {} }
+}
+
+async function runGeneratedTest(
+  projectPath: string,
+  filePath: string,
+): Promise<{ passed: boolean; details: unknown }> {
+  const parsed = yamlParse(await fs.readFile(filePath, 'utf-8'))
+  const testCase = TestCaseSchema.parse(parsed) as TestCase
+  const profile = await loadRuntimeProfile(projectPath)
+  const runId = crypto.randomUUID()
+  const stepEvents: unknown[] = []
+  return new Promise((resolve, reject) => {
+    runTestCase(
+      testCase,
+      profile,
+      runId,
+      (event) => stepEvents.push(event),
+      (event) => resolve({ passed: event.status === 'passed', details: { runId, event, stepEvents } }),
+      undefined,
+      {
+        headless: true,
+        loadTestCase: async (calledPath) => {
+          const raw = await fs.readFile(
+            path.isAbsolute(calledPath)
+              ? calledPath
+              : path.resolve(projectPath, calledPath),
+            'utf-8',
+          )
+          return TestCaseSchema.parse(yamlParse(raw))
+        },
+      },
+    ).catch(reject)
+  })
+}
+
+export async function createJkautoMcpClient(
+  projectPath: string,
+  getSessionId: () => string = () => '',
+): Promise<Client> {
   const server = new Server(
     { name: 'jkauto-mcp', version: '1.0.0' },
     { capabilities: { tools: {} } },
@@ -269,6 +342,105 @@ export async function createJkautoMcpClient(projectPath: string): Promise<Client
           },
         },
       },
+      {
+        name: 'record_test_plan',
+        description:
+          'Persist the structured test plan for the active Directly harness before executing tools.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            target: {
+              type: 'object',
+              properties: {
+                type: { type: 'string', enum: ['page', 'api', 'flow'] },
+                id: { type: 'string' },
+              },
+              required: ['type', 'id'],
+            },
+            preconditions: { type: 'array', items: { type: 'string' } },
+            scenarios: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  goal: { type: 'string' },
+                  priority: {
+                    type: 'string',
+                    enum: ['critical', 'normal', 'edge'],
+                  },
+                  actions: { type: 'array', items: { type: 'string' } },
+                  assertions: { type: 'array', items: { type: 'string' } },
+                  evidenceRequired: {
+                    type: 'array',
+                    items: { type: 'string' },
+                  },
+                },
+                required: [
+                  'id',
+                  'goal',
+                  'priority',
+                  'actions',
+                  'assertions',
+                  'evidenceRequired',
+                ],
+              },
+            },
+            sourceRefs: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  file: { type: 'string' },
+                  line: { type: 'number' },
+                  symbol: { type: 'string' },
+                },
+                required: ['file'],
+              },
+            },
+          },
+          required: ['target', 'preconditions', 'scenarios', 'sourceRefs'],
+        },
+      },
+      {
+        name: 'record_verification',
+        description:
+          'Persist a browser/API assertion and its observed evidence. Call for both pass and failure; a failure moves the harness into repair.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            passed: { type: 'boolean' },
+            assertion: { type: 'string' },
+            evidence: { type: 'string' },
+            generatedTestPath: { type: 'string' },
+          },
+          required: ['passed', 'assertion', 'evidence'],
+        },
+      },
+      {
+        name: 'validate_test_case',
+        description:
+          'Hard-gate a generated JKAuto test file against TestCaseSchema.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            filePath: { type: 'string' },
+          },
+          required: ['filePath'],
+        },
+      },
+      {
+        name: 'run_generated_test',
+        description:
+          'Execute the saved JKAuto test through the real engine. This runtime gate must pass before Directly can complete.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            filePath: { type: 'string' },
+          },
+          required: ['filePath'],
+        },
+      },
     ],
   }))
 
@@ -292,7 +464,7 @@ export async function createJkautoMcpClient(projectPath: string): Promise<Client
         }
 
         case 'create_test_case': {
-          const filePath = a.filePath as string
+          const filePath = assertTestCasePath(projectPath, a.filePath as string)
           const tcName = a.name as string
           const description = (a.description as string | undefined) ?? ''
           const platform = (a.platform as string | undefined) ?? 'web'
@@ -302,6 +474,13 @@ export async function createJkautoMcpClient(projectPath: string): Promise<Client
             : platform === 'mobile' ? 'maestro'
             : 'playwright'
 
+          const exists = await fs
+            .access(filePath)
+            .then(() => true)
+            .catch(() => false)
+          if (exists) {
+            throw new Error(`Test case already exists: ${filePath}`)
+          }
           await fs.mkdir(path.dirname(filePath), { recursive: true })
 
           const tc: Record<string, unknown> = {
@@ -322,14 +501,79 @@ export async function createJkautoMcpClient(projectPath: string): Promise<Client
         }
 
         case 'save_test_case_steps': {
-          const filePath = a.filePath as string
+          const filePath = assertTestCasePath(projectPath, a.filePath as string)
           const raw = await fs.readFile(filePath, 'utf-8')
           const tc = yamlParse(raw) as Record<string, unknown>
-          tc.steps = a.steps
+          tc.steps = (a.steps as Array<Record<string, unknown>>).map((step) => ({
+            id: typeof step.id === 'string' ? step.id : crypto.randomUUID(),
+            name: String(step.name ?? ''),
+            keyword: String(step.keyword ?? ''),
+            description: String(step.description ?? ''),
+            objectRef: String(step.objectRef ?? ''),
+            input: String(step.input ?? ''),
+            expected: String(step.expected ?? ''),
+            enabled: step.enabled !== false,
+            continueOnFailure: step.continueOnFailure === true,
+            timeout: typeof step.timeout === 'number' ? step.timeout : null,
+          }))
           tc.updatedAt = new Date().toISOString()
           await createBackup(filePath)
           await fs.writeFile(filePath, yamlStringify(tc), 'utf-8')
+          if (getSessionId()) {
+            markCompileAndSave(projectPath, getSessionId(), filePath)
+          }
           return { content: [{ type: 'text' as const, text: `Saved ${filePath}` }] }
+        }
+
+        case 'record_test_plan': {
+          recordTestPlan(projectPath, getSessionId(), a as never)
+          return {
+            content: [{ type: 'text' as const, text: 'Test plan persisted.' }],
+          }
+        }
+
+        case 'record_verification': {
+          recordVerification(projectPath, getSessionId(), {
+            passed: Boolean(a.passed),
+            assertion: String(a.assertion ?? ''),
+            evidence: String(a.evidence ?? ''),
+            generatedTestPath: a.generatedTestPath
+              ? String(a.generatedTestPath)
+              : undefined,
+          })
+          return {
+            content: [{ type: 'text' as const, text: 'Verification persisted.' }],
+          }
+        }
+
+        case 'validate_test_case': {
+          const validation = await validateGeneratedTest(
+            projectPath,
+            getSessionId(),
+            String(a.filePath),
+          )
+          return {
+            content: [
+              { type: 'text' as const, text: JSON.stringify(validation) },
+            ],
+            isError: !validation.valid,
+          }
+        }
+
+        case 'run_generated_test': {
+          const filePath = String(a.filePath)
+          const result = await runGeneratedTest(projectPath, filePath)
+          recordRuntimeResult(projectPath, getSessionId(), {
+            passed: result.passed,
+            filePath,
+            details: result.details,
+          })
+          return {
+            content: [
+              { type: 'text' as const, text: JSON.stringify(result) },
+            ],
+            isError: !result.passed,
+          }
         }
 
         case 'list_keywords': {

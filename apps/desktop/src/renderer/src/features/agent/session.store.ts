@@ -5,6 +5,8 @@ import type {
   AgentSessionMode,
   AgentArtifact,
   AgentAction,
+  HarnessReport,
+  HarnessRun,
 } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
 
@@ -13,6 +15,8 @@ interface SessionStore {
   activeSessionId: string | null
   artifacts: AgentArtifact[]
   actions: AgentAction[]
+  harnessRuns: HarnessRun[]
+  harnessReport: HarnessReport | null
   loading: boolean
 
   loadSessions: (projectPath: string) => Promise<void>
@@ -30,6 +34,7 @@ interface SessionStore {
   deleteSession: (projectPath: string, id: string) => Promise<void>
   refreshArtifacts: (projectPath: string, sessionId: string) => Promise<void>
   refreshActions: (projectPath: string, sessionId: string) => Promise<void>
+  refreshHarness: (projectPath: string, sessionId: string) => Promise<void>
   reset: () => void
 }
 
@@ -38,6 +43,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   activeSessionId: null,
   artifacts: [],
   actions: [],
+  harnessRuns: [],
+  harnessReport: null,
   loading: false,
 
   loadSessions: async (projectPath) => {
@@ -70,10 +77,17 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   selectSession: async (projectPath, id) => {
-    set({ activeSessionId: id, artifacts: [], actions: [] })
+    set({
+      activeSessionId: id,
+      artifacts: [],
+      actions: [],
+      harnessRuns: [],
+      harnessReport: null,
+    })
     await Promise.all([
       get().refreshArtifacts(projectPath, id),
       get().refreshActions(projectPath, id),
+      get().refreshHarness(projectPath, id),
     ])
   },
 
@@ -121,12 +135,29 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     set({ actions })
   },
 
+  refreshHarness: async (projectPath, sessionId) => {
+    const harnessRuns = await invoke<HarnessRun[]>(
+      IpcChannels.AGENT_HARNESS_RUNS,
+      { projectPath, sessionId },
+    )
+    const latest = harnessRuns[0]
+    const harnessReport = latest
+      ? await invoke<HarnessReport>(IpcChannels.AGENT_HARNESS_REPORT, {
+          projectPath,
+          runId: latest.id,
+        })
+      : null
+    set({ harnessRuns, harnessReport })
+  },
+
   reset: () =>
     set({
       sessions: [],
       activeSessionId: null,
       artifacts: [],
       actions: [],
+      harnessRuns: [],
+      harnessReport: null,
       loading: false,
     }),
 }))

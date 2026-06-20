@@ -62,6 +62,8 @@ export function registerFsHandlers(ipcMain: IpcMain): void {
   })
 
   ipcMain.handle(IpcChannels.FS_TREE, async (_, rootPath: string) => {
+    // Feature migration for projects created before Code Analysis existed.
+    await fs.mkdir(path.join(rootPath, 'analysis'), { recursive: true })
     const settings = await getSettings()
     return buildExplorerTree(rootPath, settings.explorer)
   })

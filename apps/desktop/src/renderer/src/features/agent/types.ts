@@ -7,6 +7,8 @@ import type {
   AgentSessionMode,
   AgentArtifact,
   AgentAction,
+  HarnessReport,
+  HarnessRun,
 } from '@jkauto/core'
 
 export type {
@@ -18,6 +20,8 @@ export type {
   AgentSessionMode,
   AgentArtifact,
   AgentAction,
+  HarnessReport,
+  HarnessRun,
 }
 
 export type AgentSendState = 'idle' | 'sending' | 'error'

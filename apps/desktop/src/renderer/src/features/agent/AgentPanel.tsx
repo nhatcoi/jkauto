@@ -20,6 +20,7 @@ import { SessionHeader } from './SessionHeader'
 import { MessageList } from './MessageList'
 import { ChatInput } from './ChatInput'
 import { ThinkingSection } from './ThinkingSection'
+import { HarnessReportSection } from './HarnessReportSection'
 import logoUrl from '@/assets/logo.svg'
 import { useProjectStore } from '@/store/project.store'
 import { useRunStore } from '@/store/run.store'
@@ -99,6 +100,8 @@ export function AgentPanel() {
     updateSession,
     deleteSession,
     refreshArtifacts,
+    refreshHarness,
+    harnessReport,
   } = useSessionStore()
 
   const projectPath = activeProject?.path ?? null
@@ -120,12 +123,13 @@ export function AgentPanel() {
   // Load messages for active session
   useEffect(() => {
     if (!projectPath || !activeSessionId) return
-    invoke<AgentMessage[]>(IpcChannels.AGENT_SESSION_MESSAGES, {
-      projectPath,
-      sessionId: activeSessionId,
-    })
-      .then((msgs) => setMessages(msgs))
-      .catch(() => { })
+    void Promise.all([
+      invoke<AgentMessage[]>(IpcChannels.AGENT_SESSION_MESSAGES, {
+        projectPath,
+        sessionId: activeSessionId,
+      }).then((msgs) => setMessages(msgs)),
+      refreshHarness(projectPath, activeSessionId),
+    ]).catch(() => {})
   }, [activeSessionId, projectPath])
 
   const activeTab = useMemo(
@@ -232,13 +236,15 @@ export function AgentPanel() {
     startStreaming()
     setSendState('sending')
 
+    let submittedSessionId = activeSessionId
     try {
       // Lazy-create session on first message
-      let sessionId = activeSessionId
+      let sessionId = submittedSessionId
       if (!sessionId && projectPath) {
         const title = content.length > 60 ? content.slice(0, 57) + '…' : content
         const sess = await createSession(projectPath, pendingMode, title)
         sessionId = sess.id
+        submittedSessionId = sess.id
       }
 
       const userMessage = createMessage('user', content, sessionId ?? undefined)
@@ -255,13 +261,19 @@ export function AgentPanel() {
       setMetadata(result.model, result.usage)
       setSendState('idle')
       if (projectPath && sessionId) {
-        refreshArtifacts(projectPath, sessionId)
+        await Promise.all([
+          refreshArtifacts(projectPath, sessionId),
+          refreshHarness(projectPath, sessionId),
+        ])
       }
     } catch (err) {
       finalizeStream()
       setSendState('idle')
       setError(err instanceof Error ? err.message : String(err))
     } finally {
+      if (projectPath && submittedSessionId) {
+        void refreshHarness(projectPath, submittedSessionId).catch(() => {})
+      }
       isSubmittingRef.current = false
     }
   }
@@ -418,6 +430,7 @@ export function AgentPanel() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-5">
+        <HarnessReportSection report={harnessReport} />
         {messages.length === 0 ? (
           <AgentEmptyState
             hasProject={Boolean(projectPath)}

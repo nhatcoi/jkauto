@@ -168,6 +168,7 @@ export async function streamAgentChat(
   )
 
   const toolCallsLog: AgentMessageMeta['toolCalls'] = []
+  const pendingToolArgs = new Map<string, Array<Record<string, unknown>>>()
 
   // Manual agentic loop — local models don't handle role:tool continuation messages,
   // so we inject tool results as user messages and call the model again ourselves.
@@ -201,10 +202,14 @@ export async function streamAgentChat(
         fullText += part.text
         onChunk?.(part.text)
       } else if (part.type === 'tool-call') {
+        const args = part.input as Record<string, unknown>
+        const queue = pendingToolArgs.get(part.toolName) ?? []
+        queue.push(args)
+        pendingToolArgs.set(part.toolName, queue)
         onToolEvent?.({
           type: 'call',
           name: part.toolName,
-          args: part.input as Record<string, unknown>,
+          args,
         })
       } else if (part.type === 'tool-result') {
         // AI SDK v6: property is "output", not "result"
@@ -216,7 +221,15 @@ export async function streamAgentChat(
               ? out
               : JSON.stringify(out)
         stepToolResults.push(`[${part.toolName}]: ${outStr}`)
-        onToolEvent?.({ type: 'result', name: part.toolName, result: outStr })
+        const queue = pendingToolArgs.get(part.toolName) ?? []
+        const args = queue.shift()
+        if (queue.length === 0) pendingToolArgs.delete(part.toolName)
+        onToolEvent?.({
+          type: 'result',
+          name: part.toolName,
+          args,
+          result: outStr,
+        })
       } else if (part.type === 'error') {
         throw part.error instanceof Error
           ? part.error

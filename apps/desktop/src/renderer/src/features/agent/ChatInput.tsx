@@ -65,6 +65,14 @@ const WRITE_OPTIONS: Array<{
   },
 ]
 
+const SLASH_COMMANDS = [
+  { command: '/analysis', description: 'Run analysis if missing, otherwise show status.' },
+  { command: '/analysis refresh', description: 'Rebuild code analysis artifacts.' },
+  { command: '/analysis status', description: 'Show the latest analysis status.' },
+  { command: '/analysis routes', description: 'Summarize discovered routes and endpoints.' },
+  { command: '/analysis symbols', description: 'Summarize discovered code symbols.' },
+]
+
 export function ChatInput({
   value,
   disabled,
@@ -77,6 +85,11 @@ export function ChatInput({
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [openMenu, setOpenMenu] = useState<'mode' | 'write' | null>(null)
+  const slashCommands = value.startsWith('/')
+    ? SLASH_COMMANDS.filter((item) =>
+        item.command.toLowerCase().startsWith(value.toLowerCase()),
+      )
+    : []
 
   useEffect(() => {
     const el = textareaRef.current
@@ -88,6 +101,23 @@ export function ChatInput({
   return (
     <div className="shrink-0 border-t border-border/60 bg-gradient-to-t from-background via-background to-background/80 px-3 pb-3 pt-2">
       <div className="mx-auto w-full max-w-3xl rounded-2xl border border-border bg-input/95 shadow-lg shadow-black/10 transition-all focus-within:border-primary/50 focus-within:shadow-primary/5">
+        {slashCommands.length > 0 ? (
+          <div className="border-b border-border/60 p-1.5">
+            {slashCommands.map((item) => (
+              <button
+                key={item.command}
+                type="button"
+                onClick={() => onChange(item.command)}
+                className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-1.5 text-left hover:bg-secondary"
+              >
+                <code className="text-[10px] text-violet-400">{item.command}</code>
+                <span className="truncate text-[9px] text-muted-foreground">
+                  {item.description}
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : null}
         <textarea
           ref={textareaRef}
           value={value}

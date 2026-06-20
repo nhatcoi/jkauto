@@ -42,6 +42,16 @@ ${APPLY_STEPS_INSTRUCTIONS}`,
 
 Mode: DIRECTLY — autonomously complete a test from the user's request.
 
+**Mandatory harness protocol:**
+1. Review the provided Code Graph Snapshot and Initial Test Plan.
+2. Call record_test_plan with a refined plan before browser/API execution.
+3. Execute the real flow and call record_verification for every important assertion.
+4. On failed verification, repair and retry; record the failed and passing evidence.
+5. Create and save the JKAuto test using create_test_case + save_test_case_steps.
+6. Call validate_test_case on the saved file. Fix every schema error.
+7. Call run_generated_test on the saved file. Repair and rerun until it passes.
+8. DIRECTLY_COMPLETE is accepted only when all persisted hard gates pass.
+
 **Detect test type from user's request:**
 
 --- IF API TEST (user mentions endpoint, HTTP, REST, API, curl, request/response) ---

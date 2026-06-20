@@ -33,14 +33,28 @@ export async function startIndex(
 ): Promise<StartIndexResult> {
   const { repoUrl, projectPath, branch } = params
   const autotestDir = path.join(projectPath, '.autotest')
-  const localPath = resolveLocalPath(autotestDir, repoUrl)
+  let localPath = resolveLocalPath(autotestDir, repoUrl)
 
   // Delete old index for this project if exists
   const existing = getRepoIndex(projectPath) as any
   if (existing) deleteIndexData(projectPath, existing.id)
 
-  // Clone / pull
-  await cloneRepo({ url: repoUrl, localPath, branch }, onProgress)
+  // A local source path is indexed in-place. Git URLs keep using the managed cache.
+  try {
+    const stat = await fs.stat(repoUrl)
+    if (stat.isDirectory()) {
+      localPath = path.resolve(repoUrl)
+      onProgress({
+        phase: 'clone',
+        message: `Using local source: ${localPath}`,
+        percent: 20,
+      })
+    } else {
+      await cloneRepo({ url: repoUrl, localPath, branch }, onProgress)
+    }
+  } catch {
+    await cloneRepo({ url: repoUrl, localPath, branch }, onProgress)
+  }
 
   // Index
   const { stack, map } = await indexRepo(localPath, onProgress)
@@ -73,6 +87,27 @@ export function getCodeMap(projectPath: string) {
     indexedAt: existing.indexed_at,
     ...stored,
   }
+}
+
+export function getRelevantCodeContext(
+  projectPath: string,
+  query: string,
+  limit = 30,
+) {
+  const existing = getRepoIndex(projectPath) as any
+  if (!existing) return []
+  const ftsQuery = query
+    .split(/\s+/)
+    .map((part) => part.replace(/[^\p{L}\p{N}_-]/gu, ''))
+    .filter(Boolean)
+    .join(' OR ')
+  if (!ftsQuery) return []
+  return queryChunks(projectPath, existing.id, ftsQuery, limit).map((chunk) => ({
+    type: chunk.chunk_type,
+    name: chunk.name,
+    content: chunk.content,
+    metadata: JSON.parse(chunk.metadata_json),
+  }))
 }
 
 export interface GenerateParams {

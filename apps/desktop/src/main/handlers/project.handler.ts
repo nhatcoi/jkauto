@@ -61,6 +61,7 @@ export function registerProjectHandlers(ipcMain: IpcMain): void {
     })
     if (result.canceled || !result.filePaths[0]) return null
     const projectPath = result.filePaths[0]
+    await fs.mkdir(path.join(projectPath, 'analysis'), { recursive: true })
     const projectFile = path.join(projectPath, 'project.json')
     try {
       const raw = await fs.readFile(projectFile, 'utf-8')
@@ -76,6 +77,7 @@ export function registerProjectHandlers(ipcMain: IpcMain): void {
   })
 
   ipcMain.handle(IpcChannels.PROJECT_OPEN, async (_, projectPath: string) => {
+    await fs.mkdir(path.join(projectPath, 'analysis'), { recursive: true })
     const projectFile = path.join(projectPath, 'project.json')
     const raw = await fs.readFile(projectFile, 'utf-8')
     const project = JSON.parse(raw)

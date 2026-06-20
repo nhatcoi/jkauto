@@ -79,6 +79,33 @@ export function getAutogenDb(projectPath: string): Database.Database {
       exported INTEGER NOT NULL DEFAULT 1
     );
 
+    CREATE TABLE IF NOT EXISTS analysis_runs (
+      id TEXT PRIMARY KEY,
+      project_path TEXT NOT NULL,
+      source_ref TEXT NOT NULL,
+      source_type TEXT NOT NULL,
+      status TEXT NOT NULL,
+      index_id TEXT,
+      framework TEXT,
+      language TEXT,
+      error TEXT,
+      started_at TEXT NOT NULL,
+      completed_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS analysis_artifacts (
+      id TEXT PRIMARY KEY,
+      run_id TEXT NOT NULL REFERENCES analysis_runs(id) ON DELETE CASCADE,
+      artifact_type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      content_json TEXT NOT NULL,
+      item_count INTEGER NOT NULL DEFAULT 0,
+      confidence REAL NOT NULL DEFAULT 1,
+      source_refs_json TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL
+    );
+
     -- FTS5 for RAG-style retrieval (BM25 ranking built-in)
     CREATE VIRTUAL TABLE IF NOT EXISTS code_chunks USING fts5(
       index_id UNINDEXED,
@@ -93,6 +120,8 @@ export function getAutogenDb(projectPath: string): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_elements_index ON code_elements(index_id);
     CREATE INDEX IF NOT EXISTS idx_endpoints_index ON code_endpoints(index_id);
     CREATE INDEX IF NOT EXISTS idx_repo_project ON repo_index(project_path);
+    CREATE INDEX IF NOT EXISTS idx_analysis_project ON analysis_runs(project_path, started_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_analysis_artifacts_run ON analysis_artifacts(run_id);
   `)
 
   return db
@@ -204,5 +233,115 @@ export function getStoredCodeMap(projectPath: string, indexId: string) {
   const pages = db.prepare('SELECT * FROM code_pages WHERE index_id = ?').all(indexId)
   const elements = db.prepare('SELECT * FROM code_elements WHERE index_id = ?').all(indexId)
   const endpoints = db.prepare('SELECT * FROM code_endpoints WHERE index_id = ?').all(indexId)
-  return { pages, elements, endpoints }
+  const symbols = db.prepare('SELECT * FROM code_symbols WHERE index_id = ?').all(indexId)
+  return { pages, elements, endpoints, symbols }
+}
+
+export function createAnalysisRun(
+  projectPath: string,
+  data: {
+    id: string
+    sourceRef: string
+    sourceType: 'git' | 'local'
+    startedAt: string
+  },
+): void {
+  getAutogenDb(projectPath).prepare(`
+    INSERT INTO analysis_runs (
+      id, project_path, source_ref, source_type, status, started_at
+    ) VALUES (?, ?, ?, ?, 'running', ?)
+  `).run(data.id, projectPath, data.sourceRef, data.sourceType, data.startedAt)
+}
+
+export function completeAnalysisRun(
+  projectPath: string,
+  runId: string,
+  data: {
+    indexId: string
+    framework: string
+    language: string
+    completedAt: string
+  },
+): void {
+  getAutogenDb(projectPath).prepare(`
+    UPDATE analysis_runs
+    SET status = 'completed', index_id = ?, framework = ?, language = ?,
+        completed_at = ?, error = NULL
+    WHERE id = ?
+  `).run(
+    data.indexId,
+    data.framework,
+    data.language,
+    data.completedAt,
+    runId,
+  )
+}
+
+export function failAnalysisRun(
+  projectPath: string,
+  runId: string,
+  error: string,
+): void {
+  getAutogenDb(projectPath).prepare(`
+    UPDATE analysis_runs
+    SET status = 'failed', error = ?, completed_at = ?
+    WHERE id = ?
+  `).run(error, new Date().toISOString(), runId)
+}
+
+export function saveAnalysisArtifact(
+  projectPath: string,
+  data: {
+    id: string
+    runId: string
+    type: string
+    title: string
+    summary: string
+    contentJson: string
+    itemCount: number
+    confidence: number
+    sourceRefs: string[]
+    createdAt: string
+  },
+): void {
+  getAutogenDb(projectPath).prepare(`
+    INSERT INTO analysis_artifacts (
+      id, run_id, artifact_type, title, summary, content_json,
+      item_count, confidence, source_refs_json, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    data.id,
+    data.runId,
+    data.type,
+    data.title,
+    data.summary,
+    data.contentJson,
+    data.itemCount,
+    data.confidence,
+    JSON.stringify(data.sourceRefs),
+    data.createdAt,
+  )
+}
+
+export function getAnalysisRun(projectPath: string, runId?: string) {
+  const db = getAutogenDb(projectPath)
+  if (runId) {
+    return db.prepare(`
+      SELECT * FROM analysis_runs WHERE project_path = ? AND id = ?
+    `).get(projectPath, runId) as Record<string, unknown> | undefined
+  }
+  return db.prepare(`
+    SELECT * FROM analysis_runs
+    WHERE project_path = ?
+    ORDER BY started_at DESC
+    LIMIT 1
+  `).get(projectPath) as Record<string, unknown> | undefined
+}
+
+export function getAnalysisArtifacts(projectPath: string, runId: string) {
+  return getAutogenDb(projectPath).prepare(`
+    SELECT * FROM analysis_artifacts
+    WHERE run_id = ?
+    ORDER BY created_at, artifact_type
+  `).all(runId) as Array<Record<string, unknown>>
 }

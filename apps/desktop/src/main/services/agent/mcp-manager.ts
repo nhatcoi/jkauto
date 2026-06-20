@@ -58,7 +58,9 @@ export class McpManager {
     this.sessionId = sessionId
 
     const results = await Promise.allSettled([
-      this.addInProcess('jkauto', () => createJkautoMcpClient(projectPath)),
+      this.addInProcess('jkauto', () =>
+        createJkautoMcpClient(projectPath, () => this.sessionId),
+      ),
       this.addStdio('filesystem', 'npx', [
         '-y',
         '@modelcontextprotocol/server-filesystem',

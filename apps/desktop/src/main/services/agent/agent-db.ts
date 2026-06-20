@@ -68,10 +68,50 @@ export function getAgentDb(projectPath: string): Database.Database {
       created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS harness_runs (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      project_path TEXT NOT NULL,
+      request TEXT NOT NULL,
+      state TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'running',
+      code_index_id TEXT,
+      generated_test_path TEXT,
+      error TEXT,
+      started_at TEXT NOT NULL,
+      completed_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS harness_steps (
+      id TEXT PRIMARY KEY,
+      run_id TEXT NOT NULL REFERENCES harness_runs(id) ON DELETE CASCADE,
+      sequence INTEGER NOT NULL,
+      state TEXT NOT NULL,
+      status TEXT NOT NULL,
+      input_json TEXT,
+      output_json TEXT,
+      error TEXT,
+      started_at TEXT NOT NULL,
+      completed_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS harness_artifacts (
+      id TEXT PRIMARY KEY,
+      run_id TEXT NOT NULL REFERENCES harness_runs(id) ON DELETE CASCADE,
+      step_id TEXT,
+      type TEXT NOT NULL,
+      content_json TEXT NOT NULL,
+      source_ref TEXT,
+      created_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_messages_session ON agent_messages(session_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_artifacts_session ON agent_artifacts(session_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_actions_session ON agent_actions(session_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_sessions_project ON agent_sessions(project_path, updated_at);
+    CREATE INDEX IF NOT EXISTS idx_harness_runs_session ON harness_runs(session_id, started_at);
+    CREATE INDEX IF NOT EXISTS idx_harness_steps_run ON harness_steps(run_id, sequence);
+    CREATE INDEX IF NOT EXISTS idx_harness_artifacts_run ON harness_artifacts(run_id, created_at);
   `)
 
   return db

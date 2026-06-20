@@ -7,6 +7,7 @@ import {
   isAllowedExplorerRootEntry,
   shouldSkipExplorerEntry,
 } from './explorer-policy'
+import { PROJECT_FEATURES } from './project-features'
 
 type ExplorerSettings = AppSettings['explorer']
 
@@ -47,8 +48,10 @@ async function getDirectoryDisplayName(
   if (metadataName) return metadataName
 
   const parts = relPath.split(path.sep)
-  if (parts.length === 1)
-    return explorer.featureAliases[dirName] ?? keyToDisplayName(dirName)
+  if (parts.length === 1) {
+    const featureName = PROJECT_FEATURES.find((feature) => feature.key === dirName)?.name
+    return explorer.featureAliases[dirName] ?? featureName ?? keyToDisplayName(dirName)
+  }
   return keyToDisplayName(dirName)
 }
 
@@ -114,6 +117,7 @@ export async function buildExplorerTree(
   const orderMap = new Map(
     explorer.featureOrder.map((feature, index) => [feature, index]),
   )
+  if (!orderMap.has('analysis')) orderMap.set('analysis', -1)
 
   return nodes.sort((a, b) => {
     if (a.type !== b.type) return a.type === 'directory' ? -1 : 1

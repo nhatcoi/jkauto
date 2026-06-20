@@ -7,6 +7,8 @@ import type {
   AgentSessionUpdatePayload,
   AgentSessionDeletePayload,
   AgentSessionDataPayload,
+  HarnessReportPayload,
+  HarnessRunListPayload,
 } from '@jkauto/core'
 import {
   chatWithAgent,
@@ -22,6 +24,10 @@ import {
   updateSession,
 } from '../services/agent/session.service'
 import { getSettings } from '../services/settings.service'
+import {
+  getHarnessReport,
+  listHarnessRuns,
+} from '../services/agent/harness.service'
 
 export function registerAgentHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(IpcChannels.AGENT_CHAT, async (event, payload: AgentChatPayload) => {
@@ -95,6 +101,20 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
     IpcChannels.AGENT_SESSION_ACTIONS,
     async (_, payload: AgentSessionDataPayload) => {
       return getSessionActions(payload.projectPath, payload.sessionId)
+    },
+  )
+
+  ipcMain.handle(
+    IpcChannels.AGENT_HARNESS_RUNS,
+    async (_, payload: HarnessRunListPayload) => {
+      return listHarnessRuns(payload.projectPath, payload.sessionId)
+    },
+  )
+
+  ipcMain.handle(
+    IpcChannels.AGENT_HARNESS_REPORT,
+    async (_, payload: HarnessReportPayload) => {
+      return getHarnessReport(payload.projectPath, payload.runId)
     },
   )
 }

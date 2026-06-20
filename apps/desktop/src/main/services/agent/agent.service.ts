@@ -4,6 +4,7 @@ import type {
   AgentChatPayload,
   AgentChatResult,
   AgentContextResult,
+  AgentMessageMeta,
   AgentSession,
   AgentSessionMode,
 } from '@jkauto/core'
@@ -22,6 +23,20 @@ import {
   saveMessage,
   saveArtifact,
 } from './session.service'
+import {
+  discoverAndPlanHarness,
+  failHarnessRun,
+  finalizeHarnessRun,
+  getHarnessReport,
+  recordToolEvidence,
+  startHarnessRun,
+} from './harness.service'
+import {
+  formatAnalysisCommandResult,
+  getCodeAnalysisReport,
+  startCodeAnalysis,
+} from '../analysis/analysis.service'
+import { getRelevantCodeContext } from '../autogen/autogen.service'
 
 const APPLY_STEPS_REGEX = /```apply-steps\n([\s\S]*?)\n```/g
 
@@ -155,6 +170,38 @@ export async function chatWithAgent(
     saveMessage(projectPath, userMessage)
   }
 
+  const analysisMatch = userMessage?.role === 'user'
+    ? userMessage.content.trim().match(/^\/analysis(?:\s+(status|refresh|routes|symbols))?\s*$/i)
+    : null
+  if (projectPath && sessionId && analysisMatch) {
+    const command = analysisMatch[1]?.toLowerCase() ?? 'status'
+    let report = getCodeAnalysisReport(projectPath)
+    if (command === 'refresh' || (!report && !analysisMatch[1])) {
+      report = await startCodeAnalysis(
+        { projectPath },
+        (progress) => {
+          if (progress.phase !== 'done') {
+            onChunk?.(`[analysis:${progress.phase}] ${progress.message}\n`)
+          }
+        },
+      )
+    }
+    const content = formatAnalysisCommandResult(report, command)
+    const assistantMessage = {
+      id: randomUUID(),
+      sessionId,
+      role: 'assistant' as const,
+      content,
+      createdAt: new Date().toISOString(),
+    }
+    saveMessage(projectPath, assistantMessage)
+    updateSession(projectPath, sessionId, {})
+    return {
+      message: assistantMessage,
+      sessionId,
+    }
+  }
+
   // Build messages for LLM: DB history + new user message, trimmed
   const messagesForLlm = [
     ...allDbMessages,
@@ -171,8 +218,48 @@ export async function chatWithAgent(
   let content: string
   let model: string | undefined
   let usage: AgentChatResult['usage']
+  let metadata: AgentMessageMeta | undefined
+  let harnessRunId: string | undefined
 
   if (projectPath) {
+    const latestRequest =
+      userMessage?.role === 'user' ? userMessage.content : 'Complete the requested test'
+    const analysisReport = getCodeAnalysisReport(projectPath)
+    const relevantCode = analysisReport?.run.status === 'completed'
+      ? getRelevantCodeContext(projectPath, latestRequest, 20)
+      : []
+    const projectSummary = analysisReport?.artifacts.find(
+      (artifact) => artifact.type === 'project-summary',
+    )
+    const analysisContext = analysisReport?.run.status === 'completed'
+      ? [
+          '## Persisted Code Analysis',
+          `Index id: ${analysisReport.run.indexId ?? 'unknown'}`,
+          projectSummary
+            ? `Project summary: ${projectSummary.contentJson}`
+            : '',
+          relevantCode.length > 0
+            ? `Relevant indexed nodes:\n${JSON.stringify(relevantCode, null, 2)}`
+            : 'No indexed nodes matched this request.',
+        ].filter(Boolean).join('\n')
+      : ''
+    let harnessContext = ''
+    if (sessionMode === 'directly' && sessionId) {
+      const harnessRun = startHarnessRun(projectPath, sessionId, latestRequest)
+      harnessRunId = harnessRun.id
+      const { codeGraphSummary, plan } = await discoverAndPlanHarness(
+        projectPath,
+        harnessRun.id,
+        latestRequest,
+      )
+      harnessContext = [
+        '## Directly Harness Context',
+        `Harness run id: ${harnessRun.id}`,
+        `Code Graph Snapshot:\n${JSON.stringify(codeGraphSummary, null, 2)}`,
+        `Initial Test Plan:\n${JSON.stringify(plan, null, 2)}`,
+      ].join('\n\n')
+    }
+
     let manager = managerCache.get(projectPath)
     if (!manager) {
       manager = new McpManager()
@@ -187,21 +274,51 @@ export async function chatWithAgent(
       manager.configure(editMode, sessionId ?? '')
     }
 
-    const result = await streamAgentChat(
-      messagesForLlm,
-      context.summary,
-      projectContext,
-      session?.summary,
-      sessionMode,
-      manager,
-      skills,
-      agentConfig,
-      onChunk,
-      onToolEvent,
-    )
-    content = result.content
-    model = result.model
-    usage = result.usage
+    try {
+      const result = await streamAgentChat(
+        messagesForLlm,
+        context.summary,
+        [projectContext, analysisContext, harnessContext].filter(Boolean).join('\n\n'),
+        session?.summary,
+        sessionMode,
+        manager,
+        skills,
+        agentConfig,
+        onChunk,
+        (event) => {
+          onToolEvent?.(event)
+          if (sessionMode === 'directly' && sessionId && event.type === 'result') {
+            recordToolEvidence(
+              projectPath,
+              sessionId,
+              event.name,
+              event.args,
+              event.result,
+            )
+          }
+        },
+      )
+      content = result.content
+      model = result.model
+      usage = result.usage
+      metadata = result.metadata
+
+      if (harnessRunId) {
+        const report = finalizeHarnessRun(projectPath, harnessRunId)
+        if (report.run.status !== 'passed') {
+          throw new Error(report.run.error ?? 'Directly harness did not pass')
+        }
+      }
+    } catch (error) {
+      if (harnessRunId) {
+        const message = error instanceof Error ? error.message : String(error)
+        const current = getHarnessReport(projectPath, harnessRunId)
+        if (current.run.status === 'running') {
+          failHarnessRun(projectPath, harnessRunId, message)
+        }
+      }
+      throw error
+    }
 
     // Save assistant message
     if (projectPath && sessionId) {
@@ -211,7 +328,7 @@ export async function chatWithAgent(
         role: 'assistant' as const,
         content,
         createdAt: new Date().toISOString(),
-        metadata: result.metadata,
+        metadata,
       }
       saveMessage(projectPath, assistantMsg)
 
@@ -258,5 +375,6 @@ export async function chatWithAgent(
     model,
     usage,
     sessionId,
+    harnessRunId,
   }
 }

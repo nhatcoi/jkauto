@@ -71,6 +71,8 @@ export const IpcChannels = {
   AGENT_SESSION_MESSAGES: 'agent:session:messages',
   AGENT_SESSION_ARTIFACTS: 'agent:session:artifacts',
   AGENT_SESSION_ACTIONS: 'agent:session:actions',
+  AGENT_HARNESS_RUNS: 'agent:harness:runs',
+  AGENT_HARNESS_REPORT: 'agent:harness:report',
 
   APP_SETTINGS_GET: 'app-settings:get',
   APP_SETTINGS_SET: 'app-settings:set',
@@ -139,6 +141,10 @@ export const IpcChannels = {
   AUTOGEN_GENERATE: 'autogen:generate',
   AUTOGEN_GENERATE_PROGRESS: 'autogen:generate-progress',
   AUTOGEN_CANCEL: 'autogen:cancel',
+
+  CODE_ANALYSIS_START: 'code-analysis:start',
+  CODE_ANALYSIS_PROGRESS: 'code-analysis:progress',
+  CODE_ANALYSIS_REPORT: 'code-analysis:report',
 
   WINDOW_MINIMIZE: 'window:minimize',
   WINDOW_MAXIMIZE: 'window:maximize',
@@ -409,6 +415,155 @@ export interface AgentAction {
   createdAt: string
 }
 
+export type HarnessState =
+  | 'discover'
+  | 'plan'
+  | 'execute'
+  | 'verify'
+  | 'repair'
+  | 'compile'
+  | 'validate_schema'
+  | 'run_generated_test'
+  | 'save'
+  | 'complete'
+  | 'failed'
+
+export type HarnessStepStatus = 'pending' | 'running' | 'passed' | 'failed'
+
+export interface HarnessRun {
+  id: string
+  sessionId: string
+  projectPath: string
+  request: string
+  state: HarnessState
+  status: 'running' | 'passed' | 'failed' | 'cancelled'
+  codeIndexId?: string
+  generatedTestPath?: string
+  error?: string
+  startedAt: string
+  completedAt?: string
+}
+
+export interface HarnessStep {
+  id: string
+  runId: string
+  sequence: number
+  state: HarnessState
+  status: HarnessStepStatus
+  inputJson?: string
+  outputJson?: string
+  error?: string
+  startedAt: string
+  completedAt?: string
+}
+
+export interface HarnessArtifact {
+  id: string
+  runId: string
+  stepId?: string
+  type:
+    | 'codegraph'
+    | 'testplan'
+    | 'tool-evidence'
+    | 'verification'
+    | 'generated-test'
+    | 'validation'
+    | 'runtime-result'
+    | 'report'
+  contentJson: string
+  sourceRef?: string
+  createdAt: string
+}
+
+export interface HarnessReport {
+  run: HarnessRun
+  steps: HarnessStep[]
+  artifacts: HarnessArtifact[]
+  summary: {
+    totalSteps: number
+    passedSteps: number
+    failedSteps: number
+    repairCount: number
+    toolEvidenceCount: number
+    durationMs: number
+  }
+}
+
+export interface HarnessRunListPayload {
+  projectPath: string
+  sessionId?: string
+}
+
+export interface HarnessReportPayload {
+  projectPath: string
+  runId: string
+}
+
+export type CodeAnalysisArtifactType =
+  | 'project-summary'
+  | 'route-catalog'
+  | 'ui-catalog'
+  | 'symbol-catalog'
+  | 'runtime-requirements'
+  | 'documentation'
+
+export interface CodeAnalysisRun {
+  id: string
+  projectPath: string
+  sourceRef: string
+  sourceType: 'git' | 'local'
+  status: 'running' | 'completed' | 'failed'
+  indexId?: string
+  framework?: string
+  language?: string
+  error?: string
+  startedAt: string
+  completedAt?: string
+}
+
+export interface CodeAnalysisArtifact {
+  id: string
+  runId: string
+  type: CodeAnalysisArtifactType
+  title: string
+  summary: string
+  contentJson: string
+  itemCount: number
+  confidence: number
+  sourceRefs: string[]
+  createdAt: string
+}
+
+export interface CodeAnalysisReport {
+  run: CodeAnalysisRun
+  artifacts: CodeAnalysisArtifact[]
+  summary: {
+    artifactCount: number
+    pageCount: number
+    endpointCount: number
+    elementCount: number
+    symbolCount: number
+  }
+}
+
+export interface CodeAnalysisStartPayload {
+  projectPath: string
+  sourceRef?: string
+  branch?: string
+}
+
+export interface CodeAnalysisReportPayload {
+  projectPath: string
+  runId?: string
+}
+
+export interface CodeAnalysisProgress {
+  runId?: string
+  phase: 'source' | 'clone' | 'detect' | 'parse' | 'index' | 'artifacts' | 'done' | 'error'
+  message: string
+  percent: number
+}
+
 export interface AgentContextSnapshot {
   activeProject?: {
     path: string
@@ -649,6 +804,7 @@ export interface AgentChatResult {
     total_tokens: number
   }
   sessionId?: string
+  harnessRunId?: string
 }
 
 export interface AgentContextResult {
