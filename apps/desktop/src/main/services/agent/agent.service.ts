@@ -36,7 +36,10 @@ import {
   getCodeAnalysisReport,
   startCodeAnalysis,
 } from '../analysis/analysis.service'
-import { getRelevantCodeContext } from '../autogen/autogen.service'
+import {
+  getCodeKnowledgeSnapshot,
+  getRelevantCodeContext,
+} from '../autogen/autogen.service'
 
 const APPLY_STEPS_REGEX = /```apply-steps\n([\s\S]*?)\n```/g
 
@@ -231,12 +234,30 @@ export async function chatWithAgent(
     const projectSummary = analysisReport?.artifacts.find(
       (artifact) => artifact.type === 'project-summary',
     )
+    const classification = analysisReport?.artifacts.find(
+      (artifact) => artifact.type === 'project-classification',
+    )
+    const knownUnknowns = analysisReport?.artifacts.find(
+      (artifact) => artifact.type === 'known-unknowns',
+    )
+    const knowledgeSnapshot = analysisReport?.run.status === 'completed'
+      ? getCodeKnowledgeSnapshot(projectPath)
+      : null
     const analysisContext = analysisReport?.run.status === 'completed'
       ? [
           '## Persisted Code Analysis',
           `Index id: ${analysisReport.run.indexId ?? 'unknown'}`,
           projectSummary
             ? `Project summary: ${projectSummary.contentJson}`
+            : '',
+          classification
+            ? `Project classification: ${classification.contentJson}`
+            : '',
+          knownUnknowns
+            ? `Known unknowns requiring investigation: ${knownUnknowns.contentJson}`
+            : '',
+          knowledgeSnapshot
+            ? `Knowledge graph snapshot: ${JSON.stringify(knowledgeSnapshot)}`
             : '',
           relevantCode.length > 0
             ? `Relevant indexed nodes:\n${JSON.stringify(relevantCode, null, 2)}`
