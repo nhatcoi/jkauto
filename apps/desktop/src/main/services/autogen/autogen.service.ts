@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import crypto, { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import fs from 'node:fs/promises'
 import { stringify as yamlStringify } from 'yaml'
@@ -10,8 +10,12 @@ import {
   deleteIndexData,
   getRepoIndex,
   saveCodeMap,
-  queryChunks,
   getStoredCodeMap,
+  saveKnowledgeGraph,
+  searchKnowledge,
+  getKnowledgeSnapshot,
+  traverseKnowledge,
+  rememberKnowledgeNode,
 } from './autogen-db'
 import { generateTestsForTargets } from './test-generator'
 
@@ -25,6 +29,173 @@ export interface StartIndexResult {
   indexId: string
   stack: DetectedStack
   map: CodeMap
+  memoryUpdate: {
+    created: number
+    updated: number
+    unchanged: number
+    stale: number
+  }
+}
+
+function stableHash(value: unknown): string {
+  return crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex')
+}
+
+function buildKnowledgeGraph(map: CodeMap) {
+  const workspace = map.workspace
+  const nodes: Parameters<typeof saveKnowledgeGraph>[2] = []
+  const edges: Parameters<typeof saveKnowledgeGraph>[3] = []
+  if (workspace) {
+    nodes.push({
+      stableKey: 'workspace:root',
+      kind: 'workspace',
+      name: path.basename(workspace.root),
+      summary: workspace.tags.map((tag) => tag.type).join(', '),
+      confidence: Math.max(0.5, ...workspace.tags.map((tag) => tag.confidence)),
+      sourceRefs: workspace.tags.flatMap((tag) => tag.evidence),
+      metadata: {
+        tags: workspace.tags,
+        diagnostics: workspace.diagnostics,
+      },
+      contentHash: stableHash({
+        tags: workspace.tags,
+        diagnostics: workspace.diagnostics,
+      }),
+    })
+    for (const module of workspace.modules) {
+      nodes.push({
+        stableKey: `module:${module.id}`,
+        kind: 'module',
+        name: module.relativeRoot,
+        summary: `${module.role}; ${module.stack.framework}/${module.stack.language}`,
+        confidence: Math.max(...module.tags.map((tag) => tag.confidence), 0.5),
+        moduleId: module.id,
+        sourceRefs: module.manifests.map((file) => ({ file })),
+        metadata: module as unknown as Record<string, unknown>,
+        contentHash: stableHash(module),
+      })
+      edges.push({
+        sourceKey: 'workspace:root',
+        targetKey: `module:${module.id}`,
+        relation: 'contains',
+      })
+    }
+    for (const file of workspace.files) {
+      const meaningfulPreview = file.preview
+        ?.split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .slice(0, 40)
+        .join('\n')
+      nodes.push({
+        stableKey: `file:${file.relativePath}`,
+        kind: 'file',
+        name: file.relativePath,
+        summary: meaningfulPreview
+          ? `${file.language} source file\n${meaningfulPreview}`
+          : `${file.language} source file`,
+        moduleId: file.moduleId,
+        contentHash: file.contentHash,
+        sourceRefs: [{ file: file.path }],
+        metadata: {
+          language: file.language,
+          size: file.size,
+          relativePath: file.relativePath,
+          preview: file.preview,
+        },
+      })
+    }
+    for (const finding of workspace.findings) {
+      nodes.push({
+        stableKey: `finding:${finding.id}`,
+        kind: finding.kind,
+        name: finding.name,
+        summary: finding.summary,
+        status: finding.status,
+        confidence: finding.confidence,
+        producer: 'static',
+        moduleId: finding.moduleId,
+        sourceRefs: finding.sourceRefs,
+        metadata: finding as unknown as Record<string, unknown>,
+        contentHash: stableHash(finding),
+      })
+    }
+    for (const gap of workspace.gaps) {
+      nodes.push({
+        stableKey: `gap:${gap.id}`,
+        kind: 'gap',
+        name: gap.title,
+        summary: gap.reason,
+        status: 'unknown',
+        confidence: 0,
+        moduleId: gap.moduleId,
+        metadata: gap as unknown as Record<string, unknown>,
+        contentHash: stableHash(gap),
+      })
+    }
+    edges.push(...workspace.relations.map((relation) => ({
+      sourceKey: relation.from,
+      targetKey: relation.to,
+      relation: relation.type,
+      confidence: relation.confidence,
+      sourceRef: relation.sourceRef,
+    })))
+  }
+  for (const page of map.pages) {
+    nodes.push({
+      stableKey: `route:${page.route}`,
+      kind: 'route',
+      name: page.route,
+      summary: `UI route rendered by ${page.componentName}`,
+      sourceRefs: [{ file: page.componentFile }],
+      metadata: page as unknown as Record<string, unknown>,
+      contentHash: stableHash(page),
+    })
+  }
+  for (const endpoint of map.endpoints) {
+    nodes.push({
+      stableKey: `endpoint:${endpoint.method}:${endpoint.path}`,
+      kind: 'endpoint',
+      name: `${endpoint.method} ${endpoint.path}`,
+      summary: endpoint.summary ?? 'HTTP API endpoint',
+      sourceRefs: [{ file: endpoint.sourceFile }],
+      metadata: endpoint as unknown as Record<string, unknown>,
+      contentHash: stableHash(endpoint),
+    })
+  }
+  for (const element of map.elements) {
+    nodes.push({
+      stableKey: `element:${element.sourceFile}:${element.line}:${element.name}`,
+      kind: 'element',
+      name: element.name,
+      summary: `${element.tag} UI element`,
+      sourceRefs: [{ file: element.sourceFile, line: element.line }],
+      metadata: element as unknown as Record<string, unknown>,
+      contentHash: stableHash(element),
+    })
+  }
+  for (const symbol of map.symbols) {
+    nodes.push({
+      stableKey: `symbol:${symbol.file}:${symbol.line}:${symbol.name}`,
+      kind: 'symbol',
+      name: symbol.name,
+      summary: `${symbol.kind} declared in ${symbol.file}`,
+      sourceRefs: [{ file: symbol.file, line: symbol.line, symbol: symbol.name }],
+      metadata: symbol as unknown as Record<string, unknown>,
+      contentHash: stableHash(symbol),
+    })
+  }
+  return {
+    nodes: Array.from(new Map(nodes.map((node) => [node.stableKey, node])).values()),
+    edges: Array.from(
+      new Map(
+        edges.map((edge) => [
+          `${edge.sourceKey}:${edge.relation}:${edge.targetKey}`,
+          edge,
+        ]),
+      ).values(),
+    ),
+  }
 }
 
 export async function startIndex(
@@ -70,8 +241,15 @@ export async function startIndex(
     localPath,
   })
   saveCodeMap(projectPath, indexId, map)
+  const knowledge = buildKnowledgeGraph(map)
+  const memoryUpdate = saveKnowledgeGraph(
+    projectPath,
+    indexId,
+    knowledge.nodes,
+    knowledge.edges,
+  )
 
-  return { indexId, stack, map }
+  return { indexId, stack, map, memoryUpdate }
 }
 
 export function getCodeMap(projectPath: string) {
@@ -94,20 +272,46 @@ export function getRelevantCodeContext(
   query: string,
   limit = 30,
 ) {
-  const existing = getRepoIndex(projectPath) as any
-  if (!existing) return []
-  const ftsQuery = query
-    .split(/\s+/)
-    .map((part) => part.replace(/[^\p{L}\p{N}_-]/gu, ''))
-    .filter(Boolean)
-    .join(' OR ')
-  if (!ftsQuery) return []
-  return queryChunks(projectPath, existing.id, ftsQuery, limit).map((chunk) => ({
-    type: chunk.chunk_type,
-    name: chunk.name,
-    content: chunk.content,
-    metadata: JSON.parse(chunk.metadata_json),
+  return searchKnowledge(projectPath, query, limit).map((node) => ({
+    id: node.stable_key,
+    type: node.kind,
+    name: node.name,
+    content: node.summary,
+    status: node.status,
+    confidence: node.confidence,
+    producer: node.producer,
+    sourceRefs: JSON.parse(String(node.source_refs_json ?? '[]')),
+    metadata: JSON.parse(String(node.metadata_json ?? '{}')),
+    lexicalScore: node.lexical_score,
+    vectorScore: node.vector_score,
+    graphScore: node.graph_score,
+    retrievalScore: node.retrieval_score,
   }))
+}
+
+export function getCodeKnowledgeSnapshot(projectPath: string) {
+  return getKnowledgeSnapshot(projectPath)
+}
+
+export function getCodeKnowledgeRelations(
+  projectPath: string,
+  stableKey: string,
+  limit = 50,
+) {
+  return traverseKnowledge(projectPath, stableKey, limit)
+}
+
+export function rememberCodeKnowledge(
+  projectPath: string,
+  input: Parameters<typeof rememberKnowledgeNode>[1],
+) {
+  if (
+    input.status === 'verified' &&
+    (!input.sourceRefs.length || input.confidence < 0.7)
+  ) {
+    throw new Error('Verified knowledge requires source evidence and confidence >= 0.7')
+  }
+  rememberKnowledgeNode(projectPath, input)
 }
 
 export interface GenerateParams {
@@ -129,10 +333,6 @@ export async function generateAndSaveTests(
 
   // Build RAG context
   const stored = getStoredCodeMap(projectPath, existing.id) as any
-  const relevantChunks = query
-    ? queryChunks(projectPath, existing.id, query.split(' ').filter(Boolean).join(' OR '), 30)
-    : []
-
   const contextBundle = buildContext(
     {
       pages: (stored.pages ?? []).map((p: any) => ({ route: p.route, componentFile: p.component_file, componentName: p.component_name })),
