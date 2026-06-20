@@ -26,6 +26,11 @@ import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
 import { cn, invoke } from '@/lib/utils'
 import { useProjectStore } from '@/store/project.store'
+import { CoverageChart } from './components/CoverageChart'
+import { KnowledgeGraphView } from './components/KnowledgeGraphView'
+import { KnownUnknownsView } from './components/KnownUnknownsView'
+import { ProjectSummaryChart } from './components/ProjectSummaryChart'
+import { TestTargetsView } from './components/TestTargetsView'
 
 const ARTIFACT_ICONS: Record<CodeAnalysisArtifactType, typeof Code2> = {
   'project-summary': Network,
@@ -277,7 +282,35 @@ export function AnalysisView({ projectPath }: { projectPath: string }) {
   )
 }
 
+const VIZ_TYPES = new Set<CodeAnalysisArtifactType>([
+  'project-summary',
+  'analysis-coverage',
+  'knowledge-graph',
+  'known-unknowns',
+  'test-targets',
+])
+
+function ArtifactViz({ artifact }: { artifact: CodeAnalysisArtifact }) {
+  switch (artifact.type) {
+    case 'project-summary':
+      return <ProjectSummaryChart contentJson={artifact.contentJson} />
+    case 'analysis-coverage':
+      return <CoverageChart contentJson={artifact.contentJson} />
+    case 'knowledge-graph':
+      return <KnowledgeGraphView contentJson={artifact.contentJson} />
+    case 'known-unknowns':
+      return <KnownUnknownsView contentJson={artifact.contentJson} />
+    case 'test-targets':
+      return <TestTargetsView contentJson={artifact.contentJson} />
+    default:
+      return null
+  }
+}
+
 function ArtifactDetail({ artifact }: { artifact: CodeAnalysisArtifact }) {
+  const hasViz = VIZ_TYPES.has(artifact.type)
+  const [showRaw, setShowRaw] = useState(false)
+
   return (
     <div className="mx-auto max-w-5xl space-y-4 p-5">
       <div>
@@ -286,6 +319,15 @@ function ArtifactDetail({ artifact }: { artifact: CodeAnalysisArtifact }) {
           <Badge variant="secondary" className="text-[9px]">
             {artifact.type}
           </Badge>
+          {hasViz && (
+            <button
+              type="button"
+              onClick={() => setShowRaw((prev) => !prev)}
+              className="ml-auto text-[10px] text-muted-foreground hover:text-foreground"
+            >
+              {showRaw ? 'Hide raw' : 'Show raw JSON'}
+            </button>
+          )}
         </div>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">
           {artifact.summary}
@@ -298,16 +340,20 @@ function ArtifactDetail({ artifact }: { artifact: CodeAnalysisArtifact }) {
         <Metric label="Sources" value={artifact.sourceRefs.length} />
       </div>
 
-      <section>
-        <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          Artifact data
-        </h3>
-        <pre className="overflow-auto rounded-lg border border-border bg-card/50 p-4 text-[11px] leading-5 text-foreground/85">
-          {prettyJson(artifact.contentJson)}
-        </pre>
-      </section>
+      {hasViz && !showRaw ? (
+        <ArtifactViz artifact={artifact} />
+      ) : (
+        <section>
+          <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            Artifact data
+          </h3>
+          <pre className="overflow-auto rounded-lg border border-border bg-card/50 p-4 text-[11px] leading-5 text-foreground/85">
+            {prettyJson(artifact.contentJson)}
+          </pre>
+        </section>
+      )}
 
-      {artifact.sourceRefs.length > 0 ? (
+      {artifact.sourceRefs.length > 0 && !hasViz ? (
         <section>
           <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             Source references
