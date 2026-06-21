@@ -21,7 +21,7 @@ import type { Project, UpdateProjectPayload } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
 import { useProjectStore, selectProject } from '@/store/project.store'
 import { cn } from '@/lib/utils'
-import { Trash2, AlertTriangle } from 'lucide-react'
+import { FolderOpen, GitBranch, HardDrive, Trash2, AlertTriangle } from 'lucide-react'
 import { PROJECT_ICON_OPTIONS } from '@/features/project/NewProjectDialog'
 
 const TYPE_DEFAULT_ICONS: Record<string, string> = {
@@ -50,6 +50,8 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectPath: propPat
     icon: '',
     description: '',
     repoUrl: '',
+    sourceType: 'git' as 'git' | 'local',
+    sourcePath: '',
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -58,12 +60,15 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectPath: propPat
 
   useEffect(() => {
     if (open && entry) {
+      const p = entry.project as typeof entry.project & { sourceType?: 'git' | 'local'; sourcePath?: string }
       setForm({
-        name: entry.project.name ?? '',
-        type: entry.project.type ?? 'web',
-        icon: entry.project.icon ?? '',
-        description: entry.project.description ?? '',
-        repoUrl: entry.project.repoUrl ?? '',
+        name: p.name ?? '',
+        type: p.type ?? 'web',
+        icon: p.icon ?? '',
+        description: p.description ?? '',
+        repoUrl: p.repoUrl ?? '',
+        sourceType: p.sourceType ?? 'git',
+        sourcePath: p.sourcePath ?? '',
       })
       setError('')
       setShowDeleteConfirm(false)
@@ -85,7 +90,9 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectPath: propPat
         type: form.type,
         icon: form.icon,
         description: form.description.trim(),
-        repoUrl: form.repoUrl.trim(),
+        repoUrl: form.sourceType === 'git' ? form.repoUrl.trim() : '',
+        sourceType: form.sourceType,
+        sourcePath: form.sourceType === 'local' ? form.sourcePath.trim() : '',
       }
       const updated = await invoke<Project>(IpcChannels.PROJECT_UPDATE, payload)
       updateProject(resolvedPath, updated)
@@ -180,13 +187,60 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectPath: propPat
           </div>
 
           <div className="grid gap-1.5">
-            <Label htmlFor="ps-repo">Repository URL</Label>
-            <Input
-              id="ps-repo"
-              placeholder="https://github.com/org/repo"
-              value={form.repoUrl}
-              onChange={(e) => set('repoUrl', e.target.value)}
-            />
+            <Label>Source to Test</Label>
+            <div className="flex rounded-md border border-border p-0.5 gap-0.5">
+              {(['git', 'local'] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => set('sourceType', t)}
+                  className={cn(
+                    'flex flex-1 items-center justify-center gap-1.5 rounded py-1 text-xs font-medium transition-colors',
+                    form.sourceType === t
+                      ? 'bg-secondary text-foreground'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {t === 'git' ? <GitBranch className="w-3 h-3" /> : <HardDrive className="w-3 h-3" />}
+                  {t === 'git' ? 'Git Repo' : 'Local Path'}
+                </button>
+              ))}
+            </div>
+            {form.sourceType === 'git' ? (
+              <Input
+                id="ps-repo"
+                placeholder="https://github.com/org/repo"
+                value={form.repoUrl}
+                onChange={(e) => set('repoUrl', e.target.value)}
+              />
+            ) : (
+              <div className="flex gap-1.5">
+                <Input
+                  id="ps-source-path"
+                  placeholder="/path/to/local/project"
+                  value={form.sourcePath}
+                  onChange={(e) => set('sourcePath', e.target.value)}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-2.5 shrink-0"
+                  onClick={async () => {
+                    const result = await invoke<string[] | null>(IpcChannels.DIALOG_OPEN_FOLDER, undefined)
+                    if (result?.[0]) set('sourcePath', result[0])
+                  }}
+                >
+                  <FolderOpen className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            )}
+            <p className="text-[10px] text-muted-foreground">
+              {form.sourceType === 'git'
+                ? 'Clone URL — analysis engine fetches and indexes this repo.'
+                : 'Local folder — synced to .autotest/source/ (excludes node_modules, dist, etc.)'}
+            </p>
           </div>
 
           {resolvedPath && (

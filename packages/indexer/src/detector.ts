@@ -2,11 +2,12 @@ import path from 'node:path'
 import fs from 'node:fs'
 import type { DetectedStack, Framework, Language } from './types'
 
-const OPENAPI_CANDIDATES = [
-  'swagger.json', 'openapi.json', 'swagger.yaml', 'openapi.yaml',
-  'docs/swagger.json', 'docs/openapi.yaml', 'api/swagger.json',
-  'src/main/resources/swagger.yaml', 'src/main/resources/openapi.yaml',
-]
+const OPENAPI_FILE_RE = /^(openapi|swagger|api[-_]?docs?)\.(json|ya?ml)$/i
+const OPENAPI_SKIP_DIRS = new Set([
+  'node_modules', '.git', 'dist', 'build', 'out', 'target', 'coverage',
+  '.next', '.nuxt', '.gradle', 'vendor', '.autotest',
+])
+const OPENAPI_MAX_DEPTH = 4
 
 export function detectStack(repoPath: string): DetectedStack {
   if (fs.existsSync(path.join(repoPath, 'package.json'))) return detectNode(repoPath)
@@ -20,9 +21,30 @@ export function detectStack(repoPath: string): DetectedStack {
   return { framework: 'unknown', language: 'unknown', hasOpenApi: false, hasReadme: false }
 }
 
-function findOpenApi(repoPath: string) {
-  const p = OPENAPI_CANDIDATES.find((f) => fs.existsSync(path.join(repoPath, f)))
-  return p ? path.join(repoPath, p) : undefined
+// Recursively scan for an OpenAPI/Swagger spec. Shallower matches win so a
+// root-level spec is preferred over one nested in examples/fixtures.
+function findOpenApi(repoPath: string): string | undefined {
+  let best: { path: string; depth: number } | undefined
+  const walk = (dir: string, depth: number): void => {
+    if (depth > OPENAPI_MAX_DEPTH) return
+    let entries: fs.Dirent[]
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }) } catch { return }
+    for (const entry of entries) {
+      if (!entry.isFile()) continue
+      if (OPENAPI_FILE_RE.test(entry.name)) {
+        if (!best || depth < best.depth) {
+          best = { path: path.join(dir, entry.name), depth }
+        }
+      }
+    }
+    for (const entry of entries) {
+      if (entry.isDirectory() && !OPENAPI_SKIP_DIRS.has(entry.name) && !entry.name.startsWith('.')) {
+        walk(path.join(dir, entry.name), depth + 1)
+      }
+    }
+  }
+  walk(repoPath, 0)
+  return best?.path
 }
 
 function findReadme(repoPath: string) {

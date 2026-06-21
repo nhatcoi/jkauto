@@ -3,10 +3,31 @@ import type { IpcMain } from 'electron'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { IpcChannels } from '@jkauto/core'
-import type { CreateProjectPayload, UpdateProjectPayload, DuplicateProjectPayload, RecentProject } from '@jkauto/core'
+import type { CreateProjectPayload, UpdateProjectPayload, DuplicateProjectPayload, RecentProject, SyncProjectPayload, SyncProjectResult } from '@jkauto/core'
 import { randomUUID } from 'node:crypto'
 import { writeExplorerMetadata } from '../services/explorer-metadata'
 import { PROJECT_STRUCTURE } from '../services/project-features'
+
+const SYNC_IGNORE = new Set([
+  'node_modules', 'dist', 'build', '.git', 'coverage', '.next', '__pycache__',
+  '.venv', 'venv', 'target', 'out', '.cache', '.turbo', '.parcel-cache',
+  '.gradle', 'vendor', 'Pods', 'DerivedData', '.DS_Store',
+])
+
+async function syncLocalDir(src: string, dest: string): Promise<void> {
+  await fs.mkdir(dest, { recursive: true })
+  const entries = await fs.readdir(src, { withFileTypes: true })
+  for (const entry of entries) {
+    if (SYNC_IGNORE.has(entry.name)) continue
+    const srcEntry = path.join(src, entry.name)
+    const destEntry = path.join(dest, entry.name)
+    if (entry.isDirectory()) {
+      await syncLocalDir(srcEntry, destEntry)
+    } else {
+      await fs.copyFile(srcEntry, destEntry)
+    }
+  }
+}
 
 const RECENT_KEY = 'recent_projects'
 let recentProjects: RecentProject[] = []
@@ -99,6 +120,8 @@ export function registerProjectHandlers(ipcMain: IpcMain): void {
       icon: payload.icon ?? existing.icon ?? '',
       description: payload.description,
       repoUrl: payload.repoUrl,
+      sourceType: payload.sourceType,
+      sourcePath: payload.sourcePath,
       updatedAt: new Date().toISOString(),
     }
     await fs.writeFile(projectFile, JSON.stringify(updated, null, 2), 'utf-8')
@@ -109,6 +132,30 @@ export function registerProjectHandlers(ipcMain: IpcMain): void {
       entry.type = payload.type
     }
     return updated
+  })
+
+  ipcMain.handle(IpcChannels.PROJECT_SYNC, async (_, payload: SyncProjectPayload): Promise<SyncProjectResult> => {
+    const projectFile = path.join(payload.projectPath, 'project.json')
+    const raw = await fs.readFile(projectFile, 'utf-8')
+    const project = JSON.parse(raw) as {
+      repoUrl?: string
+      sourceType?: 'git' | 'local'
+      sourcePath?: string
+    }
+
+    const sourceType = project.sourceType ?? 'git'
+
+    if (sourceType === 'local') {
+      const srcPath = project.sourcePath?.trim()
+      if (!srcPath) throw new Error('No local source path configured. Set it in Project Settings.')
+      const destPath = path.join(payload.projectPath, '.autotest', 'source')
+      await syncLocalDir(srcPath, destPath)
+      return { sourceRef: destPath }
+    }
+
+    const ref = project.repoUrl?.trim()
+    if (!ref) throw new Error('No git repository URL configured. Set it in Project Settings.')
+    return { sourceRef: ref }
   })
 
   ipcMain.handle(IpcChannels.PROJECT_DELETE, async (_, projectPath: string) => {

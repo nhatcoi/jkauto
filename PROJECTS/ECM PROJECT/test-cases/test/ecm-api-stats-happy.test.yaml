@@ -1,0 +1,43 @@
+schemaVersion: 1
+id: 1bc42392-cc9b-42ff-9d8f-003377b1e948
+name: ECM API Stats Happy
+description: Login admin and get system statistics.
+tags:
+  - api
+  - stats
+  - happy
+platform: api
+runner: api
+steps:
+  - id: 1e8bf9fa-561c-44c7-ae14-ef2f94c8cf7a
+    keyword: set-base-url
+    description: Base URL
+    input: http://localhost:3001
+  - id: fe93db05-b05b-4c77-8ce3-1351dc47629d
+    keyword: http-request
+    description: Login admin
+    objectRef: POST
+    input: /auth/login
+    expected: '{"username":"admin","password":"Admin@123"}'
+  - id: 0c96b0b9-37b8-4990-88ea-97727d05bd27
+    keyword: assert-status-code
+    description: Login success
+    expected: "200"
+  - id: 39041f5a-4760-4226-a2a1-441f4d7bbd46
+    keyword: set-variable
+    description: Store access token
+    objectRef: accessToken
+    expected: accessToken
+  - id: fd25460a-8d8b-42ea-b244-4097cc027355
+    keyword: set-auth-bearer
+    description: Use access token
+    input: ${accessToken}
+  - id: e2ab5122-0147-4cd6-9177-269606c9acb3
+    keyword: http-request
+    description: Get system stats
+    objectRef: GET
+    input: /stats
+  - id: 7ee40de9-5d92-4157-996d-24beaac25a1f
+    keyword: assert-status-code
+    description: Stats success
+    expected: "200"

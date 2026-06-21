@@ -163,10 +163,18 @@ export interface UIElement {
   line: number
 }
 
+export interface ApiParameter {
+  name: string
+  in: 'query' | 'path' | 'header' | 'cookie'
+  required: boolean
+  type?: string
+}
+
 export interface ApiEndpoint {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   path: string
   summary?: string
+  parameters?: ApiParameter[]
   requestSchema?: unknown
   responseSchema?: unknown
   sourceFile: string

@@ -26,6 +26,7 @@ import {
   getRelevantCodeContext,
   rememberCodeKnowledge,
 } from '../autogen/autogen.service'
+import { buildFeatureBundle, listFeatures } from '../autogen/feature-bundle'
 
 const SKIP_DIRS = new Set(['.autotest', '.git', 'node_modules', 'reports'])
 
@@ -164,14 +165,23 @@ API built-in keywords (platform: api, runner: api):
 
 Request:
   http-request         objectRef=METHOD (GET/POST/PUT/PATCH/DELETE), input=path (e.g. /users/\${userId})
-  set-base-url         input=url  — override session baseUrl (skip if profile.api.baseUrl is set)
+                       expected=JSON body string — REQUIRED for POST/PUT/PATCH that send a payload.
+                       Example login: objectRef="POST", input="/auth/login",
+                       expected='{"username":"admin","password":"Admin@123"}'
+                       Without a body, POST requests send nothing and fail (e.g. login returns 400).
+  set-base-url         input=url  — set session baseUrl. ALWAYS add this as step 1 unless the active
+                       profile already has api.baseUrl. Use a concrete URL (e.g. http://localhost:3000),
+                       not an undefined \${VAR}/{{VAR}} — unresolved base URLs fail with "Failed to parse URL".
   set-request-header   objectRef=Header-Name, input=value  — add/override a request header
   set-auth-bearer      input=token  — sets Authorization: Bearer <token>
 
 Assertions:
   assert-status-code        expected=200  (or any HTTP status string)
   assert-response-time      expected=2000  (max ms)
-  assert-json-path          objectRef=jsonPath (e.g. data.id), expected=value
+  assert-json-path          objectRef=jsonPath (e.g. data.id), expected=value.
+                            Use expected="*" (or empty) to assert the field exists / is non-empty —
+                            REQUIRED for dynamic values like accessToken, refreshToken, id, timestamps.
+                            Never assert an exact value for a token/id you cannot know in advance.
   assert-response-contains  expected=substring
 
 Variables:
@@ -198,6 +208,29 @@ Use \${varName} in input/expected to reference session variables or profile vari
 Custom keywords live in keywords/*.keywords.yaml.
 Each keyword composes built-in steps. Call list_keywords to see available ones.
 Prefer custom keywords over raw built-ins when the project has relevant ones.`,
+
+  'test-generation': `
+Test generation workflow (when asked to generate tests for a feature, e.g. "login", "documents"):
+1. Call get_feature_bundle(feature) — returns endpoints + validation rules, ready request bodies
+   (sampleRequestBody / sampleRequestBodyInvalid), seed/test accounts, auth requirements, baseUrlHint,
+   authSetup, and suggested scenarios. Call list_features first if unsure of the feature name.
+2. Every API test must be runnable:
+   - Step 1: set-base-url with the bundle's baseUrlHint (e.g. http://localhost:3001). Never leave it unresolved.
+   - POST/PUT/PATCH http-request: put the JSON body in the step's "expected" field. Copy sampleRequestBody
+     for happy paths, sampleRequestBodyInvalid for negative/boundary tests. Never leave a write body empty.
+   - Auth-required endpoints: follow the bundle's authSetup — login with the seed account, store the token
+     (set-variable objectRef=accessToken, expected=accessToken — "expected" extracts a JSON path from the
+     last response), then set-auth-bearer input=\${accessToken}. Reference stored variables with \${name}.
+   - Reuse the token across a suite: save-to-profile
+     expected='{"type":"api-config","mappings":[{"from":"accessToken","to":"auth.bearer.token"}]}'.
+     After that profile.api auto-injects Authorization on every API test — later tests skip login.
+   - Use each endpoint's samplePath for the http-request URL — it already includes REQUIRED query params
+     (e.g. /search?q=test). Missing a required query param returns 400. Path params like {id} must be
+     substituted with a real value (extract one from a prior create/list response).
+   - assert-json-path with expected="*" asserts a dynamic field (token/id) merely exists.
+3. Author ONE test case per suggested scenario (happy / missing-required / invalid-value / wrong-credentials
+   / unauthorized). Use seed accounts for valid logins; never invent credentials when seed data exists.
+4. For each: create_test_case then save_test_case_steps. A login feature typically yields 3-4 test cases.`,
 }
 
 async function loadRuntimeProfile(projectPath: string): Promise<Profile> {
@@ -353,6 +386,27 @@ export async function createJkautoMcpClient(
         inputSchema: { type: 'object' as const, properties: {} },
       },
       {
+        name: 'list_features',
+        description:
+          'List testable features grouped from analyzed endpoints + UI routes (e.g. auth, users, documents). Each entry shows how many endpoints and pages belong to it. Call this first to discover what features can be tested, then get_feature_bundle for one.',
+        inputSchema: { type: 'object' as const, properties: {} },
+      },
+      {
+        name: 'get_feature_bundle',
+        description:
+          'Get a complete test dossier for ONE feature: its API endpoints with validation rules (required/minLength/format/enum + sample valid & invalid values), related UI pages, seed/test accounts found in the codebase, auth requirements, and suggested test scenarios (happy/negative/boundary/auth). Use this to author multiple coherent test cases for a feature (e.g. 3-4 login tests) in one pass.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            feature: {
+              type: 'string',
+              description: 'Feature key from list_features (e.g. "auth", "documents", "users"). Path substrings also match (e.g. "login").',
+            },
+          },
+          required: ['feature'],
+        },
+      },
+      {
         name: 'traverse_codebase_graph',
         description:
           'Follow outgoing knowledge graph relationships from a stable node key returned by search_codebase_memory.',
@@ -419,8 +473,8 @@ export async function createJkautoMcpClient(
           properties: {
             topic: {
               type: 'string',
-              enum: ['platforms', 'test-cases', 'steps', 'ui-steps', 'api-steps', 'keywords', 'file-naming', 'all'],
-              description: 'platforms — when to use web/api/mobile/desktop; ui-steps — browser/app keywords; api-steps — HTTP test keywords; test-cases — file schema; steps — step schema; file-naming — naming conventions; all — everything.',
+              enum: ['platforms', 'test-cases', 'steps', 'ui-steps', 'api-steps', 'keywords', 'file-naming', 'test-generation', 'all'],
+              description: 'platforms — when to use web/api/mobile/desktop; ui-steps — browser/app keywords; api-steps — HTTP test keywords; test-cases — file schema; steps — step schema; file-naming — naming conventions; test-generation — step-by-step recipe for generating a feature\'s test suite; all — everything.',
             },
           },
         },
@@ -715,6 +769,22 @@ export async function createJkautoMcpClient(
               type: 'text' as const,
               text: JSON.stringify(getCodeKnowledgeSnapshot(projectPath), null, 2),
             }],
+          }
+        }
+
+        case 'list_features': {
+          return {
+            content: [{
+              type: 'text' as const,
+              text: JSON.stringify(listFeatures(projectPath), null, 2),
+            }],
+          }
+        }
+
+        case 'get_feature_bundle': {
+          const bundle = buildFeatureBundle(projectPath, String(a.feature ?? ''))
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify(bundle, null, 2) }],
           }
         }
 

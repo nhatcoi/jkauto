@@ -1,0 +1,43 @@
+schemaVersion: 1
+id: 9e64ba93-67f3-4321-bd43-8d491393b569
+name: Auth Invalid Field Value
+description: Register with invalid email/password/role and expect validation failure.
+platform: api
+runner: api
+tags:
+  - api
+  - auth
+  - boundary
+steps:
+  - id: c3113b60-cc64-4840-a42a-2616ce00cc5b
+    name: ""
+    keyword: http-request
+    description: Register with invalid email format
+    objectRef: POST
+    input: /auth/register
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - id: 4ad2f7ef-0aa1-4cab-9819-fe24abbd30e0
+    name: ""
+    keyword: assert-status-code
+    description: Expect invalid field failure
+    objectRef: ""
+    input: ""
+    expected: "400"
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - id: 8398b4e6-5541-4cf6-bcb6-2daf52618138
+    name: ""
+    keyword: assert-response-contains
+    description: Validation mentions email
+    objectRef: ""
+    input: ""
+    expected: email
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+createdAt: 2026-06-21T16:09:50.630Z
+updatedAt: 2026-06-21T16:10:08.141Z

@@ -88,7 +88,13 @@ function MethodSelect({ value, onChange }: { value: string; onChange: (v: string
 
 // ── keyword-specific forms ─────────────────────────────────────────────────────
 
+const BODY_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+
 function HttpRequestForm({ step, onChange }: { step: TestStep; onChange: (p: Partial<TestStep>) => void }) {
+  const method = (step.objectRef || 'GET').toUpperCase()
+  // Body field shows for the legacy body keyword, or whenever the method can
+  // carry a body. GET/HEAD hide it to avoid sending an unexpected payload.
+  const showBody = step.keyword === 'http-request-body' || BODY_METHODS.has(method)
   return (
     <div className="flex flex-col gap-3">
       <div className="flex gap-2 items-end">
@@ -101,7 +107,7 @@ function HttpRequestForm({ step, onChange }: { step: TestStep; onChange: (p: Par
           <TextInput value={step.input} placeholder="/api/resource" onChange={(v) => onChange({ input: v })} mono />
         </div>
       </div>
-      {step.keyword === 'http-request-body' && (
+      {showBody && (
         <Field label="Request Body (JSON)">
           <TextArea value={step.expected} placeholder={'{\n  "key": "value"\n}'} onChange={(v) => onChange({ expected: v })} rows={6} />
         </Field>
@@ -285,7 +291,12 @@ function StepForm({ step, onChange }: { step: TestStep; onChange: (p: Partial<Te
     return <SingleFieldForm step={step} onChange={onChange} label="Max Response Time (ms)" placeholder="2000" field="expected" />
   }
   if (keyword === 'set-variable') {
-    return <KeyValueForm step={step} onChange={onChange} labelA="Variable Name" labelB="Value" placeholderA="myVar" placeholderB="value or {{other}}" fieldA="objectRef" fieldB="input" />
+    return (
+      <div className="flex flex-col gap-3">
+        <SingleFieldForm step={step} onChange={onChange} label="Variable Name" placeholder="accessToken" field="objectRef" />
+        <KeyValueForm step={step} onChange={onChange} labelA="Literal Value" labelB="OR Extract Path (from last response)" placeholderA="value or {{other}}" placeholderB="accessToken" fieldA="input" fieldB="expected" />
+      </div>
+    )
   }
   if (keyword === 'save-to-profile') {
     return <SaveToProfileForm step={step} onChange={onChange} />

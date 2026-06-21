@@ -1,0 +1,24 @@
+schemaVersion: 1
+id: d7ccebcf-7977-4df0-a552-a64602ea6e1c
+name: ECM API Stats Unauthorized
+description: Call stats endpoint without token and expect 401.
+tags:
+  - api
+  - stats
+  - auth
+platform: api
+runner: api
+steps:
+  - id: 84104944-7b40-4142-a814-ed2eb2db5628
+    keyword: set-base-url
+    description: Base URL
+    input: http://localhost:3001
+  - id: 9b316cef-b0af-4e61-aab5-f5587f5fa259
+    keyword: http-request
+    description: Get stats without auth
+    objectRef: GET
+    input: /stats
+  - id: d188266a-c647-4f85-9eb9-71fd07564c27
+    keyword: assert-status-code
+    description: Unauthorized
+    expected: "401"

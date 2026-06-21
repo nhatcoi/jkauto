@@ -1,0 +1,52 @@
+schemaVersion: 1
+id: 41bdd33d-6870-4c6f-8b1e-56f3c2d0a6be
+name: Auth Happy Path
+description: Login seeded admin, verify tokens, call /auth/me, refresh token, logout.
+tags:
+  - api
+  - auth
+  - happy
+platform: api
+runner: api
+steps:
+  - id: 15aa8151-ef6c-4769-aa20-09316560be48
+    keyword: http-request
+    description: Login with seeded admin account
+    objectRef: POST
+    input: /auth/login
+  - id: 3aef40e5-07be-4dd5-8fb2-3d939a072265
+    keyword: assert-status-code
+    description: Expect login success
+    expected: "200"
+  - id: c970b603-2ba8-4a75-97b2-492bb649732e
+    keyword: assert-json-path
+    description: Access token returned
+    objectRef: accessToken
+    expected: "*"
+  - id: 357951dd-6610-47fb-b96c-958898b2f8b8
+    keyword: assert-json-path
+    description: Refresh token returned
+    objectRef: refreshToken
+    expected: "*"
+  - id: 584b0274-ef9d-4054-902f-04763a157a12
+    keyword: set-variable
+    description: Store access token
+    objectRef: accessToken
+    expected: accessToken
+  - id: 94333743-e03b-4874-bbc7-7ef2157531a3
+    keyword: set-auth-bearer
+    description: Use access token
+    input: ${accessToken}
+  - id: c849a07b-7e0c-4f6e-93e3-7c1b548ddd26
+    keyword: http-request
+    description: Get current authenticated user
+    objectRef: GET
+    input: /auth/me
+  - id: 56b8b716-703b-4ccb-ae6c-87f907e72afb
+    keyword: assert-status-code
+    description: Expect current user success
+    expected: "200"
+  - id: 2bbee301-ed2c-4272-930b-70bf8a06dfd1
+    keyword: assert-response-contains
+    description: Admin username present
+    expected: admin

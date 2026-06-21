@@ -1,0 +1,24 @@
+schemaVersion: 1
+id: a0bf27e9-541c-4f76-bb13-522b3052d41e
+name: ECM API Documents Unauthorized
+description: Call documents endpoint without token, expect 401.
+tags:
+  - api
+  - documents
+  - auth
+platform: api
+runner: api
+steps:
+  - id: 0254185b-9ac5-472c-a577-00153bbe93d7
+    keyword: set-base-url
+    description: Base URL
+    input: http://localhost:3001
+  - id: 6b067f08-4cee-479c-a0a8-cb807c84ecfe
+    keyword: http-request
+    description: List documents without token
+    objectRef: GET
+    input: /documents
+  - id: e3d5b359-216a-4f74-9b9f-08c860c41bae
+    keyword: assert-status-code
+    description: Expect unauthorized
+    expected: "401"

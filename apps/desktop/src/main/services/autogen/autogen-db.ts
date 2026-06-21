@@ -89,6 +89,7 @@ export function getAutogenDb(projectPath: string): Database.Database {
       method TEXT NOT NULL,
       path TEXT NOT NULL,
       summary TEXT,
+      parameters_json TEXT,
       request_schema_json TEXT,
       response_schema_json TEXT,
       source_file TEXT
@@ -184,6 +185,13 @@ export function getAutogenDb(projectPath: string): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_knowledge_edges_target ON knowledge_edges(project_path, target_key);
   `)
 
+  // Migration: add columns to pre-existing tables (CREATE IF NOT EXISTS won't).
+  try {
+    db.exec('ALTER TABLE code_endpoints ADD COLUMN parameters_json TEXT')
+  } catch {
+    // column already exists — ignore
+  }
+
   return db
 }
 
@@ -225,14 +233,14 @@ export function saveCodeMap(
   map: {
     pages: Array<{ route: string; componentFile?: string; componentName?: string }>
     elements: Array<{ name: string; tag?: string; type?: string; testId?: string; label?: string; placeholder?: string; ariaLabel?: string; sourceFile?: string; line?: number }>
-    endpoints: Array<{ method: string; path: string; summary?: string; requestSchema?: unknown; responseSchema?: unknown; sourceFile?: string }>
+    endpoints: Array<{ method: string; path: string; summary?: string; parameters?: unknown; requestSchema?: unknown; responseSchema?: unknown; sourceFile?: string }>
     symbols: Array<{ kind: string; name: string; file: string; line?: number; exported?: boolean }>
   }
 ): void {
   const db = getAutogenDb(projectPath)
   const insertPage = db.prepare('INSERT INTO code_pages (id, index_id, route, component_file, component_name) VALUES (?, ?, ?, ?, ?)')
   const insertElement = db.prepare('INSERT INTO code_elements (id, index_id, name, tag, type, test_id, label, placeholder, aria_label, source_file, line) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-  const insertEndpoint = db.prepare('INSERT INTO code_endpoints (id, index_id, method, path, summary, request_schema_json, response_schema_json, source_file) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+  const insertEndpoint = db.prepare('INSERT INTO code_endpoints (id, index_id, method, path, summary, parameters_json, request_schema_json, response_schema_json, source_file) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
   const insertSymbol = db.prepare('INSERT INTO code_symbols (id, index_id, kind, name, file, line, exported) VALUES (?, ?, ?, ?, ?, ?, ?)')
 
   const tx = db.transaction(() => {
@@ -245,7 +253,7 @@ export function saveCodeMap(
     }
 
     for (const ep of map.endpoints) {
-      insertEndpoint.run(randomUUID(), indexId, ep.method, ep.path, ep.summary ?? null, ep.requestSchema ? JSON.stringify(ep.requestSchema) : null, ep.responseSchema ? JSON.stringify(ep.responseSchema) : null, ep.sourceFile ?? '')
+      insertEndpoint.run(randomUUID(), indexId, ep.method, ep.path, ep.summary ?? null, ep.parameters ? JSON.stringify(ep.parameters) : null, ep.requestSchema ? JSON.stringify(ep.requestSchema) : null, ep.responseSchema ? JSON.stringify(ep.responseSchema) : null, ep.sourceFile ?? '')
     }
 
     for (const s of map.symbols) {
@@ -402,6 +410,12 @@ export function saveKnowledgeGraph(
         metadataJson,
       )
     }
+    // Drop static nodes from prior indexes that are gone from the codebase.
+    // Agent/runtime/user knowledge is retained even when marked stale.
+    db.prepare(
+      `DELETE FROM knowledge_nodes
+       WHERE project_path = ? AND producer = 'static' AND status = 'stale'`,
+    ).run(projectPath)
     for (const edge of edges) {
       insertEdge.run(
         randomUUID(),
@@ -637,8 +651,23 @@ export function getStoredCodeMap(projectPath: string, indexId: string) {
   const db = getAutogenDb(projectPath)
   const pages = db.prepare('SELECT * FROM code_pages WHERE index_id = ?').all(indexId)
   const elements = db.prepare('SELECT * FROM code_elements WHERE index_id = ?').all(indexId)
-  const endpoints = db.prepare('SELECT * FROM code_endpoints WHERE index_id = ?').all(indexId)
   const symbols = db.prepare('SELECT * FROM code_symbols WHERE index_id = ?').all(indexId)
+  const endpointRows = db
+    .prepare('SELECT * FROM code_endpoints WHERE index_id = ?')
+    .all(indexId) as Array<Record<string, unknown>>
+  // Re-hydrate validation schemas into ApiEndpoint shape (requestSchema/
+  // responseSchema) while keeping the raw *_json columns for other consumers.
+  const parse = (value: unknown): unknown => {
+    if (typeof value !== 'string' || !value) return undefined
+    try { return JSON.parse(value) } catch { return undefined }
+  }
+  const endpoints = endpointRows.map((row) => ({
+    ...row,
+    sourceFile: row.source_file,
+    parameters: parse(row.parameters_json),
+    requestSchema: parse(row.request_schema_json),
+    responseSchema: parse(row.response_schema_json),
+  }))
   return { pages, elements, endpoints, symbols }
 }
 

@@ -1,0 +1,43 @@
+schemaVersion: 1
+id: 5a9bbf30-c714-4b61-8350-bc26a614d871
+name: Auth Missing Required Field
+description: Omit required login password and expect validation failure.
+platform: api
+runner: api
+tags:
+  - api
+  - auth
+  - negative
+steps:
+  - id: 7046206c-566f-46a8-bd39-e7fbb763c4a3
+    name: ""
+    keyword: http-request
+    description: Login missing password
+    objectRef: POST
+    input: /auth/login
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - id: b7a95a7d-735c-4461-bf27-66bfc4829ef6
+    name: ""
+    keyword: assert-status-code
+    description: Expect validation failure
+    objectRef: ""
+    input: ""
+    expected: "400"
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - id: de1c27a3-307b-4849-b9f4-3206f474e14f
+    name: ""
+    keyword: assert-response-contains
+    description: Validation mentions password
+    objectRef: ""
+    input: ""
+    expected: password
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+createdAt: 2026-06-21T16:09:50.630Z
+updatedAt: 2026-06-21T16:10:08.141Z

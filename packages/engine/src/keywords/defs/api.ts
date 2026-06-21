@@ -1,4 +1,4 @@
-import type { KeywordDef, ApiKeywordExecutor, ApiResponse } from '../types'
+import type { KeywordDef, ApiKeywordExecutor, ApiResponse, ApiSession } from '../types'
 
 async function doFetch(url: string, method: string, headers: Record<string, string>, body?: string): Promise<ApiResponse> {
   const start = Date.now()
@@ -9,18 +9,44 @@ async function doFetch(url: string, method: string, headers: Record<string, stri
   return { status: res.status, statusText: res.statusText, headers: resHeaders, body: text, durationMs: Date.now() - start }
 }
 
-const httpRequestFn: ApiKeywordExecutor = async ({ session, objectRef, input, interpolate }) => {
-  const method = (objectRef || 'GET').toUpperCase()
-  const url = interpolate(input)
-  const fullUrl = url.startsWith('http') ? url : `${session.baseUrl}${url}`
-  session.lastResponse = await doFetch(fullUrl, method, { ...session.defaultHeaders })
+const BODY_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+
+function resolveUrl(session: ApiSession, rawPath: string): string {
+  const url = rawPath
+  if (url.startsWith('http')) return url
+  const base = session.baseUrl
+  if (!base || base.includes('{{')) {
+    throw new Error(
+      'Base URL not configured. Add a "set-base-url" step at the start, ' +
+      'or set the API baseUrl in the active profile (URL Config).',
+    )
+  }
+  return `${base}${url}`
 }
 
+// Unified HTTP request. Carries an optional JSON body via `expected` for
+// POST/PUT/PATCH/DELETE — so one keyword handles every method.
+const httpRequestFn: ApiKeywordExecutor = async ({ session, objectRef, input, expected, interpolate }) => {
+  const method = (objectRef || 'GET').toUpperCase()
+  const fullUrl = resolveUrl(session, interpolate(input))
+  const headers: Record<string, string> = { ...session.defaultHeaders }
+  let body: string | undefined
+  const rawBody = expected?.trim() ? interpolate(expected) : ''
+  if (rawBody && BODY_METHODS.has(method)) {
+    body = rawBody
+    if (!Object.keys(headers).some((h) => h.toLowerCase() === 'content-type')) {
+      headers['Content-Type'] = 'application/json'
+    }
+  }
+  session.lastResponse = await doFetch(fullUrl, method, headers, body)
+}
+
+// Back-compat keyword: body may live in `expected` or after a newline in `input`.
 const httpRequestWithBodyFn: ApiKeywordExecutor = async ({ session, objectRef, input, expected, interpolate }) => {
   const method = (objectRef || 'POST').toUpperCase()
   const [url, ...bodyParts] = interpolate(input).split('\n')
   const body = bodyParts.join('\n') || interpolate(expected)
-  const fullUrl = url.startsWith('http') ? url : `${session.baseUrl}${url}`
+  const fullUrl = resolveUrl(session, url)
   session.lastResponse = await doFetch(fullUrl, method, { 'Content-Type': 'application/json', ...session.defaultHeaders }, body)
 }
 
@@ -52,9 +78,17 @@ const assertJsonPathFn: ApiKeywordExecutor = async ({ session, objectRef, expect
   if (!session.lastResponse) throw new Error('No response — run http-request first')
   let json: unknown
   try { json = JSON.parse(session.lastResponse.body) } catch { throw new Error('Response body is not valid JSON') }
-  const val = resolveJsonPath(json, interpolate(objectRef))
+  const jsonPath = interpolate(objectRef)
+  const val = resolveJsonPath(json, jsonPath)
   const exp = interpolate(expected)
-  if (String(val) !== exp) throw new Error(`Expected "${exp}" at path "${objectRef}" but got "${String(val)}"`)
+  // "*" or empty asserts existence only — for dynamic values (tokens, ids, timestamps).
+  if (exp === '*' || exp === '') {
+    if (val === undefined || val === null || val === '') {
+      throw new Error(`Expected a value at path "${jsonPath}" but it was missing or empty`)
+    }
+    return
+  }
+  if (String(val) !== exp) throw new Error(`Expected "${exp}" at path "${jsonPath}" but got "${String(val)}"`)
 }
 
 function resolveJsonPath(obj: unknown, path: string): unknown {
@@ -121,9 +155,24 @@ const assertResponseTimeFn: ApiKeywordExecutor = async ({ session, expected, int
   }
 }
 
-const setVariableFn: ApiKeywordExecutor = async ({ objectRef, input, interpolate, setVariable, session }) => {
+const setVariableFn: ApiKeywordExecutor = async ({ objectRef, input, expected, interpolate, setVariable, session }) => {
   const key = interpolate(objectRef)
-  const value = interpolate(input)
+  let value: string
+  // Extract mode: expected = JSON path into the last response (e.g. accessToken).
+  // Literal mode: input = a plain value. Extract wins when expected is provided.
+  const jsonPath = expected?.trim()
+  if (jsonPath) {
+    if (!session.lastResponse) throw new Error('No response — run http-request first')
+    let json: unknown
+    try { json = JSON.parse(session.lastResponse.body) } catch { throw new Error('Response body is not valid JSON') }
+    const extracted = resolveJsonPath(json, interpolate(jsonPath))
+    if (extracted === undefined || extracted === null) {
+      throw new Error(`set-variable: no value at path "${jsonPath}" in last response`)
+    }
+    value = String(extracted)
+  } else {
+    value = interpolate(input)
+  }
   session.variables[key] = value
   setVariable?.(key, value)
 }
@@ -179,17 +228,19 @@ export const apiKeywords: KeywordDef[] = [
     name: 'http-request',
     label: 'HTTP Request',
     color: 'bg-blue-500',
-    description: 'Send HTTP GET/DELETE request. objectRef=method (GET), input=URL',
+    description: 'Send an HTTP request (any method). objectRef=method, input=URL, expected=JSON body for POST/PUT/PATCH/DELETE.',
     platforms: ['api'],
     params: [
-      { name: 'objectRef', description: 'HTTP method (GET, DELETE…)', required: false },
+      { name: 'objectRef', description: 'HTTP method (GET, POST, PUT, PATCH, DELETE)', required: false },
       { name: 'input', description: 'URL path or full URL', required: true },
+      { name: 'expected', description: 'JSON request body (POST/PUT/PATCH/DELETE)', required: false },
     ],
     hasObject: true,
     hasInput: true,
-    hasExpected: false,
+    hasExpected: true,
     objectPlaceholder: 'GET',
     inputPlaceholder: '/api/users',
+    expectedPlaceholder: '{"username":"admin","password":"Admin@123"}',
     executors: { api: httpRequestFn },
   },
   {
@@ -271,7 +322,7 @@ export const apiKeywords: KeywordDef[] = [
     name: 'assert-json-path',
     label: 'Assert JSON Path',
     color: 'bg-amber-700',
-    description: 'Assert JSON field value by dot-notation path. objectRef=path, expected=value',
+    description: 'Assert JSON field by dot-notation path. objectRef=path, expected=value (use "*" or empty to assert the field merely exists / is non-empty — for tokens, ids, timestamps).',
     platforms: ['api'],
     params: [
       { name: 'objectRef', description: 'Dot-notation JSON path (e.g. data.id)', required: true },
@@ -378,17 +429,19 @@ export const apiKeywords: KeywordDef[] = [
     name: 'set-variable',
     label: 'Set Variable',
     color: 'bg-slate-500',
-    description: 'Set a variable for use in later steps. objectRef=name, input=value',
+    description: 'Store a variable for later steps. Literal: input=value. Extract from last response: expected=JSON path (e.g. accessToken). Reference later with ${name}.',
     platforms: ['api'],
     params: [
       { name: 'objectRef', description: 'Variable name', required: true },
-      { name: 'input', description: 'Value (supports {{varName}} interpolation)', required: true },
+      { name: 'input', description: 'Literal value (supports {{var}} / ${var})', required: false },
+      { name: 'expected', description: 'JSON path to extract from last response (e.g. accessToken, data.id)', required: false },
     ],
     hasObject: true,
     hasInput: true,
-    hasExpected: false,
-    objectPlaceholder: 'myVar',
-    inputPlaceholder: 'value',
+    hasExpected: true,
+    objectPlaceholder: 'accessToken',
+    inputPlaceholder: 'literal value (or use expected to extract)',
+    expectedPlaceholder: 'accessToken',
     executors: { api: setVariableFn },
   },
   {

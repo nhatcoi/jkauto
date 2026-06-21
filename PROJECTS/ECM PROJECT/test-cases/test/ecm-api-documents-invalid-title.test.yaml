@@ -1,0 +1,83 @@
+schemaVersion: 1
+id: 5e9f9c08-744f-4260-a997-668d4cbbf1b5
+name: ECM API Documents Invalid Title
+description: Login admin, create document with invalid empty title, expect 400.
+platform: api
+runner: api
+tags:
+  - api
+  - documents
+  - negative
+steps:
+  - id: 283f471b-ba8e-4f2c-aa08-cb9a1a7a9569
+    name: ""
+    keyword: set-base-url
+    description: Base URL
+    objectRef: ""
+    input: http://localhost:3001
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - id: f12d4bad-c8ad-412b-b3ed-eececbe9cab1
+    name: ""
+    keyword: http-request
+    description: Login seeded admin
+    objectRef: POST
+    input: /auth/login
+    expected: '{"username":"admin","password":"Admin@123"}'
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - id: b0e29c8c-2f06-46fa-9352-7f7b87d57574
+    name: ""
+    keyword: assert-status-code
+    description: Expect login success
+    objectRef: ""
+    input: ""
+    expected: "200"
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - id: 889e55b4-e7be-4c47-9774-38740ebf9dbb
+    name: ""
+    keyword: set-variable
+    description: Store access token
+    objectRef: accessToken
+    input: ""
+    expected: accessToken
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - id: c3fa235a-90bd-4b3d-a1ed-ef563c696193
+    name: ""
+    keyword: set-auth-bearer
+    description: Use access token
+    objectRef: ""
+    input: ${accessToken}
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - id: 84ae357b-a646-4a1f-aa33-54fb418c4fa3
+    name: ""
+    keyword: http-request
+    description: Create document with invalid title
+    objectRef: POST
+    input: /documents
+    expected: '{"title":""}'
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - id: 1331ff9c-fe6b-43e2-bed2-8b4b4ba261f9
+    name: ""
+    keyword: assert-status-code
+    description: Expect validation failure
+    objectRef: ""
+    input: ""
+    expected: "400"
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+createdAt: 2026-06-21T17:17:55.000Z
+updatedAt: 2026-06-21T17:18:23.598Z

@@ -1,0 +1,62 @@
+schemaVersion: 1
+id: 7dcfc73f-d41a-4ed0-b86a-b7971c3d05fc
+name: ECM API Documents Happy
+description: Login admin, create document, verify document response.
+tags:
+  - api
+  - documents
+  - happy
+platform: api
+runner: api
+steps:
+  - id: c0df273a-8a5d-4814-8e9d-b397828d06af
+    keyword: set-base-url
+    description: Base URL
+    input: http://localhost:3001
+  - id: e2d2241e-64e3-4bdc-b53f-8a1a76a76ec1
+    keyword: http-request
+    description: Login seeded admin
+    objectRef: POST
+    input: /auth/login
+    expected: '{"username":"admin","password":"Admin@123"}'
+  - id: 1e8a6847-a63f-4e65-9c1a-8be84d137cb9
+    keyword: assert-status-code
+    description: Expect login success
+    expected: "200"
+  - id: ae3d519d-c7a1-43b8-8f65-99eb226c5176
+    keyword: set-variable
+    description: Store access token
+    objectRef: accessToken
+    expected: accessToken
+  - id: adc50fc8-7702-4de9-9d2c-576722e8472f
+    keyword: set-auth-bearer
+    description: Use access token
+    input: ${accessToken}
+  - id: 162e2b18-66ca-4bd8-9f1a-497b20d12f34
+    keyword: http-request
+    description: Create document
+    objectRef: POST
+    input: /documents
+    expected: '{"title":"title_"}'
+  - id: 1d11b55e-6c76-4358-8fa9-f3203fc09be9
+    keyword: assert-status-code
+    description: Expect document created
+    expected: "201"
+  - id: ce8c7dbb-e996-47a6-b513-8a9ccf32a334
+    keyword: assert-response-contains
+    description: Title present
+    expected: title_
+  - id: 5877f56e-a1aa-4aa2-a91a-c7dc74b6c2cb
+    keyword: set-variable
+    description: Store document id
+    objectRef: documentId
+    expected: id
+  - id: b33777f0-f93a-4ce9-90e9-e82d71c593bb
+    keyword: http-request
+    description: Get created document
+    objectRef: GET
+    input: /documents/${documentId}
+  - id: bc222e65-88ba-42ea-9156-6a2865e63a40
+    keyword: assert-status-code
+    description: Expect get document success
+    expected: "200"

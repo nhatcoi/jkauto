@@ -7,11 +7,13 @@ import {
   CheckCircle2,
   Code2,
   GitBranch,
+  HardDrive,
   Loader2,
   Network,
   Play,
   RefreshCw,
   Route,
+  RotateCcw,
 } from 'lucide-react'
 import { IpcChannels } from '@jkauto/core'
 import type {
@@ -19,10 +21,10 @@ import type {
   CodeAnalysisArtifactType,
   CodeAnalysisProgress,
   CodeAnalysisReport,
+  SyncProjectResult,
 } from '@jkauto/core'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
 import { cn, invoke } from '@/lib/utils'
 import { useProjectStore } from '@/store/project.store'
@@ -74,12 +76,19 @@ export function AnalysisView({ projectPath }: { projectPath: string }) {
   const project = useProjectStore((state) =>
     state.projects.find((item) => item.path === projectPath),
   )
-  const [sourceRef, setSourceRef] = useState(project?.project.repoUrl ?? '')
+  type ProjWithSource = { sourceType?: 'git' | 'local'; sourcePath?: string; repoUrl?: string }
+  const proj = project?.project as ProjWithSource | undefined
+  const sourceType = proj?.sourceType ?? 'git'
+  const displaySourceRef = sourceType === 'local'
+    ? (proj?.sourcePath ?? '')
+    : (proj?.repoUrl ?? '')
+
   const [report, setReport] = useState<CodeAnalysisReport | null>(null)
   const [selectedType, setSelectedType] =
     useState<CodeAnalysisArtifactType>('project-summary')
   const [progress, setProgress] = useState<CodeAnalysisProgress | null>(null)
   const [running, setRunning] = useState(false)
+  const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -111,7 +120,7 @@ export function AnalysisView({ projectPath }: { projectPath: string }) {
     [report, selectedType],
   )
 
-  async function runAnalysis() {
+  async function runAnalysis(sourceRef?: string) {
     setRunning(true)
     setError(null)
     setProgress({
@@ -122,10 +131,7 @@ export function AnalysisView({ projectPath }: { projectPath: string }) {
     try {
       const nextReport = await invoke<CodeAnalysisReport>(
         IpcChannels.CODE_ANALYSIS_START,
-        {
-          projectPath,
-          sourceRef: sourceRef.trim() || undefined,
-        },
+        { projectPath, sourceRef },
       )
       setReport(nextReport)
       setSelectedType('project-summary')
@@ -133,6 +139,18 @@ export function AnalysisView({ projectPath }: { projectPath: string }) {
       setError(reason instanceof Error ? reason.message : String(reason))
     } finally {
       setRunning(false)
+    }
+  }
+
+  async function handleSync() {
+    setSyncing(true)
+    setError(null)
+    try {
+      const result = await invoke<SyncProjectResult>(IpcChannels.PROJECT_SYNC, { projectPath })
+      await runAnalysis(result.sourceRef)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason))
+      setSyncing(false)
     }
   }
 
@@ -168,18 +186,43 @@ export function AnalysisView({ projectPath }: { projectPath: string }) {
       </header>
 
       <section className="shrink-0 border-b border-border bg-panel/40 px-4 py-3">
-        <div className="flex gap-2">
-          <Input
-            value={sourceRef}
-            disabled={running}
-            onChange={(event) => setSourceRef(event.target.value)}
-            placeholder="Git repository URL or local source path"
-            className="h-8 text-xs"
-          />
+        <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2 rounded border border-border/60 bg-muted/30 px-2.5 py-1.5">
+            {sourceType === 'git' ? (
+              <GitBranch className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            ) : (
+              <HardDrive className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            )}
+            <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground" title={displaySourceRef}>
+              {displaySourceRef || (
+                <span className="italic text-muted-foreground/60">
+                  No source configured — open Project Settings
+                </span>
+              )}
+            </span>
+            <Badge variant="outline" className="shrink-0 text-[9px] px-1 py-0">
+              {sourceType}
+            </Badge>
+          </div>
           <Button
             size="sm"
-            disabled={running || sourceRef.trim().length === 0}
-            onClick={runAnalysis}
+            variant="outline"
+            disabled={running || syncing || !displaySourceRef}
+            onClick={handleSync}
+            className="h-8 shrink-0 text-xs gap-1.5"
+            title={sourceType === 'git' ? 'Pull latest changes then re-analyze' : 'Copy source files then re-analyze'}
+          >
+            {syncing ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RotateCcw className="h-3.5 w-3.5" />
+            )}
+            Sync
+          </Button>
+          <Button
+            size="sm"
+            disabled={running || syncing || !displaySourceRef}
+            onClick={() => runAnalysis()}
             className="h-8 shrink-0 text-xs"
           >
             {running ? (
@@ -189,10 +232,10 @@ export function AnalysisView({ projectPath }: { projectPath: string }) {
             ) : (
               <Play className="mr-1.5 h-3.5 w-3.5" />
             )}
-            {report ? 'Refresh Intelligence' : 'Build Intelligence'}
+            {report ? 'Refresh' : 'Analyze'}
           </Button>
         </div>
-        {running && progress ? (
+        {(running || syncing) && progress ? (
           <div className="mt-2 space-y-1.5">
             <div className="flex justify-between text-[10px] text-muted-foreground">
               <span>{progress.message}</span>

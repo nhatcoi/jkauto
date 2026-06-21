@@ -6,6 +6,7 @@ import type {
   DetectedStack,
   CodeMap,
   Language,
+  Framework,
   UIElement,
 } from './types'
 import { detectStack } from './detector'
@@ -17,6 +18,7 @@ import { walkGo } from './parsers/go'
 import { walkPython } from './parsers/python'
 import { walkRust } from './parsers/rust'
 import { walkAngularElements } from './parsers/angular'
+import { walkNodeRoutes } from './parsers/node-routes'
 import { discoverWorkspace } from './workspace'
 import path from 'node:path'
 
@@ -56,9 +58,14 @@ export async function indexRepo(
       const parsed = parseLangSpecific(module.root, module.stack.language, module.stack.framework)
       elements.push(...parsed.elements)
       symbols.push(...parsed.symbols)
+      // OpenAPI is highest signal (carries schemas). Merge static-parsed routes
+      // on top to surface endpoints missing from the spec.
       let endpoints = parsed.endpoints
       if (module.stack.hasOpenApi && module.stack.openApiPath) {
-        try { endpoints = await parseOpenApi(module.stack.openApiPath) } catch {}
+        try {
+          const specEndpoints = await parseOpenApi(module.stack.openApiPath)
+          endpoints = mergeEndpoints(specEndpoints, parsed.endpoints)
+        } catch { /* keep static-parsed endpoints */ }
       }
       apiEndpoints.push(...endpoints)
     } catch {
@@ -161,7 +168,7 @@ export async function indexRepo(
   return { stack, map }
 }
 
-function parseLangSpecific(repoPath: string, language: Language, framework?: string) {
+function parseLangSpecific(repoPath: string, language: Language, framework?: Framework) {
   switch (language) {
     case 'java':
     case 'kotlin': {
@@ -184,7 +191,7 @@ function parseLangSpecific(repoPath: string, language: Language, framework?: str
     case 'javascript': {
       const { elements, symbols } = walkAndExtractAST(repoPath)
       return {
-        endpoints: [],
+        endpoints: framework ? walkNodeRoutes(repoPath, framework) : [],
         symbols,
         elements: framework === 'angular'
           ? [...elements, ...walkAngularElements(repoPath)]
@@ -194,6 +201,24 @@ function parseLangSpecific(repoPath: string, language: Language, framework?: str
     default:
       return { endpoints: [], symbols: [], elements: [] }
   }
+}
+
+// Normalize path params so `/users/:id` and `/users/{id}` compare equal.
+function endpointKey(ep: ApiEndpoint): string {
+  const normalized = ep.path
+    .replace(/:([A-Za-z0-9_]+)/g, '{$1}')
+    .replace(/\/+$/, '')
+  return `${ep.method} ${normalized || '/'}`
+}
+
+// Merge endpoint lists, preferring spec entries (schemas) over static ones.
+function mergeEndpoints(primary: ApiEndpoint[], extra: ApiEndpoint[]): ApiEndpoint[] {
+  const byKey = new Map<string, ApiEndpoint>()
+  for (const ep of [...primary, ...extra]) {
+    const key = endpointKey(ep)
+    if (!byKey.has(key)) byKey.set(key, ep)
+  }
+  return Array.from(byKey.values())
 }
 
 function dedupeElements(elements: UIElement[]) {

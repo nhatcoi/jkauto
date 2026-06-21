@@ -20,6 +20,8 @@ export const ProjectSchema = z.object({
   icon: z.string().default(''),
   description: z.string().default(''),
   repoUrl: z.string().default(''),
+  sourceType: z.enum(['git', 'local']).default('git'),
+  sourcePath: z.string().default(''),
   format: ProjectFormatSchema.default('json'),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),

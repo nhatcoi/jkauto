@@ -1,0 +1,58 @@
+schemaVersion: 1
+id: 60943fcc-39e5-4b69-badf-50da5009ffff
+name: ECM API Folders Happy
+description: Login admin, create folder, verify folder response.
+tags:
+  - api
+  - folders
+  - happy
+platform: api
+runner: api
+steps:
+  - id: bd840f3e-1545-44c6-b21e-81867f35636b
+    keyword: set-base-url
+    description: Base URL
+    input: http://localhost:3001
+  - id: 240feb02-0b87-4ae4-b4d7-fa96b032807d
+    keyword: http-request
+    description: Login seeded admin
+    objectRef: POST
+    input: /auth/login
+    expected: '{"username":"admin","password":"Admin@123"}'
+  - id: 9a32222c-7557-488a-8f55-737cfb0bb1c2
+    keyword: assert-status-code
+    description: Expect login success
+    expected: "200"
+  - id: edce7a6f-1440-49c1-8929-e4d598d3fe20
+    keyword: set-variable
+    description: Store access token
+    objectRef: accessToken
+    expected: accessToken
+  - id: f1d22bb3-5dd9-4dde-8e45-7af99af9ec48
+    keyword: set-auth-bearer
+    description: Use access token
+    input: ${accessToken}
+  - id: 6ac4e012-de7e-4fa4-97c5-b1cb8e8777ac
+    keyword: http-request
+    description: Create folder
+    objectRef: POST
+    input: /folders
+    expected: '{"name":"name_"}'
+  - id: a0b036ac-1772-47c2-a22a-2e868b64aaa6
+    keyword: assert-status-code
+    description: Expect folder created
+    expected: "201"
+  - id: 624755a4-0b45-41ec-a555-643d1fe69295
+    keyword: set-variable
+    description: Store folder id
+    objectRef: folderId
+    expected: id
+  - id: 23506532-c1fd-488d-8b28-78c036d7b3d5
+    keyword: http-request
+    description: Get created folder
+    objectRef: GET
+    input: /folders/${folderId}
+  - id: d0ad0dfa-d178-4660-9e80-0b5bc08c9311
+    keyword: assert-status-code
+    description: Expect get folder success
+    expected: "200"

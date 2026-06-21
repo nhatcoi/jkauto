@@ -1,12 +1,14 @@
 {
   "schemaVersion": 1,
   "id": "37a66cd3-c82f-4846-960d-4e7f3afc1e51",
-  "name": "ECM PROJECT",
+  "name": "ecm-template",
   "type": "web",
   "icon": "Monitor",
-  "description": "ECM PROJECT",
-  "repoUrl": "https://github.com/nhatcoi/necom",
+  "description": "ecm-template",
+  "repoUrl": "",
   "format": "yaml",
   "createdAt": "2026-06-17T07:42:41.055Z",
-  "updatedAt": "2026-06-20T02:44:12.279Z"
+  "updatedAt": "2026-06-21T15:15:27.228Z",
+  "sourceType": "local",
+  "sourcePath": "/Users/coinhat/Documents/jkauto/test-project/ecm-template"
 }

@@ -1,0 +1,33 @@
+schemaVersion: 1
+id: 60deb85e-163c-4a62-82a6-526376e7d4d2
+name: Auth Unauthorized Access
+description: Call /auth/me without bearer token and expect 401.
+platform: api
+runner: api
+tags:
+  - api
+  - auth
+  - security
+steps:
+  - id: 2e46629d-10db-4b3d-9f80-426fa1329c56
+    name: ""
+    keyword: http-request
+    description: Call auth-required endpoint without token
+    objectRef: GET
+    input: /auth/me
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - id: 893752a5-d1b1-4a8e-8831-57329292a1e9
+    name: ""
+    keyword: assert-status-code
+    description: Expect unauthorized
+    objectRef: ""
+    input: ""
+    expected: "401"
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+createdAt: 2026-06-21T16:09:50.649Z
+updatedAt: 2026-06-21T16:10:08.173Z

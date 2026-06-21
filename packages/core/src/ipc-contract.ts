@@ -7,6 +7,7 @@ export const IpcChannels = {
   PROJECT_GET_RECENT: 'project:get-recent',
   PROJECT_GET_INFO: 'project:get-info',
   PROJECT_UPDATE: 'project:update',
+  PROJECT_SYNC: 'project:sync',
   PROJECT_DELETE: 'project:delete',
   PROJECT_DUPLICATE: 'project:duplicate',
 
@@ -170,6 +171,16 @@ export interface UpdateProjectPayload {
   icon?: string
   description: string
   repoUrl: string
+  sourceType: 'git' | 'local'
+  sourcePath: string
+}
+
+export interface SyncProjectPayload {
+  projectPath: string
+}
+
+export interface SyncProjectResult {
+  sourceRef: string
 }
 
 export interface DuplicateProjectPayload {

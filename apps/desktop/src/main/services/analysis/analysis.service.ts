@@ -44,9 +44,16 @@ async function resolveSourceRef(
 ): Promise<string> {
   if (sourceRef?.trim()) return sourceRef.trim()
   const raw = await fs.readFile(path.join(projectPath, 'project.json'), 'utf-8')
-  const project = JSON.parse(raw) as { repoUrl?: string }
+  const project = JSON.parse(raw) as {
+    repoUrl?: string
+    sourceType?: 'git' | 'local'
+    sourcePath?: string
+  }
+  if (project.sourceType === 'local' && project.sourcePath?.trim()) {
+    return project.sourcePath.trim()
+  }
   if (!project.repoUrl?.trim()) {
-    throw new Error('Configure a repository URL or local source path first.')
+    throw new Error('Configure a source in Project Settings (git repo URL or local path).')
   }
   return project.repoUrl.trim()
 }

@@ -399,7 +399,7 @@ export function recordVerification(
   },
 ): void {
   const run = getActiveHarnessRun(projectPath, sessionId)
-  if (!run) throw new Error('No active harness run')
+  if (!run) return // normal chat mode — verification not tied to a harness run
   const state: HarnessState = payload.passed ? 'verify' : 'repair'
   const step = recordHarnessStep(
     projectPath,
@@ -423,8 +423,9 @@ export async function validateGeneratedTest(
   sessionId: string,
   filePath: string,
 ): Promise<{ valid: boolean; errors: string[]; testName?: string }> {
+  // Works in both modes: schema validation always runs; harness evidence is
+  // only recorded when a Directly run is active.
   const run = getActiveHarnessRun(projectPath, sessionId)
-  if (!run) throw new Error('No active harness run')
   const resolved = path.resolve(filePath)
   const allowedRoot = path.resolve(projectPath, 'test-cases')
   if (resolved !== allowedRoot && !resolved.startsWith(`${allowedRoot}${path.sep}`)) {
@@ -436,15 +437,17 @@ export async function validateGeneratedTest(
     parsed = yamlParse(await fs.readFile(resolved, 'utf-8'))
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    recordHarnessStep(
-      projectPath,
-      run.id,
-      'validate_schema',
-      'failed',
-      { filePath: resolved },
-      undefined,
-      message,
-    )
+    if (run) {
+      recordHarnessStep(
+        projectPath,
+        run.id,
+        'validate_schema',
+        'failed',
+        { filePath: resolved },
+        undefined,
+        message,
+      )
+    }
     return { valid: false, errors: [message] }
   }
 
@@ -467,35 +470,37 @@ export async function validateGeneratedTest(
         (issue) => `${issue.path.join('.')}: ${issue.message}`,
       )
   const valid = validation.success && errors.length === 0
-  const step = recordHarnessStep(
-    projectPath,
-    run.id,
-    'validate_schema',
-    valid ? 'passed' : 'failed',
-    { filePath: resolved },
-    valid ? { testName: validation.data.name } : { errors },
-    valid ? undefined : errors.join('; '),
-  )
-  saveHarnessArtifact(
-    projectPath,
-    run.id,
-    'validation',
-    { filePath: resolved, valid, errors },
-    step.id,
-    resolved,
-  )
-  if (valid && validation.success) {
-    getAgentDb(projectPath)
-      .prepare('UPDATE harness_runs SET generated_test_path = ? WHERE id = ?')
-      .run(resolved, run.id)
+  if (run) {
+    const step = recordHarnessStep(
+      projectPath,
+      run.id,
+      'validate_schema',
+      valid ? 'passed' : 'failed',
+      { filePath: resolved },
+      valid ? { testName: validation.data.name } : { errors },
+      valid ? undefined : errors.join('; '),
+    )
     saveHarnessArtifact(
       projectPath,
       run.id,
-      'generated-test',
-      validation.data,
+      'validation',
+      { filePath: resolved, valid, errors },
       step.id,
       resolved,
     )
+    if (valid && validation.success) {
+      getAgentDb(projectPath)
+        .prepare('UPDATE harness_runs SET generated_test_path = ? WHERE id = ?')
+        .run(resolved, run.id)
+      saveHarnessArtifact(
+        projectPath,
+        run.id,
+        'generated-test',
+        validation.data,
+        step.id,
+        resolved,
+      )
+    }
   }
   return {
     valid,
@@ -510,7 +515,7 @@ export function recordRuntimeResult(
   result: { passed: boolean; filePath: string; details: unknown },
 ): void {
   const run = getActiveHarnessRun(projectPath, sessionId)
-  if (!run) throw new Error('No active harness run')
+  if (!run) return // normal chat mode — runtime result not part of a harness
   const step = recordHarnessStep(
     projectPath,
     run.id,
@@ -648,7 +653,7 @@ export function markCompileAndSave(
   filePath: string,
 ): void {
   const run = getActiveHarnessRun(projectPath, sessionId)
-  if (!run) throw new Error('No active harness run')
+  if (!run) return // normal chat mode — no harness evidence to record
   recordHarnessStep(projectPath, run.id, 'compile', 'passed', undefined, {
     filePath,
   })
@@ -754,7 +759,7 @@ export function recordTestPlan(
   plan: TestPlan,
 ): void {
   const run = getActiveHarnessRun(projectPath, sessionId)
-  if (!run) throw new Error('No active harness run')
+  if (!run) return // normal chat mode — no harness plan to persist
   if (!plan.target?.id || !Array.isArray(plan.scenarios) || plan.scenarios.length === 0) {
     throw new Error('Test plan requires a target and at least one scenario')
   }

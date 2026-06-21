@@ -1,0 +1,58 @@
+schemaVersion: 1
+id: 15c165c4-cdf1-4486-bddc-81c61dc78030
+name: ECM API Tags Happy
+description: Login admin, create tag, verify tag response.
+tags:
+  - api
+  - tags
+  - happy
+platform: api
+runner: api
+steps:
+  - id: 20482ec7-0ece-4d75-8918-582d49338421
+    keyword: set-base-url
+    description: Base URL
+    input: http://localhost:3001
+  - id: 9f765636-c8a3-4d03-8ec9-e14d6cdc6d94
+    keyword: http-request
+    description: Login seeded admin
+    objectRef: POST
+    input: /auth/login
+    expected: '{"username":"admin","password":"Admin@123"}'
+  - id: 6b1c68de-932a-49c7-ba96-4cf359251f35
+    keyword: assert-status-code
+    description: Expect login success
+    expected: "200"
+  - id: d53577fe-4371-41dc-89b8-1258c153a91e
+    keyword: set-variable
+    description: Store access token
+    objectRef: accessToken
+    expected: accessToken
+  - id: c8224abe-039d-44d4-b407-a6c446d31c8e
+    keyword: set-auth-bearer
+    description: Use access token
+    input: ${accessToken}
+  - id: 9acdb50d-e59b-402b-97a3-01853106c200
+    keyword: http-request
+    description: Create tag
+    objectRef: POST
+    input: /tags
+    expected: '{"name":"name_"}'
+  - id: 8aca9ab7-5d38-4979-8e5e-36a584acbc6f
+    keyword: assert-status-code
+    description: Expect tag created
+    expected: "201"
+  - id: 71c2a560-b481-4315-a012-2748265c0be1
+    keyword: set-variable
+    description: Store tag id
+    objectRef: tagId
+    expected: id
+  - id: f6a90eb3-bffb-46c4-89bf-260329dca71d
+    keyword: http-request
+    description: Get created tag
+    objectRef: GET
+    input: /tags/${tagId}
+  - id: 125eceaa-8cef-43e5-8e5e-d5ad35ddef9c
+    keyword: assert-status-code
+    description: Expect get tag success
+    expected: "200"
