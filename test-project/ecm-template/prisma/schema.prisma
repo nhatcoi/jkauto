@@ -1,0 +1,89 @@
+// ECM template — Prisma schema mirrors the in-memory store for static analysis
+// Runtime uses better-sqlite3 directly; this file is for tooling + type extraction
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:../ecm.db"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  role      String   @default("viewer")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  documents Document[]
+  folders   Folder[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  permissions String
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("roles")
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  color     String   @default("#718096")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("tags")
+}
+
+model Folder {
+  id        String   @id @default(uuid())
+  name      String
+  parentId  String?  @map("parent_id")
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  creator   User     @relation(fields: [createdBy], references: [id])
+  documents Document[]
+
+  @@map("folders")
+}
+
+model Document {
+  id             String   @id @default(uuid())
+  title          String
+  description    String   @default("")
+  folderId       String?  @map("folder_id")
+  tagIds         String   @default("[]") @map("tag_ids")
+  status         String   @default("draft")
+  currentVersion Int      @default(0) @map("current_version")
+  createdBy      String   @map("created_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  creator  User    @relation(fields: [createdBy], references: [id])
+  folder   Folder? @relation(fields: [folderId], references: [id])
+
+  @@map("documents")
+}
+
+model RefreshToken {
+  token     String   @id
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+
+  @@map("refresh_tokens")
+}

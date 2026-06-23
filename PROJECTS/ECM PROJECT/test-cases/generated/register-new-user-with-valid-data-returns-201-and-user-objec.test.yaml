@@ -1,0 +1,30 @@
+schemaVersion: 1
+id: f8ac54ff-21c3-4c7c-83ec-da6b8a239a3e
+name: register new user with valid data returns 201 and user object
+description: "Generated: register new user with valid data returns 201 and user object"
+platform: api
+tags:
+  - api-auth
+  - endpoints
+runner: api
+steps:
+  - id: a4738ac9-b316-44fb-a4b0-39836df00be4
+    keyword: http-request
+    description: Send POST http://localhost:3000/auth/register
+    objectRef: POST
+    input: http://localhost:3000/auth/register
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - id: 24550f67-81c7-40f3-8c26-5ab864c6d8a4
+    keyword: assert-status-code
+    description: Response status = 201
+    objectRef: ""
+    input: ""
+    expected: "201"
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+createdAt: 2026-06-22T16:54:22.278Z
+updatedAt: 2026-06-22T16:54:22.278Z

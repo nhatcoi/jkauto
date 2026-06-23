@@ -1,0 +1,30 @@
+schemaVersion: 1
+id: c86e44f3-eb52-4a5c-9595-387c2efbaa36
+name: get current user without token returns 401
+description: "Generated: get current user without token returns 401"
+platform: api
+tags:
+  - api-auth
+  - endpoints
+runner: api
+steps:
+  - id: 7d5b29ee-5aff-4ad1-8033-c84b1f19b212
+    keyword: http-request
+    description: Send GET http://localhost:3000/auth/me
+    objectRef: GET
+    input: http://localhost:3000/auth/me
+    expected: ""
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+  - id: 097305e5-54f6-468a-82ab-e168b7037b58
+    keyword: assert-status-code
+    description: Response status = 401
+    objectRef: ""
+    input: ""
+    expected: "401"
+    enabled: true
+    continueOnFailure: false
+    timeout: null
+createdAt: 2026-06-22T16:54:22.278Z
+updatedAt: 2026-06-22T16:54:22.278Z

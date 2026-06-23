@@ -1,0 +1,23 @@
+[
+  {
+    "id": "role_admin",
+    "name": "admin",
+    "permissions": ["users:read", "users:write", "users:delete", "docs:read", "docs:write", "docs:delete", "folders:read", "folders:write", "folders:delete", "tags:read", "tags:write", "tags:delete"],
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "role_editor",
+    "name": "editor",
+    "permissions": ["docs:read", "docs:write", "folders:read", "folders:write", "tags:read", "tags:write"],
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "role_viewer",
+    "name": "viewer",
+    "permissions": ["docs:read", "folders:read", "tags:read"],
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
+  }
+]

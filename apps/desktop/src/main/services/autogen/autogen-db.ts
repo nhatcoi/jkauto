@@ -779,3 +779,17 @@ export function getAnalysisArtifacts(projectPath: string, runId: string) {
     ORDER BY created_at, artifact_type
   `).all(runId) as Array<Record<string, unknown>>
 }
+
+export function updateAnalysisArtifactContent(
+  projectPath: string,
+  artifactId: string,
+  contentJson: string,
+  itemCount: number,
+  summary: string,
+): void {
+  getAutogenDb(projectPath).prepare(`
+    UPDATE analysis_artifacts
+    SET content_json = ?, item_count = ?, summary = ?
+    WHERE id = ?
+  `).run(contentJson, itemCount, summary, artifactId)
+}

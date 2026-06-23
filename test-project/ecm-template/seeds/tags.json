@@ -1,0 +1,23 @@
+[
+  {
+    "id": "tag_1",
+    "name": "Important",
+    "color": "#e53e3e",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "tag_2",
+    "name": "Draft",
+    "color": "#d69e2e",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "tag_3",
+    "name": "Approved",
+    "color": "#38a169",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
+  }
+]

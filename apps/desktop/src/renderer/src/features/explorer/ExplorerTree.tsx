@@ -24,7 +24,7 @@ import {
   Braces,
   Puzzle,
   BarChart2,
-  Network,
+  Wand2,
 } from 'lucide-react'
 import {
   ContextMenu,
@@ -118,7 +118,7 @@ function getFileIcon(node: FsTreeNode): React.ElementType {
 }
 
 const FEATURE_FOLDER_ICONS: Record<string, React.ElementType> = {
-  'analysis': Network,
+  'analysis': Wand2,
   'test-cases': TestTube2,
   'test-suites': Layers,
   'api-request': Box,
@@ -456,7 +456,7 @@ function NodeRow({
       if (node.id === 'analysis') {
         openTab(
           `${ANALYSIS_TAB_PREFIX}${encodeURIComponent(projectPath)}`,
-          'Code Intelligence',
+          'Auto Generate Test',
           projectPath,
         )
       }

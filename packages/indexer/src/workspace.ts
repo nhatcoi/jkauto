@@ -3,14 +3,11 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { detectStack } from './detector'
 import type {
-  AnalysisFinding,
   DetectedModule,
-  Language,
   ModuleRole,
   ProjectTag,
   SourceFileInfo,
   WorkspaceAnalysis,
-  CodeRelation,
 } from './types'
 
 const SKIP_DIRS = new Set([
@@ -262,134 +259,6 @@ function scanFiles(root: string, modules: DetectedModule[]): { files: SourceFile
   return { files, skipped }
 }
 
-function initialFindings(files: SourceFileInfo[], modules: DetectedModule[]): AnalysisFinding[] {
-  const findings: AnalysisFinding[] = []
-  for (const file of files) {
-    const base = path.basename(file.path)
-    if (ENTRYPOINT_NAMES.has(base) || /Application\.java$/.test(base)) {
-      findings.push({
-        id: `entrypoint:${file.relativePath}`,
-        kind: 'entrypoint',
-        name: base,
-        summary: `Entrypoint candidate in ${file.relativePath}`,
-        status: 'verified',
-        confidence: 0.9,
-        sourceRefs: [{ file: file.path }],
-        moduleId: file.moduleId,
-      })
-    }
-    if (/^readme|\.md$/i.test(base)) {
-      findings.push({
-        id: `documentation:${file.relativePath}`,
-        kind: 'documentation',
-        name: base,
-        summary: `Project documentation at ${file.relativePath}`,
-        status: 'verified',
-        confidence: 1,
-        sourceRefs: [{ file: file.path }],
-        moduleId: file.moduleId,
-      })
-    }
-    if (/auth|login|oauth|security/i.test(file.relativePath)) {
-      findings.push({
-        id: `auth:${file.relativePath}`,
-        kind: 'auth',
-        name: file.relativePath,
-        summary: 'Authentication or authorization implementation candidate.',
-        status: 'inferred',
-        confidence: 0.65,
-        sourceRefs: [{ file: file.path }],
-        moduleId: file.moduleId,
-      })
-    }
-    if (file.language === 'sql' || /schema|migration|changelog/i.test(file.relativePath)) {
-      findings.push({
-        id: `database:${file.relativePath}`,
-        kind: 'database',
-        name: file.relativePath,
-        summary: 'Database schema or migration source.',
-        status: 'verified',
-        confidence: 0.9,
-        sourceRefs: [{ file: file.path }],
-        moduleId: file.moduleId,
-      })
-      if (file.language === 'sql' && file.preview) {
-        const tablePattern = /\bcreate\s+table\s+(?:if\s+not\s+exists\s+)?["`]?([\w.]+)["`]?/gi
-        let table: RegExpExecArray | null
-        while ((table = tablePattern.exec(file.preview)) !== null) {
-          findings.push({
-            id: `database-table:${file.relativePath}:${table[1]}`,
-            kind: 'database',
-            name: table[1],
-            summary: `Database table declared in ${file.relativePath}.`,
-            status: 'verified',
-            confidence: 0.95,
-            sourceRefs: [{
-              file: file.path,
-              line: file.preview.slice(0, table.index).split('\n').length,
-              symbol: table[1],
-            }],
-            moduleId: file.moduleId,
-          })
-        }
-      }
-    }
-  }
-  return findings
-}
-
-function importRelations(files: SourceFileInfo[]): CodeRelation[] {
-  const relations: CodeRelation[] = []
-  const byPath = new Map(files.map((file) => [path.resolve(file.path), file]))
-  const extensions = ['', '.ts', '.tsx', '.js', '.jsx', '.java', '/index.ts', '/index.tsx', '/index.js']
-  for (const file of files) {
-    if (!['typescript', 'javascript', 'java', 'kotlin'].includes(file.language)) continue
-    let source: string
-    try { source = fs.readFileSync(file.path, 'utf-8') } catch { continue }
-    const specifiers: Array<{ value: string; index: number }> = []
-    const patterns = file.language === 'typescript' || file.language === 'javascript'
-      ? [
-          /(?:import|export)\s+(?:[\s\S]*?\s+from\s+)?['"]([^'"]+)['"]/g,
-          /require\(\s*['"]([^'"]+)['"]\s*\)/g,
-        ]
-      : [/^\s*import\s+([\w.]+);/gm]
-    for (const pattern of patterns) {
-      let match: RegExpExecArray | null
-      pattern.lastIndex = 0
-      while ((match = pattern.exec(source)) !== null) {
-        specifiers.push({ value: match[1], index: match.index })
-      }
-    }
-    for (const specifier of specifiers) {
-      let target: SourceFileInfo | undefined
-      if (specifier.value.startsWith('.')) {
-        const base = path.resolve(path.dirname(file.path), specifier.value)
-        target = extensions
-          .map((extension) => byPath.get(`${base}${extension}`))
-          .find(Boolean)
-      } else if (file.language === 'java' || file.language === 'kotlin') {
-        const suffix = specifier.value.replace(/\./g, path.sep)
-        target = files.find((candidate) =>
-          candidate.path.endsWith(`${suffix}.java`) ||
-          candidate.path.endsWith(`${suffix}.kt`),
-        )
-      }
-      if (!target) continue
-      relations.push({
-        from: `file:${file.relativePath}`,
-        to: `file:${target.relativePath}`,
-        type: 'imports',
-        sourceRef: {
-          file: file.path,
-          line: source.slice(0, specifier.index).split('\n').length,
-        },
-        confidence: 0.95,
-      })
-    }
-  }
-  return relations
-}
-
 export function discoverWorkspace(root: string): WorkspaceAnalysis {
   const modules = buildModules(root)
   const { files, skipped } = scanFiles(root, modules)
@@ -401,24 +270,14 @@ export function discoverWorkspace(root: string): WorkspaceAnalysis {
       evidence: modules.flatMap((module) => module.manifests.map((file) => ({ file }))).slice(0, 20),
     })
   }
-  const relations: CodeRelation[] = modules.flatMap((module) =>
-    module.manifests.map((manifest) => ({
-      from: `module:${module.id}`,
-      to: `file:${normalize(path.relative(root, manifest))}`,
-      type: 'contains' as const,
-      sourceRef: { file: manifest },
-      confidence: 1,
-    })),
-  )
-  relations.push(...importRelations(files))
   return {
     root,
     tags,
     modules,
     files,
-    relations,
-    findings: initialFindings(files, modules),
-    gaps: [],
+    entities: [],
+    validations: [],
+    seeds: [],
     diagnostics: {
       scannedFiles: files.length,
       parsedFiles: 0,

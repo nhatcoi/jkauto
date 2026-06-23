@@ -143,9 +143,15 @@ export const IpcChannels = {
   AUTOGEN_GENERATE_PROGRESS: 'autogen:generate-progress',
   AUTOGEN_CANCEL: 'autogen:cancel',
 
+  TESTGEN_GENERATE: 'testgen:generate',
+  TESTGEN_PROGRESS: 'testgen:progress',
+  TESTGEN_CANCEL: 'testgen:cancel',
+  TESTGEN_GET_PROFILE_VARS: 'testgen:get-profile-vars',
+
   CODE_ANALYSIS_START: 'code-analysis:start',
   CODE_ANALYSIS_PROGRESS: 'code-analysis:progress',
   CODE_ANALYSIS_REPORT: 'code-analysis:report',
+  CODE_ANALYSIS_ARTIFACT_UPDATE: 'code-analysis:artifact:update',
 
   WINDOW_MINIMIZE: 'window:minimize',
   WINDOW_MAXIMIZE: 'window:maximize',
@@ -517,12 +523,13 @@ export type CodeAnalysisArtifactType =
   | 'route-catalog'
   | 'ui-catalog'
   | 'symbol-catalog'
-  | 'knowledge-graph'
   | 'analysis-coverage'
-  | 'known-unknowns'
   | 'test-targets'
   | 'runtime-requirements'
   | 'documentation'
+  | 'entity-catalog'
+  | 'validation-catalog'
+  | 'seed-catalog'
 
 export interface CodeAnalysisRun {
   id: string
@@ -561,9 +568,6 @@ export interface CodeAnalysisReport {
     elementCount: number
     symbolCount: number
     moduleCount: number
-    gapCount: number
-    graphNodeCount: number
-    graphEdgeCount: number
     coverage: number
   }
 }
@@ -579,11 +583,52 @@ export interface CodeAnalysisReportPayload {
   runId?: string
 }
 
+export interface CodeAnalysisArtifactUpdatePayload {
+  projectPath: string
+  artifactId: string
+  contentJson: string
+  itemCount: number
+  summary: string
+}
+
 export interface CodeAnalysisProgress {
   runId?: string
   phase: 'source' | 'clone' | 'detect' | 'parse' | 'index' | 'memory' | 'artifacts' | 'done' | 'error'
   message: string
   percent: number
+}
+
+export interface TestgenGeneratePayload {
+  projectPath: string
+  groupIds?: string[]
+  /** Override profile variables (e.g. baseUrl, authToken) */
+  vars?: Record<string, string>
+}
+
+export interface TestgenProfileVars {
+  baseUrl: string
+  authToken?: string
+  [key: string]: string | undefined
+}
+
+export interface TestgenProgress {
+  groupId: string
+  status: 'pending' | 'generating' | 'converting' | 'saving' | 'done' | 'error'
+  message?: string
+  chunk?: string
+}
+
+export interface TestgenGroup {
+  id: string
+  label: string
+  type: 'endpoints' | 'entity' | 'validation'
+  count: number
+}
+
+export interface TestgenSavedResult {
+  groupId: string
+  savedPaths: { playwright: string; jkauto: string[] }
+  error?: string
 }
 
 export interface AgentContextSnapshot {

@@ -2,12 +2,14 @@ import type {
   ApiEndpoint,
   CodePage,
   CodeSymbol,
+  EntityModel,
   IndexProgress,
   DetectedStack,
   CodeMap,
   Language,
   Framework,
   UIElement,
+  ValidationSchema,
 } from './types'
 import { detectStack } from './detector'
 import { extractRoutes } from './parsers/routes'
@@ -19,8 +21,10 @@ import { walkPython } from './parsers/python'
 import { walkRust } from './parsers/rust'
 import { walkAngularElements } from './parsers/angular'
 import { walkNodeRoutes } from './parsers/node-routes'
+import { extractEntities } from './parsers/entities'
+import { extractValidations } from './parsers/validations'
+import { extractSeeds } from './parsers/seeds'
 import { discoverWorkspace } from './workspace'
-import path from 'node:path'
 
 type Emit = (p: IndexProgress) => void
 
@@ -45,6 +49,8 @@ export async function indexRepo(
   const elements: UIElement[] = []
   const symbols: CodeSymbol[] = []
   const apiEndpoints: ApiEndpoint[] = []
+  const entities: EntityModel[] = []
+  const validationSchemas: ValidationSchema[] = []
   let failedModules = 0
   for (let index = 0; index < workspace.modules.length; index += 1) {
     const module = workspace.modules[index]
@@ -68,10 +74,14 @@ export async function indexRepo(
         } catch { /* keep static-parsed endpoints */ }
       }
       apiEndpoints.push(...endpoints)
+      entities.push(...extractEntities(module.root, module.stack.language, module.stack.framework))
+      validationSchemas.push(...extractValidations(module.root, module.stack.language, module.stack.framework))
     } catch {
       failedModules += 1
     }
   }
+
+  const seeds = extractSeeds(repoPath)
 
   const supportedLanguages = new Set(['typescript', 'javascript', 'java', 'kotlin', 'go', 'rust', 'python'])
   const parseableFiles = workspace.files.filter((file) => supportedLanguages.has(file.language))
@@ -81,78 +91,10 @@ export async function indexRepo(
   workspace.diagnostics.coverage = workspace.files.length
     ? Math.round((parseableFiles.length / workspace.files.length) * 100) / 100
     : 0
-  for (const module of workspace.modules) {
-    const modulePages = pages.filter((item) => item.componentFile.startsWith(module.root))
-    const moduleEndpoints = apiEndpoints.filter((item) => item.sourceFile.startsWith(module.root))
-    const moduleElements = elements.filter((item) => item.sourceFile.startsWith(module.root))
-    if (module.role === 'frontend' && modulePages.length === 0) {
-      workspace.gaps.push({
-        id: `routes:${module.id}`,
-        kind: 'routes',
-        title: `Routes not verified for ${module.relativeRoot}`,
-        reason: `No routes matched the ${module.stack.framework} analyzer.`,
-        priority: 'high',
-        moduleId: module.id,
-        suggestedActions: ['Inspect router configuration', 'Search navigation declarations', 'Verify routes at runtime'],
-      })
-    }
-    if (module.role === 'backend' && moduleEndpoints.length === 0) {
-      workspace.gaps.push({
-        id: `api:${module.id}`,
-        kind: 'api',
-        title: `API endpoints not verified for ${module.relativeRoot}`,
-        reason: `No endpoints matched the ${module.stack.framework} analyzer.`,
-        priority: 'high',
-        moduleId: module.id,
-        suggestedActions: ['Inspect controllers/router registration', 'Load runtime OpenAPI', 'Search HTTP method annotations'],
-      })
-    }
-    if (module.role === 'frontend' && moduleElements.length === 0) {
-      workspace.gaps.push({
-        id: `ui:${module.id}`,
-        kind: 'ui',
-        title: `Testable UI elements not verified for ${module.relativeRoot}`,
-        reason: 'No stable selectors or semantic controls were extracted.',
-        priority: 'normal',
-        moduleId: module.id,
-        suggestedActions: ['Inspect templates', 'Search data-testid and accessible labels', 'Inspect rendered DOM'],
-      })
-    }
-  }
-  const authFindings = workspace.findings.filter((finding) => finding.kind === 'auth')
-  if (authFindings.length > 0 && !authFindings.some((finding) => finding.status === 'verified')) {
-    workspace.gaps.push({
-      id: 'auth:workspace',
-      kind: 'auth',
-      title: 'Authentication flow requires verification',
-      reason: 'Auth-related files were found, but the end-to-end login flow is not statically verified.',
-      priority: 'critical',
-      suggestedActions: ['Trace login entrypoint', 'Follow token/session storage', 'Verify redirect and protected route behavior'],
-    })
-  }
-  workspace.relations.push(
-    ...workspace.files.map((file) => ({
-      from: `module:${file.moduleId}`,
-      to: `file:${file.relativePath}`,
-      type: 'contains' as const,
-      sourceRef: { file: file.path },
-      confidence: 1,
-    })),
-    ...pages.map((page) => ({
-      from: `route:${page.route}`,
-      to: `file:${path.relative(repoPath, page.componentFile).split(path.sep).join('/')}`,
-      type: 'renders' as const,
-      sourceRef: { file: page.componentFile },
-      confidence: 0.9,
-    })),
-    ...apiEndpoints.map((endpoint) => ({
-      from: `endpoint:${endpoint.method}:${endpoint.path}`,
-      to: `file:${path.relative(repoPath, endpoint.sourceFile).split(path.sep).join('/')}`,
-      type: 'exposes' as const,
-      sourceRef: { file: endpoint.sourceFile },
-      confidence: 0.95,
-    })),
-  )
+
+  workspace.entities = entities
+  workspace.validations = validationSchemas
+  workspace.seeds = seeds
 
   onProgress({ phase: 'index', message: 'Building code map...', percent: 80 })
   const map: CodeMap = {
@@ -161,6 +103,9 @@ export async function indexRepo(
     endpoints: apiEndpoints,
     symbols,
     flows: [],
+    entities,
+    validations: validationSchemas,
+    seeds,
     workspace,
   }
 

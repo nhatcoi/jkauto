@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { X, FileText, Globe, Database, Layers, BarChart2, Braces, SlidersHorizontal, Network } from 'lucide-react'
+import { X, FileText, Globe, Database, Layers, BarChart2, Braces, SlidersHorizontal, Wand2 } from 'lucide-react'
 import { useProjectStore } from '@/store/project.store'
 import { IpcChannels } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
@@ -41,7 +41,7 @@ function isProfile(path: string) {
 }
 
 function getTabIcon(path: string): React.ElementType {
-  if (path.startsWith(ANALYSIS_TAB_PREFIX)) return Network
+  if (path.startsWith(ANALYSIS_TAB_PREFIX)) return Wand2
   if (path === REPORTS_TAB_PATH) return BarChart2
   if (path === KEYWORDS_TAB_PATH) return Braces
   if (isApiRequest(path)) return Globe

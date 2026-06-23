@@ -89,41 +89,45 @@ export interface SourceFileInfo {
   preview?: string
 }
 
-export interface CodeRelation {
-  from: string
-  to: string
-  type:
-    | 'contains'
-    | 'imports'
-    | 'declares'
-    | 'renders'
-    | 'exposes'
-    | 'reads'
-    | 'calls'
-    | 'depends-on'
-  sourceRef?: SourceRef
-  confidence: number
-}
-
-export interface AnalysisFinding {
-  id: string
-  kind: 'entrypoint' | 'documentation' | 'configuration' | 'auth' | 'database' | 'test-target'
+export interface EntityField {
   name: string
-  summary: string
-  status: 'verified' | 'inferred' | 'unknown'
-  confidence: number
-  sourceRefs: SourceRef[]
-  moduleId?: string
+  type: string
+  nullable?: boolean
+  primaryKey?: boolean
+  unique?: boolean
+  defaultValue?: string
+  validations?: string[]
 }
 
-export interface KnowledgeGap {
-  id: string
-  kind: 'entrypoint' | 'routes' | 'api' | 'ui' | 'database' | 'auth' | 'runtime' | 'framework'
-  title: string
-  reason: string
-  priority: 'critical' | 'high' | 'normal' | 'low'
-  moduleId?: string
-  suggestedActions: string[]
+export interface EntityModel {
+  name: string
+  tableName?: string
+  fields: EntityField[]
+  sourceFile: string
+  line: number
+  framework: string // 'typeorm' | 'prisma' | 'sequelize' | 'django' | 'sqlalchemy' | 'spring' | 'unknown'
+}
+
+export interface ValidationField {
+  name: string
+  type?: string
+  rules: string[] // e.g. ['IsEmail', 'IsNotEmpty', 'MinLength(8)']
+  optional?: boolean
+}
+
+export interface ValidationSchema {
+  name: string // DTO class name or schema variable name
+  fields: ValidationField[]
+  sourceFile: string
+  line: number
+  framework: string // 'class-validator' | 'zod' | 'joi' | 'pydantic' | 'unknown'
+}
+
+export interface SeedEntry {
+  entity: string // entity/table name this seed is for
+  count: number // number of example records
+  sample: Record<string, unknown>[] // first 3 records max
+  sourceFile: string
 }
 
 export interface WorkspaceAnalysis {
@@ -131,9 +135,9 @@ export interface WorkspaceAnalysis {
   tags: ProjectTag[]
   modules: DetectedModule[]
   files: SourceFileInfo[]
-  relations: CodeRelation[]
-  findings: AnalysisFinding[]
-  gaps: KnowledgeGap[]
+  entities: EntityModel[]
+  validations: ValidationSchema[]
+  seeds: SeedEntry[]
   diagnostics: {
     scannedFiles: number
     parsedFiles: number
@@ -203,6 +207,9 @@ export interface CodeMap {
   endpoints: ApiEndpoint[]
   symbols: CodeSymbol[]
   flows: string[]
+  entities: EntityModel[]
+  validations: ValidationSchema[]
+  seeds: SeedEntry[]
   workspace?: WorkspaceAnalysis
 }
 

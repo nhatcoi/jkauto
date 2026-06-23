@@ -15,7 +15,6 @@ import { getAgentDb } from './agent-db'
 import {
   getCodeMap,
   getRelevantCodeContext,
-  getCodeKnowledgeSnapshot,
   startIndex,
 } from '../autogen/autogen.service'
 
@@ -302,7 +301,6 @@ export async function discoverAndPlanHarness(
     }
   }
   const relevantNodes = getRelevantCodeContext(projectPath, request)
-  const knowledgeSnapshot = getCodeKnowledgeSnapshot(projectPath)
   const codeGraphSummary = codeGraph
     ? {
         indexId: codeGraph.indexId,
@@ -313,7 +311,6 @@ export async function discoverAndPlanHarness(
         elements: codeGraph.elements?.slice(0, 100) ?? [],
         endpoints: codeGraph.endpoints?.slice(0, 50) ?? [],
         relevantNodes,
-        knowledgeSnapshot,
         indexProgress,
       }
     : {
@@ -550,28 +547,6 @@ export function finalizeHarnessRun(
   const missing = required.filter(
     (state) => !steps.some((step) => step.state === state && step.status === 'passed'),
   )
-  const harnessRun = getHarnessReport(projectPath, runId).run
-  const requestText = harnessRun.request.toLocaleLowerCase()
-  const unresolvedKnowledge = (
-    getCodeKnowledgeSnapshot(projectPath).gaps as Array<{
-      stable_key?: string
-      name?: string
-      metadata_json?: string
-    }>
-  ).filter((row) => {
-    const metadata = parseJson<{
-      kind?: string
-      priority?: string
-      title?: string
-    }>(row.metadata_json, {})
-    if (metadata.priority !== 'critical') return false
-    const terms = [metadata.kind, metadata.title, row.name]
-      .filter(Boolean)
-      .flatMap((value) => String(value).toLocaleLowerCase().split(/\W+/))
-      .filter((term) => term.length >= 4)
-    return terms.some((term) => requestText.includes(term)) ||
-      (metadata.kind === 'auth' && /\b(login|auth|oauth|sso|session)\b/.test(requestText))
-  })
   const planRow = db
     .prepare(
       `SELECT content_json FROM harness_artifacts
@@ -604,13 +579,9 @@ export function finalizeHarnessRun(
     (state) => latestGateStatus(state as HarnessState) !== 'passed',
   )
   const now = new Date().toISOString()
-  if (missing.length > 0 || failed || unresolvedKnowledge.length > 0) {
+  if (missing.length > 0 || failed) {
     const error =
-      unresolvedKnowledge.length > 0
-        ? `Critical codebase knowledge is unresolved: ${unresolvedKnowledge
-            .map((gap) => gap.stable_key ?? gap.name)
-            .join(', ')}. Verify it and persist a finding with resolvesGapKey.`
-        : missing.length > 0
+      missing.length > 0
         ? `Harness gates not satisfied: ${missing.join(', ')}${
             missing.includes('verify')
               ? ` (${passedVerifications}/${expectedVerifications} assertions verified)`

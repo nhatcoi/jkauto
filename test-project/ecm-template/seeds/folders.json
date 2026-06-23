@@ -1,0 +1,26 @@
+[
+  {
+    "id": "fld_root",
+    "name": "Root",
+    "parentId": null,
+    "createdBy": "usr_admin",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "fld_contracts",
+    "name": "Contracts",
+    "parentId": "fld_root",
+    "createdBy": "usr_admin",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "fld_reports",
+    "name": "Reports",
+    "parentId": "fld_root",
+    "createdBy": "usr_admin",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
+  }
+]

@@ -60,7 +60,7 @@ export function CoverageChart({ contentJson }: { contentJson: string }) {
             </Pie>
             <Tooltip
               contentStyle={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: 6, fontSize: 11 }}
-              formatter={(value: number, name: string) => [`${value} files`, name]}
+              formatter={(value, name) => [`${Number(value)} files`, String(name)]}
             />
             <Legend
               iconType="circle"

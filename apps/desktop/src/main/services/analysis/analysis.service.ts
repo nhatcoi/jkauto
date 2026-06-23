@@ -9,7 +9,6 @@ import type {
 } from '@jkauto/core'
 import type { CodeMap, DetectedStack } from '@jkauto/indexer'
 import {
-  getCodeKnowledgeSnapshot,
   startIndex,
 } from '../autogen/autogen.service'
 import {
@@ -168,16 +167,6 @@ async function buildArtifacts(
       confidence: 0.95,
       sourceRefs: [endpoint.sourceFile],
     })),
-    ...(workspace?.findings
-      .filter((finding) => finding.kind === 'auth' || finding.kind === 'database')
-      .map((finding) => ({
-        type: finding.kind === 'auth' ? 'flow' : 'data',
-        id: finding.id,
-        name: finding.name,
-        status: finding.status,
-        confidence: finding.confidence,
-        sourceRefs: finding.sourceRefs.map((ref) => ref.file),
-      })) ?? []),
   ]
 
   return [
@@ -247,19 +236,6 @@ async function buildArtifacts(
       sourceRefs: Array.from(new Set(map.symbols.map((item) => item.file).filter(Boolean))),
     },
     {
-      type: 'knowledge-graph',
-      title: 'Codebase knowledge graph',
-      summary: `${workspace?.relations.length ?? 0} verified or inferred relationships.`,
-      content: {
-        relations: workspace?.relations ?? [],
-        findings: workspace?.findings ?? [],
-      },
-      itemCount: (workspace?.relations.length ?? 0) + (workspace?.findings.length ?? 0),
-      confidence: workspace?.relations.length ? 0.85 : 0,
-      sourceRefs: workspace?.relations
-        .flatMap((relation) => relation.sourceRef?.file ? [relation.sourceRef.file] : []) ?? [],
-    },
-    {
       type: 'analysis-coverage',
       title: 'Analysis coverage',
       summary: workspace
@@ -267,15 +243,6 @@ async function buildArtifacts(
         : 'Coverage diagnostics unavailable.',
       content: workspace?.diagnostics ?? {},
       itemCount: workspace?.diagnostics.scannedFiles ?? 0,
-      confidence: 1,
-      sourceRefs: [],
-    },
-    {
-      type: 'known-unknowns',
-      title: 'Known unknowns',
-      summary: `${workspace?.gaps.length ?? 0} knowledge gaps require tool or runtime verification.`,
-      content: { gaps: workspace?.gaps ?? [] },
-      itemCount: workspace?.gaps.length ?? 0,
       confidence: 1,
       sourceRefs: [],
     },
@@ -300,6 +267,30 @@ async function buildArtifacts(
       sourceRefs: [],
     },
     await documentationArtifact(sourcePath, stack, map),
+    {
+      type: 'entity-catalog' as CodeAnalysisArtifactType,
+      title: 'Entity models',
+      summary: `${map.entities?.length ?? 0} entity models extracted.`,
+      content: { entities: map.entities ?? [] },
+      itemCount: map.entities?.length ?? 0,
+      sourceRefs: Array.from(new Set((map.entities ?? []).map((e) => e.sourceFile).filter(Boolean))),
+    },
+    {
+      type: 'validation-catalog' as CodeAnalysisArtifactType,
+      title: 'Validation schemas',
+      summary: `${map.validations?.length ?? 0} DTO/validation schemas extracted.`,
+      content: { validations: map.validations ?? [] },
+      itemCount: map.validations?.length ?? 0,
+      sourceRefs: Array.from(new Set((map.validations ?? []).map((v) => v.sourceFile).filter(Boolean))),
+    },
+    {
+      type: 'seed-catalog' as CodeAnalysisArtifactType,
+      title: 'Seed data',
+      summary: `${map.seeds?.length ?? 0} seed/fixture sources found.`,
+      content: { seeds: map.seeds ?? [] },
+      itemCount: map.seeds?.length ?? 0,
+      sourceRefs: Array.from(new Set((map.seeds ?? []).map((s) => s.sourceFile).filter(Boolean))),
+    },
   ]
 }
 
@@ -341,12 +332,6 @@ export async function startCodeAnalysis(
     const sourcePath = sourceType === 'local'
       ? path.resolve(sourceRef)
       : String(getRepoIndex(params.projectPath)?.local_path ?? sourceRef)
-    onProgress({
-      runId,
-      phase: 'memory',
-      message: `Knowledge memory: ${result.memoryUpdate.created} new, ${result.memoryUpdate.updated} updated, ${result.memoryUpdate.stale} stale.`,
-      percent: 88,
-    })
     const artifacts = await buildArtifacts(sourcePath, result.stack, result.map)
     const createdAt = new Date().toISOString()
     for (const artifact of artifacts) {
@@ -408,21 +393,12 @@ export function getCodeAnalysisReport(
     : undefined
   const classificationArtifact = artifacts.find((item) => item.type === 'module-catalog')
   const coverageArtifact = artifacts.find((item) => item.type === 'analysis-coverage')
-  const gapsArtifact = artifacts.find((item) => item.type === 'known-unknowns')
   const classification = classificationArtifact
     ? JSON.parse(classificationArtifact.contentJson) as { modules?: unknown[] }
     : {}
   const coverage = coverageArtifact
     ? JSON.parse(coverageArtifact.contentJson) as { coverage?: number }
     : {}
-  const gaps = gapsArtifact
-    ? JSON.parse(gapsArtifact.contentJson) as { gaps?: unknown[] }
-    : {}
-  const knowledge = getCodeKnowledgeSnapshot(projectPath)
-  const graphNodeCount = (knowledge.counts as Array<{ count?: number }>).reduce(
-    (total, row) => total + Number(row.count ?? 0),
-    0,
-  )
   return {
     run: {
       id: rawRun.id,
@@ -445,9 +421,6 @@ export function getCodeAnalysisReport(
       elementCount: counts?.elements ?? 0,
       symbolCount: counts?.symbols ?? 0,
       moduleCount: classification.modules?.length ?? 0,
-      gapCount: gaps.gaps?.length ?? 0,
-      graphNodeCount,
-      graphEdgeCount: knowledge.edgeCount,
       coverage: coverage.coverage ?? 0,
     },
   }
@@ -457,9 +430,9 @@ export function formatAnalysisCommandResult(
   report: CodeAnalysisReport | null,
   command: string,
 ): string {
-  if (!report) return 'No code analysis exists. Run `/analysis refresh` first.'
+  if (!report) return 'No Auto Generate Test exists. Run `/analysis refresh` first.'
   if (report.run.status === 'failed') {
-    return `Code analysis failed: ${report.run.error ?? 'Unknown error'}`
+    return `Auto Generate Test failed: ${report.run.error ?? 'Unknown error'}`
   }
   const artifactType = command === 'routes'
     ? 'route-catalog'
@@ -469,11 +442,11 @@ export function formatAnalysisCommandResult(
   if (artifactType) {
     const artifact = report.artifacts.find((item) => item.type === artifactType)
     return artifact
-      ? `${artifact.title}: ${artifact.summary}\n\nOpen Code Analysis in Explorer to inspect the complete artifact.`
+      ? `${artifact.title}: ${artifact.summary}\n\nOpen Auto Generate Test in Explorer to inspect the complete artifact.`
       : `Artifact ${artifactType} is not available.`
   }
   return [
-    `Code analysis: ${report.run.status}`,
+    `Auto Generate Test: ${report.run.status}`,
     `Source: ${report.run.sourceRef}`,
     `Stack: ${report.run.framework ?? 'unknown'} / ${report.run.language ?? 'unknown'}`,
     `Artifacts: ${report.summary.artifactCount}`,

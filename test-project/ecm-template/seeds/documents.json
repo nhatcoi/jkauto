@@ -1,0 +1,38 @@
+[
+  {
+    "id": "doc_1",
+    "title": "Q1 Annual Report",
+    "description": "Annual financial report for Q1",
+    "folderId": "fld_reports",
+    "tagIds": ["tag_3"],
+    "status": "published",
+    "currentVersion": 2,
+    "createdBy": "usr_editor",
+    "createdAt": "2025-01-10T08:00:00.000Z",
+    "updatedAt": "2025-02-01T09:00:00.000Z"
+  },
+  {
+    "id": "doc_2",
+    "title": "Service Agreement 2025",
+    "description": "Standard service agreement template",
+    "folderId": "fld_contracts",
+    "tagIds": ["tag_1", "tag_2"],
+    "status": "draft",
+    "currentVersion": 1,
+    "createdBy": "usr_admin",
+    "createdAt": "2025-03-01T10:00:00.000Z",
+    "updatedAt": "2025-03-01T10:00:00.000Z"
+  },
+  {
+    "id": "doc_3",
+    "title": "Employee Handbook 2025",
+    "description": "HR policies and guidelines",
+    "folderId": "fld_root",
+    "tagIds": ["tag_3"],
+    "status": "published",
+    "currentVersion": 1,
+    "createdBy": "usr_admin",
+    "createdAt": "2025-04-01T08:00:00.000Z",
+    "updatedAt": "2025-04-15T10:00:00.000Z"
+  }
+]

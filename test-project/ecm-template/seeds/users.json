@@ -1,0 +1,29 @@
+[
+  {
+    "id": "usr_admin",
+    "username": "admin",
+    "email": "admin@ecm.local",
+    "password": "Admin@123",
+    "role": "admin",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "usr_editor",
+    "username": "editor",
+    "email": "editor@ecm.local",
+    "password": "Editor@123",
+    "role": "editor",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "usr_viewer",
+    "username": "viewer",
+    "email": "viewer@ecm.local",
+    "password": "Viewer@123",
+    "role": "viewer",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
+  }
+]

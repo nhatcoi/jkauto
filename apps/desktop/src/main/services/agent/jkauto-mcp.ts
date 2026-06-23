@@ -20,12 +20,6 @@ import {
   recordVerification,
   validateGeneratedTest,
 } from './harness.service'
-import {
-  getCodeKnowledgeRelations,
-  getCodeKnowledgeSnapshot,
-  getRelevantCodeContext,
-  rememberCodeKnowledge,
-} from '../autogen/autogen.service'
 import { buildFeatureBundle, listFeatures } from '../autogen/feature-bundle'
 
 const SKIP_DIRS = new Set(['.autotest', '.git', 'node_modules', 'reports'])
@@ -367,25 +361,6 @@ export async function createJkautoMcpClient(
         inputSchema: { type: 'object' as const, properties: {} },
       },
       {
-        name: 'search_codebase_memory',
-        description:
-          'Search persisted code intelligence using lexical retrieval over modules, files, symbols, routes, endpoints, findings, and known unknowns. Results include evidence, confidence, producer, and verification status.',
-        inputSchema: {
-          type: 'object' as const,
-          properties: {
-            query: { type: 'string' },
-            limit: { type: 'number', minimum: 1, maximum: 100 },
-          },
-          required: ['query'],
-        },
-      },
-      {
-        name: 'get_codebase_memory',
-        description:
-          'Get code intelligence coverage, module, graph, and known-unknown summary.',
-        inputSchema: { type: 'object' as const, properties: {} },
-      },
-      {
         name: 'list_features',
         description:
           'List testable features grouped from analyzed endpoints + UI routes (e.g. auth, users, documents). Each entry shows how many endpoints and pages belong to it. Call this first to discover what features can be tested, then get_feature_bundle for one.',
@@ -404,64 +379,6 @@ export async function createJkautoMcpClient(
             },
           },
           required: ['feature'],
-        },
-      },
-      {
-        name: 'traverse_codebase_graph',
-        description:
-          'Follow outgoing knowledge graph relationships from a stable node key returned by search_codebase_memory.',
-        inputSchema: {
-          type: 'object' as const,
-          properties: {
-            stableKey: { type: 'string' },
-            limit: { type: 'number', minimum: 1, maximum: 100 },
-          },
-          required: ['stableKey'],
-        },
-      },
-      {
-        name: 'remember_codebase_finding',
-        description:
-          'Persist a codebase finding discovered by the Agent. Verified findings require source evidence and confidence >= 0.7; otherwise use inferred or unknown.',
-        inputSchema: {
-          type: 'object' as const,
-          properties: {
-            stableKey: { type: 'string' },
-            kind: { type: 'string' },
-            name: { type: 'string' },
-            summary: { type: 'string' },
-            status: {
-              type: 'string',
-              enum: ['verified', 'inferred', 'unknown'],
-            },
-            confidence: { type: 'number', minimum: 0, maximum: 1 },
-            sourceRefs: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  file: { type: 'string' },
-                  line: { type: 'number' },
-                  symbol: { type: 'string' },
-                },
-                required: ['file'],
-              },
-            },
-            metadata: { type: 'object' },
-            resolvesGapKey: {
-              type: 'string',
-              description: 'Optional gap stable key (for example gap:auth:workspace) resolved by this evidence.',
-            },
-          },
-          required: [
-            'stableKey',
-            'kind',
-            'name',
-            'summary',
-            'status',
-            'confidence',
-            'sourceRefs',
-          ],
         },
       },
       {
@@ -752,26 +669,6 @@ export async function createJkautoMcpClient(
           return { content: [{ type: 'text' as const, text: raw }] }
         }
 
-        case 'search_codebase_memory': {
-          const result = getRelevantCodeContext(
-            projectPath,
-            String(a.query ?? ''),
-            Math.min(100, Math.max(1, Number(a.limit ?? 30))),
-          )
-          return {
-            content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
-          }
-        }
-
-        case 'get_codebase_memory': {
-          return {
-            content: [{
-              type: 'text' as const,
-              text: JSON.stringify(getCodeKnowledgeSnapshot(projectPath), null, 2),
-            }],
-          }
-        }
-
         case 'list_features': {
           return {
             content: [{
@@ -785,40 +682,6 @@ export async function createJkautoMcpClient(
           const bundle = buildFeatureBundle(projectPath, String(a.feature ?? ''))
           return {
             content: [{ type: 'text' as const, text: JSON.stringify(bundle, null, 2) }],
-          }
-        }
-
-        case 'traverse_codebase_graph': {
-          const result = getCodeKnowledgeRelations(
-            projectPath,
-            String(a.stableKey ?? ''),
-            Math.min(100, Math.max(1, Number(a.limit ?? 50))),
-          )
-          return {
-            content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
-          }
-        }
-
-        case 'remember_codebase_finding': {
-          rememberCodeKnowledge(projectPath, {
-            stableKey: String(a.stableKey),
-            kind: String(a.kind),
-            name: String(a.name),
-            summary: String(a.summary),
-            status: a.status as 'verified' | 'inferred' | 'unknown',
-            confidence: Number(a.confidence),
-            sourceRefs: (a.sourceRefs ?? []) as Array<{
-              file: string
-              line?: number
-              symbol?: string
-            }>,
-            metadata: (a.metadata ?? {}) as Record<string, unknown>,
-            resolvesGapKey: a.resolvesGapKey
-              ? String(a.resolvesGapKey)
-              : undefined,
-          })
-          return {
-            content: [{ type: 'text' as const, text: 'Codebase finding persisted.' }],
           }
         }
 
