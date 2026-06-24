@@ -260,6 +260,38 @@ jkauto/
 
 Kiến trúc này giúp phân tách miền nghiệp vụ, hạ tầng thực thi và giao diện. `packages/core` đóng vai trò nguồn sự thật cho schema và hợp đồng giao tiếp.
 
+**Hình 2.1 — Sơ đồ phụ thuộc giữa các package trong monorepo JKAuto**
+
+```mermaid
+graph TD
+    subgraph apps["apps/"]
+        desktop["desktop\n(Electron)"]
+    end
+    subgraph packages["packages/"]
+        core["core\nZod schema · IPC contract · types"]
+        engine["engine\nPlaywright · Appium · API runner"]
+        indexer["indexer\nAST · clone · code map"]
+        projectfs["project-fs\nJSON/YAML read/write"]
+        storage["storage\nSQLite: runs · cache · index"]
+        ui["ui\nshadcn components"]
+    end
+
+    desktop -->|import types & IPC| core
+    desktop -->|bundle engine| engine
+    desktop -->|spawn indexer| indexer
+    desktop -->|read/write project| projectfs
+    desktop -->|persist run history| storage
+    desktop -->|shared UI| ui
+
+    engine --> core
+    indexer --> core
+    projectfs --> core
+    storage --> core
+
+    style core fill:#f5a623,color:#000
+    style desktop fill:#4a90d9,color:#fff
+```
+
 ### 2.2.2. Kiến trúc Electron
 
 JKAuto áp dụng mô hình ba lớp chính:
@@ -269,6 +301,39 @@ JKAuto áp dụng mô hình ba lớp chính:
 - **Main process:** truy cập filesystem, spawn tiến trình, gọi Appium, HTTP, SQLite và engine.
 
 Nguyên tắc quan trọng là renderer không truy cập trực tiếp filesystem. Các thao tác đặc quyền phải đi qua IPC. Đây là lựa chọn tốt cho cả bảo mật và khả năng kiểm thử.
+
+**Hình 2.2 — Kiến trúc ba tầng Electron và ranh giới IPC**
+
+```mermaid
+graph LR
+    subgraph renderer["Renderer Process (sandboxed)"]
+        UI["React UI\nfeatures/"]
+        Store["Zustand Store\nTanStack Query"]
+    end
+
+    subgraph preload["Preload Script"]
+        Bridge["contextBridge\nTyped API surface"]
+    end
+
+    subgraph main["Main Process (privileged)"]
+        Handlers["IPC Handlers\nagent · engine · project · appium"]
+        FS["Filesystem\nproject-fs"]
+        Runner["Engine Runner\nPlaywright · Appium · API"]
+        AgentRT["Agent Runtime\nHarness process"]
+        DB["SQLite\nruns · cache"]
+    end
+
+    UI <-->|window.api.*| Bridge
+    Bridge <-->|ipcRenderer / ipcMain| Handlers
+    Handlers --> FS
+    Handlers --> Runner
+    Handlers --> AgentRT
+    Handlers --> DB
+
+    style renderer fill:#dbeafe,color:#000
+    style preload fill:#fef9c3,color:#000
+    style main fill:#dcfce7,color:#000
+```
 
 ### 2.2.3. Kiến trúc feature theo vertical slice
 
@@ -319,6 +384,69 @@ Một test case gồm metadata, platform, runner, biến và danh sách step có
 | `timeout` | Timeout riêng của step |
 
 Schema version và ID ổn định là nền tảng tốt cho migration và truy vết.
+
+**Hình 2.3 — Mô hình dữ liệu nguồn (JSON/YAML) của JKAuto**
+
+```mermaid
+erDiagram
+    PROJECT {
+        string id PK
+        string name
+        string type
+        string format
+        int schemaVersion
+    }
+    TEST_CASE {
+        string id PK
+        string title
+        string platform
+        string runner
+        int schemaVersion
+    }
+    STEP {
+        string id PK
+        string keyword
+        string objectRef
+        string input
+        string expected
+        bool enabled
+        bool continueOnFailure
+    }
+    TEST_SUITE {
+        string id PK
+        string title
+        string profile
+    }
+    SUITE_ITEM {
+        string testCaseId FK
+        string testCasePath
+        bool enabled
+        int order
+    }
+    OBJECT_REPOSITORY {
+        string id PK
+        string name
+    }
+    LOCATOR {
+        string strategy
+        string value
+        int priority
+    }
+    ENV_PROFILE {
+        string name PK
+        json variables
+        json api
+    }
+
+    PROJECT ||--o{ TEST_CASE : contains
+    PROJECT ||--o{ TEST_SUITE : contains
+    PROJECT ||--o{ OBJECT_REPOSITORY : contains
+    PROJECT ||--o{ ENV_PROFILE : has
+    TEST_CASE ||--|{ STEP : "ordered list"
+    TEST_SUITE ||--|{ SUITE_ITEM : includes
+    SUITE_ITEM }o--|| TEST_CASE : references
+    OBJECT_REPOSITORY ||--|{ LOCATOR : "multi-locator fallback"
+```
 
 ### 2.3.3. Test Suite
 
@@ -433,6 +561,45 @@ Harness đảm nhận: quản lý session, lịch sử hội thoại, vòng lặ
 
 **Persona và nhận diện:** JKAuto inject một khối `<assistant_identity>` vào tin nhắn đầu tiên của mỗi session để định hướng model trả lời với vai trò "JKAuto Assistant". Cơ chế này được thực hiện tại lớp adapter, minh bạch với renderer.
 
+**Hình 2.5 — Kiến trúc hai tầng AI Agent**
+
+```mermaid
+graph TB
+    subgraph renderer["Renderer (React)"]
+        AgentPanel["AgentPanel\nChat UI · Session list · Tool thinking"]
+    end
+
+    subgraph adapter["Main Process — Adapter Layer"]
+        Handler["agent.handler.ts\nIPC channel registration"]
+        RTMgr["agent-runtime.ts\nSpawn · port discovery · lifecycle"]
+        Client["agent-client.ts\nREST + SSE bridge · type mapping"]
+        PersonaInject["Persona injector\n&lt;assistant_identity&gt; on first turn"]
+    end
+
+    subgraph harness["Agent Runtime Harness (child process)"]
+        API["REST API\nPOST /session · POST /message"]
+        SSE["SSE Event Stream\nmessage.part.delta · session.idle"]
+        SessionDB["Session DB\nconversation history"]
+        ToolLoop["Agentic Tool Loop\nMCP · file edit · web"]
+    end
+
+    AgentPanel -->|AGENT_CHAT IPC| Handler
+    Handler --> PersonaInject
+    Handler --> RTMgr
+    Handler --> Client
+    RTMgr -->|spawn process| harness
+    Client -->|HTTP POST /message| API
+    Client -->|SSE subscribe| SSE
+    SSE -->|chunk| Client
+    Client -->|AGENT_STREAM_CHUNK| AgentPanel
+    API --> ToolLoop
+    ToolLoop --> SessionDB
+
+    style renderer fill:#dbeafe,color:#000
+    style adapter fill:#dcfce7,color:#000
+    style harness fill:#fce7f3,color:#000
+```
+
 Agent có hai chế độ hội thoại:
 
 | Chế độ | Hành vi |
@@ -491,6 +658,36 @@ Luồng chạy test case:
 7. Event trạng thái được stream về renderer.
 8. Renderer cập nhật bảng, console và progress.
 9. Kết quả chạy được lưu vào lịch sử.
+
+**Hình 2.4 — Sơ đồ tuần tự luồng chạy test case**
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Editor as TestCase Editor<br/>(Renderer)
+    participant IPC as IPC Bridge<br/>(Preload)
+    participant Main as Main Process
+    participant Engine as Engine Runner
+    participant PW as Playwright/Appium/API
+
+    User->>Editor: Nhấn Run (F5)
+    Editor->>Editor: Auto-save tệp JSON/YAML
+    Editor->>IPC: ENGINE_RUN_CASE
+    IPC->>Main: ipcMain.handle
+    Main->>Main: Load profile, resolve objectRefs
+    Main->>Engine: runTestCase(steps, options)
+    loop Mỗi step
+        Engine->>PW: Thực thi keyword (click, type, assert…)
+        PW-->>Engine: Kết quả / lỗi
+        Engine-->>Main: StepEvent (pass/fail/log)
+        Main-->>IPC: ENGINE_STEP_EVENT
+        IPC-->>Editor: Cập nhật trạng thái step
+    end
+    Engine-->>Main: RunCompleteEvent
+    Main->>Main: Ghi kết quả vào runs.db
+    Main-->>IPC: ENGINE_RUN_COMPLETE
+    IPC-->>Editor: Hiển thị tổng kết
+```
 
 Luồng chạy suite bổ sung bước duyệt các test case theo order, áp dụng profile cấp suite và xử lý `continueOnFailure`.
 
@@ -1008,6 +1205,32 @@ Khoảng trống được ghi nhận:
 ## 3.9. Ma trận rủi ro chất lượng
 
 Thang xác suất và tác động: 1 thấp, 5 rất cao. Điểm rủi ro = Xác suất × Tác động.
+
+**Hình 3.1 — Ma trận rủi ro chất lượng JKAuto (Xác suất × Tác động)**
+
+```mermaid
+quadrantChart
+    title Ma trận rủi ro chất lượng
+    x-axis Xác suất thấp --> Xác suất cao
+    y-axis Tác động thấp --> Tác động cao
+    quadrant-1 Ưu tiên cao nhất
+    quadrant-2 Theo dõi chặt
+    quadrant-3 Chấp nhận / theo dõi
+    quadrant-4 Giảm thiểu xác suất
+    Secret trong log/prompt: [0.55, 0.95]
+    Agent ghi đè steps: [0.55, 0.95]
+    Path traversal IPC: [0.35, 0.95]
+    Runner treo không dừng được: [0.55, 0.75]
+    Directly mode không hủy được: [0.55, 0.75]
+    Autogen trùng tên file: [0.55, 0.75]
+    Keyword không hỗ trợ runner: [0.55, 0.75]
+    Appium PATH/driver lỗi: [0.75, 0.55]
+    Native module lỗi đóng gói: [0.55, 0.75]
+    Repository lớn làm treo indexer: [0.55, 0.75]
+    Lịch sử JSON ghi đồng thời: [0.35, 0.55]
+    Tài liệu sai trạng thái: [0.75, 0.35]
+    OpenAPI lớn treo ứng dụng: [0.55, 0.55]
+```
 
 | Rủi ro | Xác suất | Tác động | Điểm | Mức | Biện pháp |
 |---|---:|---:|---:|---|---|
