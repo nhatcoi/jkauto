@@ -173,6 +173,7 @@ step_results(id, run_id, step_index, status, message, duration_ms, screenshot_pa
 | M2 | Explorer | react-arborist tree, watch FS (chokidar), context menu đầy đủ, file ops | ✅ |
 | M3 | Test case editor | Table editor steps, keyword autocomplete, objectRef picker, save JSON/YAML, dirty/undo | ☐ |
 | M4 | Engine v1 | Keyword registry ~15 built-ins, Playwright runner, chạy 1 test case, console + progress realtime | ☐ |
+| M4.5 | CLI + CI/CD | `packages/cli`: `jkauto run` (test case/suite, headless, reporter junit/json/console), `jkauto generate-workflow` (GitHub/GitLab/Jenkins), esbuild bundle, exit code 0/1 | ✅ |
 | M5 | Object repo + API explorer + Suites | ObjectEditor (.objects.json, multi-locator), RequestEditor (.request.json, Postman-style), suite composer, chạy suite | ☐ |
 | M6 | Reports + SQLite | runs.db, run history view, step results, screenshots, problems pane | ☐ |
 | M7 | Profiles + Data-driven | Env switching, data-files CSV/JSON binding vào steps | ☐ |

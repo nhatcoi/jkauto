@@ -219,46 +219,95 @@ Việc có tài liệu theo từng feature là một điểm mạnh về khả n
 
 ## 2.1. Tổng quan sản phẩm
 
-JKAuto là IDE kiểm thử tự động theo hướng keyword-driven và file-first. Người dùng không bắt buộc viết trực tiếp mã Playwright hoặc Appium mà có thể tạo từng bước kiểm thử trên giao diện bảng.
+### 2.1.1. Vị trí sản phẩm
 
-Các nhóm người dùng mục tiêu:
+JKAuto là IDE kiểm thử tự động theo hướng keyword-driven và file-first, nhắm đến khoảng trống giữa công cụ no-code (trực quan nhưng hạn chế mở rộng) và framework viết mã (mạnh nhưng yêu cầu kỹ năng lập trình cao).
 
-- Nhân viên QA cần tạo test case trực quan.
-- Lập trình viên cần artifact có thể review bằng Git.
-- Nhóm kiểm thử API cần gửi request, assertion và chain token.
-- Nhóm Mobile cần Appium hoặc Maestro.
-- Người dùng muốn AI hỗ trợ tạo và chỉnh sửa kịch bản.
+**Định vị so với công cụ phổ biến:**
 
-Giá trị cốt lõi của hệ thống:
+| Tiêu chí | Katalon Studio | Playwright/Cypress | JKAuto |
+|---|---|---|---|
+| Phong cách test | Keyword / record | Viết mã `.ts`/`.js` | Keyword / AI-gen |
+| Artifact format | Proprietary binary/XML | Mã nguồn | JSON / YAML |
+| Git-friendly | Hạn chế | Tốt | Tốt (file-first) |
+| Nền tảng hỗ trợ | Web, Mobile | Web | Web, Mobile, Desktop, API |
+| AI tích hợp sẵn | Không | Không | Có |
+| Open data format | Không | N/A | Có |
+| Yêu cầu lập trình | Thấp | Cao | Thấp – Trung bình |
+| CLI / CI-CD | Có | Có | Có (`jkauto run`) |
 
-- Một IDE cho nhiều nền tảng.
-- Artifact là tệp văn bản JSON/YAML.
-- Keyword metadata là nguồn dữ liệu chung cho editor và engine.
-- Tách dữ liệu nguồn khỏi cache và lịch sử chạy.
-- Hỗ trợ AI nhưng vẫn có bước kiểm tra schema hoặc review trước khi áp dụng.
+### 2.1.2. Nhóm người dùng mục tiêu
+
+| Nhóm | Nhu cầu chính | Tính năng JKAuto phục vụ |
+|---|---|---|
+| QA engineer | Tạo, duy trì test case trực quan | Test Case Editor, keyword autocomplete, Object Repository |
+| Developer | Artifact reviewable, CI/CD ready | JSON/YAML output, CLI `jkauto run`, Git diff rõ |
+| API tester | Request builder, chain token, assertion | API Request Editor, Save-to-Env, cURL import |
+| Mobile tester | Kiểm thử thiết bị thật | Appium integration, device mirror, Inspector |
+| AI-assisted tester | Sinh test từ repo, kiểm chứng luồng thật | Autogen Test, Agent Directly mode |
+
+### 2.1.3. Giá trị cốt lõi thiết kế
+
+- **File-first:** artifact là tệp JSON/YAML, commit được, review được, diff được.
+- **Keyword-driven:** người dùng dùng keyword có tên rõ ràng thay vì viết API Playwright trực tiếp.
+- **Single keyword registry:** metadata keyword là nguồn sự thật chung cho editor và engine — không thể lệch nhau.
+- **Tách nguồn và derived data:** JSON/YAML = dữ liệu nguồn; SQLite `.autotest/` = cache có thể tạo lại.
+- **AI có kiểm soát:** AI đề xuất hoặc sinh artifact JSON, phải qua schema validate trước khi lưu.
+
+### 2.1.4. Trạng thái phát triển theo milestone
+
+| Milestone | Nội dung | Trạng thái |
+|---|---|---|
+| M0 | Scaffold Electron + Vite + shadcn, layout panes resize | ✅ |
+| M1 | Project lifecycle — dialog, folder structure, open/recent | ✅ |
+| M2 | Explorer — react-arborist, chokidar, context menu, file ops | ✅ |
+| M3 | Test Case Editor — bảng step, keyword, objectRef, undo/redo | ✅ |
+| M4 | Engine v1 — keyword registry, Playwright runner, realtime log | ✅ |
+| M4.5 | CLI `jkauto run`, CI/CD workflow generator | ✅ |
+| M5 | Object Repository, API Request Editor, Test Suite | ✅ |
+| M6 | Reports, SQLite runs.db | ✅ |
+| M7 | Profiles, data-driven CSV/JSON | ✅ (một phần) |
+| M8 | Clerk + Sync | ☐ |
+| M9 | AI Agent | ✅ (đã triển khai vượt roadmap ban đầu) |
+| M10 | Recorder, import/export, plugins API | ☐ |
+
+> Trạng thái suy ra từ tài liệu feature và commit history; `PLAN.md` gốc chưa được cập nhật đồng bộ.
 
 ## 2.2. Kiến trúc tổng thể
 
-### 2.2.1. Kiến trúc monorepo
+### 2.2.1. Monorepo và phân tách package
 
-Hệ thống sử dụng pnpm workspace và Turborepo:
+Hệ thống dùng pnpm workspace và Turborepo. Mỗi package có ranh giới trách nhiệm rõ:
 
 ```text
 jkauto/
 ├── apps/
-│   └── desktop/          # Electron main, preload và React renderer
+│   └── desktop/          # Electron app (main + preload + renderer)
+│       ├── main/         # Node.js privileged: FS, spawn, HTTP, SQLite, IPC handlers
+│       ├── preload/      # IPC bridge — contextBridge typed surface
+│       └── renderer/     # React SPA — features by vertical slice
 ├── packages/
-│   ├── core/             # Zod schema, type và IPC contract
-│   ├── engine/           # Runner và keyword executor
-│   ├── indexer/          # Clone, nhận diện stack và lập code map repository
-│   ├── project-fs/       # Đọc/ghi project
-│   ├── storage/          # Dữ liệu SQLite hoặc dữ liệu dẫn xuất
-│   └── ui/               # Thành phần giao diện dùng chung
-├── jkauto-skills/        # Kỹ năng hỗ trợ agent
-└── test-project/         # Dự án mục tiêu mẫu
+│   ├── core/             # Nguồn sự thật: Zod schema, type, IPC channel names
+│   ├── engine/           # Keyword executor + runner adapter factory
+│   ├── indexer/          # Clone repo, AST parse, build code map cho Autogen
+│   ├── project-fs/       # Đọc/ghi JSON/YAML project files
+│   ├── storage/          # SQLite: runs.db, cache.db, index.db
+│   └── ui/               # shadcn/ui components dùng chung
+├── jkauto-skills/        # Prompt skill cho AI Agent (Markdown)
+└── test-project/         # Dự án mục tiêu mẫu (ECM, OrangeHRM…)
 ```
 
-Kiến trúc này giúp phân tách miền nghiệp vụ, hạ tầng thực thi và giao diện. `packages/core` đóng vai trò nguồn sự thật cho schema và hợp đồng giao tiếp.
+**Vai trò và ràng buộc từng package:**
+
+| Package | Phụ thuộc chính | Trách nhiệm | Không được làm |
+|---|---|---|---|
+| `core` | Zod | Schema, type, IPC channel names | Import bất kỳ package monorepo khác |
+| `engine` | `@playwright/test`, Appium, `core` | Keyword registry, adapter factory, executor | Truy cập FS, IPC, render UI |
+| `indexer` | `simple-git`, ESTree, Swagger Parser, `core` | Clone repo, build code map, lưu index.db | Thực thi test |
+| `project-fs` | `yaml`, `core` | Parse/serialize JSON↔YAML, file CRUD | Business logic, IPC |
+| `storage` | `better-sqlite3`, `core` | SQLite migration, CRUD run/result/cache | Biết về feature UI |
+| `ui` | React, shadcn/ui, Tailwind | Primitive UI components | Feature-specific logic |
+| `desktop/main` | Tất cả packages trên | Orchestrate, IPC handler, spawn | Render UI, import renderer code |
 
 **Hình 2.1 — Sơ đồ phụ thuộc giữa các package trong monorepo JKAuto**
 
@@ -292,15 +341,38 @@ graph TD
     style desktop fill:#4a90d9,color:#fff
 ```
 
-### 2.2.2. Kiến trúc Electron
+### 2.2.2. Kiến trúc Electron — ba lớp và ranh giới IPC
 
-JKAuto áp dụng mô hình ba lớp chính:
+JKAuto áp dụng mô hình bảo mật Electron nghiêm ngặt với ba lớp tách biệt:
 
-- **Renderer:** giao diện React, quản lý trạng thái hiển thị.
-- **Preload:** cầu nối IPC được kiểm soát.
-- **Main process:** truy cập filesystem, spawn tiến trình, gọi Appium, HTTP, SQLite và engine.
+**Renderer process (sandboxed)**
+- Chạy React SPA, không có quyền Node.js (`nodeIntegration: false`, `contextIsolation: true`).
+- Không thể truy cập filesystem, spawn process hay gọi native API trực tiếp.
+- Giao tiếp với main process chỉ qua `window.api.*` do preload expose.
 
-Nguyên tắc quan trọng là renderer không truy cập trực tiếp filesystem. Các thao tác đặc quyền phải đi qua IPC. Đây là lựa chọn tốt cho cả bảo mật và khả năng kiểm thử.
+**Preload script**
+- Cầu nối duy nhất giữa renderer và main.
+- Dùng `contextBridge.exposeInMainWorld('api', ...)` cung cấp API surface typed an toàn.
+- Mọi hàm là wrapper typed quanh `ipcRenderer.invoke` / `ipcRenderer.on`.
+
+**Main process (privileged)**
+- Toàn quyền Node.js: đọc/ghi file, spawn child process, HTTP, SQLite.
+- Đăng ký handler cho từng IPC channel qua `ipcMain.handle`.
+- Validate payload đầu vào bằng Zod trước khi xử lý (nguyên tắc kiến trúc).
+
+**Danh sách IPC channel theo nhóm:**
+
+| Nhóm | Channel tiêu biểu | Hướng | Mô tả |
+|---|---|---|---|
+| Project | `PROJECT_OPEN`, `PROJECT_INIT`, `PROJECT_RECENT` | invoke | Mở, tạo, danh sách gần đây |
+| Engine | `ENGINE_RUN_CASE`, `ENGINE_RUN_SUITE`, `ENGINE_STOP` | invoke | Điều khiển chạy test |
+| Engine events | `ENGINE_STEP_EVENT`, `ENGINE_RUN_COMPLETE` | send (main→renderer) | Stream trạng thái step realtime |
+| API | `API_SEND_REQUEST`, `API_HISTORY_LIST` | invoke | Gửi HTTP request, xem lịch sử |
+| Agent | `AGENT_CHAT`, `AGENT_SESSION_CREATE`, `AGENT_SESSION_LIST` | invoke | Chat AI, quản lý session |
+| Agent stream | `AGENT_STREAM_CHUNK`, `AGENT_STREAM_TOOL_EVENT` | send | Streaming response và tool call |
+| Appium | `APPIUM_START`, `APPIUM_STOP`, `APPIUM_DEVICE_LIST` | invoke | Quản lý Appium server và device |
+| Appium stream | `APPIUM_MIRROR_FRAME`, `APPIUM_LOG` | send | Luồng mirror màn hình và log |
+| Autogen | `AUTOGEN_START`, `AUTOGEN_CANCEL`, `AUTOGEN_PROGRESS` | invoke/send | Pipeline sinh test từ repo |
 
 **Hình 2.2 — Kiến trúc ba tầng Electron và ranh giới IPC**
 
@@ -337,15 +409,36 @@ graph LR
 
 ### 2.2.3. Kiến trúc feature theo vertical slice
 
-Mỗi feature có thể chứa:
+Renderer tổ chức theo vertical slice — mỗi feature tự quản lý toàn bộ lifecycle của mình:
 
-- `components/`
-- `hooks/`
-- `store.ts`
-- `api.ts`
-- `types.ts`
+```text
+renderer/src/features/
+├── project/         # Init dialog, open, recent project
+├── explorer/        # Cây tệp ảo hóa, context menu, file ops
+├── test-cases/      # Step editor, keyword picker, run controls, history
+├── api-request/     # HTTP editor, assertion, history, Save-to-Env
+├── test-suites/     # Suite composer, batch run, profile chọn
+├── object-repo/     # Object editor, locator manager
+├── keywords/        # Custom keyword manager
+├── execution/       # Run progress pane, realtime console log
+├── reports/         # Run history viewer, step results, screenshots
+├── appium/          # Server mgmt, device list, inspector, device mirror
+├── agent/           # Chat UI, session manager, tool thinking display
+└── autogen/         # Repo picker, index progress, test preview và lưu
+```
 
-Các feature không nên import trực tiếp phần triển khai nội bộ của nhau. Giao tiếp thông qua public API hoặc contract dùng chung giúp giảm coupling.
+Mỗi feature chứa các tệp theo convention:
+
+| Tệp/Thư mục | Trách nhiệm |
+|---|---|
+| `components/` | React components thuộc feature |
+| `hooks/` | Custom hooks (state, effect, data fetching) |
+| `store.ts` | Zustand slice quản lý UI state cục bộ |
+| `api.ts` | Wrapper gọi `window.api.*` (IPC calls) |
+| `types.ts` | Interface và type cục bộ của feature |
+| `AGENTS.md` | Tài liệu kỹ thuật feature cho agent và developer mới |
+
+**Nguyên tắc coupling:** Feature A không import implementation của Feature B trực tiếp. Giao tiếp qua shared Zustand store, TanStack Query cache hoặc IPC event broadcast.
 
 ## 2.3. Mô hình dữ liệu và tổ chức dự án
 
@@ -353,37 +446,217 @@ Các feature không nên import trực tiếp phần triển khai nội bộ c�
 
 ```text
 MyAutoTestProject/
-├── project.json
+├── project.json              # Metadata: name, type, format, schemaVersion
 ├── profiles/
+│   ├── default.env.json      # Biến môi trường mặc định
+│   └── staging.env.json      # Biến môi trường staging
 ├── test-cases/
-├── api-request/
+│   ├── login-success.test.json
+│   └── get-users-api.test.json
+├── api-requests/             # Postman-style HTTP explorer
+│   └── login.request.json
+├── object-repository/        # Web element selectors
+│   └── login-page.objects.json
 ├── test-suites/
-├── keywords/
-├── reports/
-├── data-files/
+│   └── smoke.suite.yaml
+├── keywords/                 # Custom keyword definitions
+├── data-files/               # CSV/JSON data-driven input
+├── reports/                  # <run-id>/: screenshots, HTML
 ├── checkpoints/
 ├── plugins/
-└── .autotest/
+└── .autotest/                # Derived data — gitignore
+    ├── runs.db               # Run history, step results
+    ├── cache.db              # Misc cache
+    ├── index.db              # Autogen code map
+    └── workspace.json        # Layout, open tabs
 ```
 
-JSON/YAML là dữ liệu nguồn. Thư mục `.autotest/` chứa cache, lịch sử hoặc dữ liệu có thể tạo lại. Thiết kế này giảm nguy cơ khóa dữ liệu vào định dạng riêng.
+**Nguyên tắc phân tách dữ liệu:**
+- Các tệp `*.json` / `*.yaml` trong thư mục project = **dữ liệu nguồn**, commit lên Git.
+- Thư mục `.autotest/` = **dữ liệu dẫn xuất**, có thể xóa và tạo lại, không commit.
 
-### 2.3.2. Test Case
+### 2.3.2. Cấu trúc Test Case
 
-Một test case gồm metadata, platform, runner, biến và danh sách step có thứ tự. Step có các trường chính:
+Test case lưu metadata, thông tin platform/runner, biến nội bộ và mảng step có thứ tự.
 
-| Trường | Ý nghĩa |
-|---|---|
-| `id` | Định danh ổn định |
-| `keyword` | Hành động hoặc assertion |
-| `objectRef` | Selector hoặc tham chiếu object repository |
-| `input` | Giá trị đầu vào |
-| `expected` | Giá trị mong đợi |
-| `enabled` | Cho phép bỏ qua step |
-| `continueOnFailure` | Tiếp tục khi step lỗi |
-| `timeout` | Timeout riêng của step |
+**Ví dụ file `login-success.test.json`:**
 
-Schema version và ID ổn định là nền tảng tốt cho migration và truy vết.
+```json
+{
+  "schemaVersion": 1,
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "title": "Login thành công với tài khoản hợp lệ",
+  "platform": "web",
+  "runner": "playwright",
+  "variables": {
+    "expectedTitle": "Dashboard"
+  },
+  "steps": [
+    {
+      "id": "step-001",
+      "keyword": "navigate-to",
+      "description": "Mở trang đăng nhập",
+      "objectRef": "",
+      "input": "{{baseUrl}}/login",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "step-002",
+      "keyword": "type-text",
+      "description": "Nhập username",
+      "objectRef": "LoginPage.usernameInput",
+      "input": "{{username}}",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": 5000
+    },
+    {
+      "id": "step-003",
+      "keyword": "click",
+      "description": "Nhấn nút Login",
+      "objectRef": "LoginPage.submitButton",
+      "input": "",
+      "expected": "",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": null
+    },
+    {
+      "id": "step-004",
+      "keyword": "assert-text",
+      "description": "Kiểm tra tiêu đề trang sau đăng nhập",
+      "objectRef": "DashboardPage.pageTitle",
+      "input": "",
+      "expected": "{{expectedTitle}}",
+      "enabled": true,
+      "continueOnFailure": false,
+      "timeout": 10000
+    }
+  ],
+  "createdAt": "2026-06-01T08:00:00Z",
+  "updatedAt": "2026-06-20T14:30:00Z"
+}
+```
+
+**Ý nghĩa từng trường step:**
+
+| Trường | Kiểu | Bắt buộc | Ý nghĩa |
+|---|---|---|---|
+| `id` | string (UUID) | Có | Định danh ổn định — không đổi khi rename test case |
+| `keyword` | string | Có | Hành động từ keyword registry |
+| `description` | string | Không | Chú thích cho người đọc |
+| `objectRef` | string | Tuỳ keyword | Tên object từ repository hoặc selector inline |
+| `input` | string | Tuỳ keyword | Giá trị đầu vào; hỗ trợ `{{name}}` |
+| `expected` | string | Tuỳ keyword | Giá trị assertion mong đợi |
+| `enabled` | boolean | Không (default: `true`) | `false` = step bị skip |
+| `continueOnFailure` | boolean | Không (default: `false`) | Tiếp tục test case dù step này lỗi |
+| `timeout` | number\|null | Không (default: `null`) | Override timeout (ms); `null` = dùng global |
+
+### 2.3.3. Cấu trúc Object Repository
+
+Mỗi object có nhiều locator dự phòng, được thử theo `priority` tăng dần đến khi engine tìm thấy phần tử.
+
+**Ví dụ file `login-page.objects.json`:**
+
+```json
+{
+  "schemaVersion": 1,
+  "id": "repo-login-page",
+  "name": "LoginPage",
+  "objects": [
+    {
+      "id": "obj-001",
+      "name": "usernameInput",
+      "description": "Trường nhập username",
+      "locators": [
+        { "strategy": "testid", "value": "username-input", "priority": 1 },
+        { "strategy": "css",    "value": "#username",      "priority": 2 },
+        { "strategy": "xpath",  "value": "//input[@name='username']", "priority": 3 }
+      ]
+    },
+    {
+      "id": "obj-002",
+      "name": "submitButton",
+      "description": "Nút đăng nhập",
+      "locators": [
+        { "strategy": "role", "value": "button[name='Login']",    "priority": 1 },
+        { "strategy": "css",  "value": "button[type='submit']",   "priority": 2 }
+      ]
+    }
+  ]
+}
+```
+
+**Chiến lược locator và độ ưu tiên khuyến nghị:**
+
+| Strategy | Ví dụ | Ưu tiên khuyến nghị | Lý do |
+|---|---|---|---|
+| `testid` | `data-testid="login-btn"` | 1 | Ổn định nhất — ít bị thay đổi khi redesign |
+| `role` | `role=button[name="Login"]` | 2 | Semantic, theo accessibility |
+| `label` | `label=Username` | 3 | Rõ nghĩa với người dùng |
+| `text` | `text=Đăng nhập` | 4 | Dễ dùng nhưng nhạy cảm với i18n |
+| `css` | `#username`, `.btn-primary` | 5 | Phổ biến nhưng có thể đổi khi refactor CSS |
+| `xpath` | `//input[@id='user']` | 6 | Ít ưu tiên nhất — dễ hỏng, khó đọc |
+| `placeholder` | `placeholder=Email address` | Tùy | Hữu ích cho input không có testid |
+
+Engine log rõ locator nào đã được sử dụng để hỗ trợ debug.
+
+### 2.3.4. Cấu trúc Test Suite
+
+```json
+{
+  "schemaVersion": 1,
+  "id": "suite-smoke-001",
+  "title": "Smoke Test — Luồng chính",
+  "profile": "staging",
+  "continueOnFailure": true,
+  "items": [
+    {
+      "testCaseId": "550e8400-e29b-41d4-a716-446655440000",
+      "testCasePath": "test-cases/login-success.test.json",
+      "enabled": true,
+      "order": 1
+    },
+    {
+      "testCaseId": "660f9511-f30c-52e5-b827-557766551111",
+      "testCasePath": "test-cases/get-users-api.test.json",
+      "enabled": true,
+      "order": 2
+    }
+  ]
+}
+```
+
+Suite tham chiếu test case bằng cả `testCaseId` (stable) và `testCasePath` (relative). Khi path không còn hợp lệ, engine quét đệ quy tìm file có `id` khớp và tự cập nhật path vào suite.
+
+### 2.3.5. Cấu trúc Environment Profile
+
+```json
+{
+  "schemaVersion": 1,
+  "name": "staging",
+  "variables": {
+    "baseUrl": "https://staging.example.com",
+    "username": "qa_user",
+    "password": "secret123",
+    "token": ""
+  },
+  "api": {
+    "defaultTimeout": 30000,
+    "defaultHeaders": {
+      "Accept": "application/json"
+    }
+  }
+}
+```
+
+Biến được inject vào step input bằng `{{name}}`. Thứ tự ưu tiên khi trùng tên: biến nội bộ test case > biến profile active. Biến chưa resolve được giữ nguyên literal và/hoặc phát cảnh báo — không được âm thầm thay bằng chuỗi rỗng.
+
+### 2.3.6. Lược đồ quan hệ dữ liệu tổng thể
 
 **Hình 2.3 — Mô hình dữ liệu nguồn (JSON/YAML) của JKAuto**
 
@@ -401,21 +674,25 @@ erDiagram
         string title
         string platform
         string runner
+        json variables
         int schemaVersion
     }
     STEP {
         string id PK
         string keyword
+        string description
         string objectRef
         string input
         string expected
         bool enabled
         bool continueOnFailure
+        int timeout
     }
     TEST_SUITE {
         string id PK
         string title
         string profile
+        bool continueOnFailure
     }
     SUITE_ITEM {
         string testCaseId FK
@@ -448,103 +725,242 @@ erDiagram
     OBJECT_REPOSITORY ||--|{ LOCATOR : "multi-locator fallback"
 ```
 
-### 2.3.3. Test Suite
+### 2.3.7. Lược đồ SQLite (dữ liệu dẫn xuất)
 
-Test Suite tham chiếu test case bằng cả ID và path. Mỗi item có trạng thái enabled và order. Suite có thể đặt profile riêng, cho phép chạy một tập smoke test trên staging mà không thay đổi profile toàn cục.
+SQLite trong `.autotest/` lưu kết quả chạy và cache — không phải dữ liệu nguồn.
 
-### 2.3.4. Object Repository
+```sql
+-- runs.db: lịch sử thực thi
+CREATE TABLE test_runs (
+  id           TEXT PRIMARY KEY,
+  test_case_id TEXT,
+  suite_id     TEXT,
+  profile      TEXT,
+  status       TEXT,        -- 'passed' | 'failed' | 'stopped' | 'error'
+  started_at   INTEGER,     -- Unix timestamp ms
+  ended_at     INTEGER,
+  duration_ms  INTEGER
+);
 
-Mỗi object có nhiều locator với độ ưu tiên. Engine thử locator theo thứ tự cho đến khi tìm thấy phần tử. Các chiến lược gồm:
+CREATE TABLE step_results (
+  id              TEXT PRIMARY KEY,
+  run_id          TEXT REFERENCES test_runs(id),
+  step_index      INTEGER,
+  step_id         TEXT,
+  keyword         TEXT,
+  status          TEXT,     -- 'passed' | 'failed' | 'skipped'
+  message         TEXT,
+  duration_ms     INTEGER,
+  screenshot_path TEXT
+);
 
-- `testid`
-- `css`
-- `xpath`
-- `text`
-- `role`
-- `label`
-- `placeholder`
-
-Multi-locator giúp tăng độ bền của test nhưng cũng cần log rõ locator nào đã được sử dụng để hỗ trợ gỡ lỗi.
-
-### 2.3.5. Environment Profile
-
-Biến môi trường được lưu trong các tệp profile. Tài liệu ghi nhận cả hai cú pháp `{{name}}` và `${name}`, trong đó `{{name}}` được khuyến nghị cho tệp sinh mới. Các biến chưa được resolve cần được giữ nguyên hoặc cảnh báo rõ, tránh âm thầm thay bằng chuỗi rỗng.
+-- index.db: Autogen code map
+CREATE TABLE file_index (
+  path    TEXT PRIMARY KEY,
+  type    TEXT,             -- 'route' | 'component' | 'api' | 'symbol'
+  name    TEXT,
+  mtime   INTEGER,
+  content TEXT              -- chunk dùng cho context LLM
+);
+```
 
 ## 2.4. Phân tích các chức năng chính
 
-### 2.4.1. Explorer
+### 2.4.1. Explorer — Quản lý workspace và cây tệp
 
-Explorer hiển thị nhiều project, hỗ trợ cây tệp ảo hóa, theo dõi thay đổi filesystem, tạo/xóa/đổi tên, kéo thả và menu ngữ cảnh theo loại node. Shell ứng dụng có MenuBar HTML trên Windows/Linux và menu Electron native trên macOS; lệnh menu được chuyển về renderer qua IPC để dùng chung các dialog và hành động.
+**Tổng quan:** Explorer là điểm vào chính, hiển thị toàn bộ project trong workspace dưới dạng cây tệp ảo hóa. Hỗ trợ nhiều project đồng thời.
 
-Các chức năng đáng chú ý:
+**Thành phần kỹ thuật:**
+- `react-arborist`: virtualized tree với drag-drop và rename inline.
+- `chokidar`: theo dõi thay đổi filesystem realtime, gửi `FS_WATCH_EVENT` qua IPC về renderer.
+- Context menu registry pattern: mỗi loại node đăng ký menu items riêng, không hard-code.
 
-- Đặt project đang hoạt động.
-- Nhân bản project và sinh UUID mới.
-- Mở thư mục chứa project.
-- Cập nhật đường dẫn tab khi đổi tên tệp hoặc thư mục.
-- Xác nhận trước khi loại project khỏi workspace.
-- Chỉ hiển thị các thư mục feature được JKAuto hỗ trợ và ẩn thư mục nội bộ theo policy.
-- Gọi New/Open Project, Settings, Run/Debug/Stop, Reports và Keyword Manager từ menu hệ điều hành.
+**Chức năng chi tiết:**
 
-Rủi ro chính là đồng bộ trạng thái tab với thay đổi tệp ngoài ứng dụng và xử lý xung đột khi rename/move.
+| Nhóm | Chức năng | Ghi chú kỹ thuật |
+|---|---|---|
+| Project | Tạo mới (dialog: name, type, location, format, repo URL) | Sinh UUID, cấu trúc folder |
+| Project | Mở project từ đĩa, xem recent list | Persist trong `workspace.json` |
+| Project | Nhân bản project (clone + UUID mới) | Tránh trùng ID với project gốc |
+| Project | Remove from workspace | Không xóa file trên đĩa |
+| File ops | Tạo file/folder, rename, xóa | Xác nhận dialog trước khi xóa |
+| File ops | Cập nhật tất cả tab liên quan khi rename/move | Bắt `FS_WATCH_EVENT` + path remap |
+| Display | Ẩn `.autotest/` và thư mục nội bộ | Policy per feature type |
+| Display | Chỉ hiển thị thư mục feature JKAuto hỗ trợ | Lọc theo allowlist |
+| Menu | MenuBar HTML (Windows/Linux) | Native macOS menu qua Electron |
+| Menu | New/Open, Run/Stop, Reports, Settings từ OS menu | Gửi lệnh về renderer qua IPC |
+| Shell | Open Containing Folder | Mở Finder/Explorer tại thư mục chứa |
 
-### 2.4.2. Test Case Editor
+**Rủi ro:** Đồng bộ trạng thái tab khi file bị rename/xóa ngoài ứng dụng cần debounce và conflict resolution.
 
-Editor hỗ trợ:
+---
 
-- Thêm, xóa, di chuyển và kéo thả step.
-- Chọn keyword theo platform.
-- Chọn thiết bị Mobile.
-- Import step.
-- Context menu copy/cut/paste.
-- Undo/redo với giới hạn lịch sử.
-- Run, Debug, Stop và theo dõi trạng thái từng step.
-- Lịch sử chạy.
-- Phím tắt như F5, F6, Ctrl/Cmd+S.
+### 2.4.2. Test Case Editor — Trung tâm thiết kế kiểm thử
 
-Keyword được lấy từ engine qua IPC thay vì hard-code ở renderer. Quyết định này giúp tránh sai lệch giữa giao diện và khả năng thực thi.
+**Tổng quan:** Editor dạng bảng cho phép tạo, sửa và chạy test case. Mỗi hàng là một step với đầy đủ trường keyword, objectRef, input, expected và các cờ điều khiển.
 
-### 2.4.3. Test Suite
+**Luồng dữ liệu:**
 
-Suite Editor hỗ trợ khám phá test case trong project, thêm/xóa/sắp xếp case, chọn profile, chạy toàn suite hoặc từng case, hiển thị trạng thái từng case và tổng kết kết quả.
+```text
+File JSON/YAML ──parse──► Zustand store ──► Table UI
+Table UI ──────edit──► Zustand store ──► Serialize ──► File (dirty flag)
+```
 
-Suite mới được chuẩn hóa ở định dạng `.suite.yaml` và lưu đường dẫn test case tương đối theo project. Khi path cũ không còn hợp lệ, engine quét đệ quy và tìm test case bằng ID ổn định, sau đó tự cập nhật path mới vào suite. Cơ chế này tăng khả năng phục hồi khi người dùng di chuyển hoặc đổi tên test case, nhưng cần kiểm thử trường hợp trùng ID, file hỏng và project lớn.
+**Chức năng chi tiết:**
 
-### 2.4.4. API Request
+| Nhóm | Chức năng | Ghi chú |
+|---|---|---|
+| Step management | Thêm, xóa, di chuyển (drag-drop), enable/disable | |
+| Step management | Import step từ test case khác | Sinh ID mới cho step import |
+| Step management | Copy/cut/paste qua context menu | |
+| Step management | Undo/redo (giới hạn stack lịch sử, shared hook) | |
+| Autocomplete | Keyword dropdown lọc theo platform | Lấy từ engine registry qua IPC, không hard-code |
+| Autocomplete | ObjectRef picker từ Object Repository | |
+| Autocomplete | Variable suggestion từ profile đang active | |
+| Execution | Run (F5), Debug (F6), Stop | Auto-save trước khi run |
+| Execution | Hiển thị trạng thái từng step realtime | Icon pass/fail/running + log |
+| Execution | Console log tab realtime | Stream từ `ENGINE_STEP_EVENT` |
+| History | Danh sách lần chạy gần đây với kết quả tổng | Lấy từ `runs.db` |
+| Keyboard | F5 run, F6 debug, Ctrl/Cmd+S save, Delete xóa step | |
 
-Request Editor cung cấp:
+**IPC channels liên quan:**
 
-- Các phương thức HTTP phổ biến.
-- Query param, header, body và auth.
-- Resolve biến môi trường trong main process.
-- Assertion status, response time, header và JSON path.
-- Import/export cURL.
-- Import OpenAPI/Swagger.
-- Lịch sử tối đa 30 lần gửi.
-- Trích giá trị từ JSON response vào profile.
-- Import dữ liệu CSV/JSON.
+| Channel | Hướng | Mục đích |
+|---|---|---|
+| `KEYWORD_LIST` | invoke | Lấy danh sách keyword từ engine |
+| `ENGINE_RUN_CASE` | invoke | Bắt đầu chạy test |
+| `ENGINE_STOP` | invoke | Dừng runner |
+| `ENGINE_STEP_EVENT` | receive | Cập nhật trạng thái step realtime |
+| `ENGINE_RUN_COMPLETE` | receive | Kết thúc run, lưu summary |
 
-Tài liệu về collection đề cập Bruno, OpenCollection, Postman, Insomnia, OpenAPI, WSDL và ZIP. Tuy nhiên, mô tả feature triển khai hiện tại xác nhận rõ nhất luồng OpenAPI và cURL. Các định dạng khác cần được xem là định hướng cho đến khi có code hoặc ca kiểm thử xác nhận.
+**Điểm thiết kế quan trọng:** Keyword list lấy từ engine registry qua IPC — không bao giờ lệch giữa giao diện và khả năng thực thi.
 
-### 2.4.5. Object Editor
+---
 
-Object Editor cho phép thêm object, thêm locator, chỉnh strategy, value và priority. Hệ thống yêu cầu mỗi object có ít nhất một locator. Đây là một invariant cần được kiểm tra cả ở UI và schema.
+### 2.4.3. Test Suite — Tổ chức và chạy hàng loạt
 
-### 2.4.6. Appium
+**Tổng quan:** Suite Editor nhóm nhiều test case thành tập có thứ tự, cấu hình profile chạy chung và xem kết quả tổng hợp.
 
-Feature Appium gồm:
+**Cơ chế path recovery khi test case bị đổi đường dẫn:**
 
-- Cấu hình host, port, log level và auto-start.
-- Kiểm tra môi trường Appium, ADB và Xcode command line.
-- Quản lý driver.
-- Khởi động/dừng Appium server.
-- Kết nối session inspector.
-- Liệt kê thiết bị Android/iOS.
-- Mirror màn hình thiết bị.
-- Tap, swipe, nút phần cứng và chụp ảnh màn hình.
-- Inspector tách thành cửa sổ riêng.
+```text
+1. Engine phát hiện testCasePath không tồn tại
+2. Quét đệ quy test-cases/ của project
+3. Tìm file có "id" khớp với testCaseId trong suite item
+4. Cập nhật testCasePath mới → ghi lại vào file suite
+5. Tiếp tục thực thi bình thường
+```
 
-Android mirror sử dụng scrcpy và WebCodecs; iOS dùng luồng MJPEG. Touch vẫn được gửi qua Appium REST. Đây là feature có độ phức tạp và rủi ro tương thích cao nhất.
+Cơ chế này tránh lỗi "case not found" sau refactor thư mục, nhưng cần kiểm thử khi trùng ID hoặc file hỏng.
+
+**Chức năng chi tiết:**
+
+| Chức năng | Mô tả |
+|---|---|
+| Browse & add | Tìm kiếm test case theo tên, thêm vào suite |
+| Order | Sắp xếp thứ tự qua drag-drop |
+| Enable/disable | Bật/tắt từng case trong suite |
+| Profile | Chọn profile áp dụng cho toàn suite (ghi đè global) |
+| Run | Chạy toàn suite hoặc từng case riêng |
+| Results | Trạng thái từng case, tổng kết pass/fail/skip |
+| `continueOnFailure` | Cờ độc lập cấp suite và cấp case |
+
+---
+
+### 2.4.4. API Request Editor — HTTP Testing
+
+**Tổng quan:** Editor kiểu Postman tích hợp trong JKAuto, gửi HTTP request, kiểm tra response và chain kết quả vào profile.
+
+**Luồng request:**
+
+```text
+Renderer → API_SEND_REQUEST → Main process
+  ├── Resolve {{variables}} trong URL, header, body, auth  ← tại main, không phải renderer
+  ├── Gửi HTTP request (native)
+  ├── Trả response về renderer
+  ├── Renderer đánh giá assertion
+  ├── Lưu lịch sử (tối đa 30 bản ghi)
+  └── Save-to-Env: JSON path → ghi giá trị vào profile file
+```
+
+**Tab giao diện editor:**
+
+| Tab | Nội dung |
+|---|---|
+| Params | Query parameters (key-value) |
+| Headers | HTTP headers tùy chỉnh |
+| Body | Raw JSON, form-urlencoded, multipart |
+| Auth | None, Bearer token, Basic Auth, API Key |
+| Assertions | Status, response time, header, JSON path |
+| Save to Env | Chọn JSON path → biến profile |
+
+**Định dạng import/export:**
+
+| Định dạng | Trạng thái |
+|---|---|
+| cURL (import và export) | ✅ Triển khai |
+| OpenAPI / Swagger 3.x (import) | ✅ Triển khai |
+| Postman Collection | Định hướng (chưa xác nhận từ code) |
+| Bruno, Insomnia | Định hướng (chưa xác nhận từ code) |
+
+**Assertion operators:**
+
+| Operator | Áp dụng cho |
+|---|---|
+| `eq`, `ne` | Status code, JSON path value |
+| `contains`, `not-contains` | Body text, header value |
+| `exists`, `not-exists` | JSON path, header name |
+| `lt`, `gt` | Response time (ms), numeric value |
+
+---
+
+### 2.4.5. Object Repository Editor
+
+**Tổng quan:** Editor quản lý thư viện phần tử giao diện. Mỗi object có nhiều locator dự phòng theo độ ưu tiên.
+
+**Chức năng:**
+- Thêm/xóa/đổi tên object.
+- Thêm/xóa/sắp xếp locator; chọn strategy từ dropdown.
+- **Invariant bắt buộc:** mỗi object phải có ít nhất một locator — kiểm tra cả UI và schema.
+- Engine log locator nào đã dùng để debug khi fail.
+
+**Tại sao multi-locator quan trọng:** Khi DOM thay đổi (redesign, framework migration), locator ưu tiên cao có thể hỏng nhưng locator dự phòng vẫn hoạt động — test không bị broken ngay lập tức.
+
+---
+
+### 2.4.6. Appium Integration — Mobile và Native Testing
+
+**Tổng quan:** JKAuto tích hợp Appium để kiểm thử ứng dụng Android/iOS thật hoặc emulator, kết hợp device mirror và inspector UI.
+
+**Kiến trúc Appium trong JKAuto:**
+
+```text
+JKAuto renderer ──IPC──► Appium handler (main process)
+                              │
+                              ├──► Appium server (localhost:4723)
+                              │         └──► ADB (Android) / Xcode simctl (iOS)
+                              │                   └──► Device thật / Emulator
+                              │
+                              └──► scrcpy process (Android mirror)
+                                        └──► WebCodecs API (renderer decode stream)
+```
+
+**Chức năng chi tiết:**
+
+| Nhóm | Chức năng | Ghi chú |
+|---|---|---|
+| Setup | Cấu hình host, port, log level | Lưu vào `settings.json` (userData) |
+| Setup | Kiểm tra môi trường: Appium, ADB, Xcode CLI | Báo lỗi cụ thể từng thành phần thiếu |
+| Setup | Auto-start Appium khi mở project | Optional trong settings |
+| Server | Khởi động / dừng Appium server | Stream log về renderer |
+| Driver | Liệt kê, cài uiautomator2, xcuitest | |
+| Devices | Liệt kê Android (`adb devices`) và iOS (`simctl list`) | |
+| Inspector | Kết nối session Appium, xem element tree | Tách thành cửa sổ riêng |
+| Mirror | Android: scrcpy + WebCodecs; iOS: MJPEG stream | |
+| Interaction | Tap, swipe, nút phần cứng (home, back) | Gửi qua Appium REST API |
+| Screenshot | Chụp màn hình thiết bị | Lưu vào `reports/<run-id>/` |
+
+**Rủi ro cao nhất trong hệ thống:** Appium phụ thuộc vào môi trường ngoài phức tạp (Node version, ADB version, driver, USB/WiFi). GUI Electron không thừa hưởng `PATH` từ shell — bắt buộc phải seed qua `bootstrap-env.ts`.
 
 ### 2.4.7. AI Agent
 
@@ -619,45 +1035,64 @@ Ba chính sách quyền sửa tệp:
 
 `AGENT_CANCEL` hiện trả stub `{ ok: true }` — khả năng hủy yêu cầu dài đang chạy trên opencode là điểm còn thiếu.
 
-### 2.4.8. Sinh kiểm thử từ repository
+### 2.4.8. Autogen Test — Sinh kiểm thử từ mã nguồn
 
-Feature Autogen Test cho phép nhập URL hoặc đường dẫn repository, sau đó thực hiện luồng:
+**Tổng quan:** Feature phân tích tĩnh repository (Git URL hoặc local path) để tự động sinh test case, không yêu cầu người dùng phải hiểu sâu codebase.
 
-1. Clone nông repository hoặc pull cache hiện có trong `.autotest/repo-cache`.
-2. Nhận diện framework, ngôn ngữ, OpenAPI và test framework.
-3. Trích route, phần tử giao diện, symbol và API endpoint bằng AST hoặc parser theo ngôn ngữ.
-4. Lưu code map và chunk tìm kiếm vào SQLite.
-5. Chọn page/API target và loại test cần sinh.
-6. Xây context có ngân sách khoảng 12.000 token, stream kết quả từ LLM, chuẩn hóa và kiểm tra bằng `TestCaseSchema`.
-7. Lưu test sinh ra vào `test-cases/*.test.yaml`.
+**Pipeline 7 bước:**
 
-Indexer hỗ trợ nhận diện nhiều hệ sinh thái gồm TypeScript/JavaScript, Java/Kotlin, Go, Python và Rust. Route parser có xử lý Next.js, React Router và Angular; endpoint parser hỗ trợ OpenAPI cùng một số framework backend phổ biến.
+```text
+[1] Clone / Pull       → .autotest/repo-cache/<hash>/  (shallow clone)
+[2] Nhận diện stack    → ngôn ngữ, framework, OpenAPI spec, test framework hiện có
+[3] Parse AST/spec     → routes, UI elements, API endpoints, symbols
+[4] Lưu code map       → SQLite index.db (file chunks + metadata)
+[5] Người dùng chọn   → page / API target + loại test cần sinh
+[6] Build context      → ~12.000 token budget → stream LLM → normalize → TestCaseSchema.safeParse
+[7] Lưu test case      → test-cases/<normalized-name>.test.yaml
+```
 
-Đây là luồng sinh test dựa trên phân tích tĩnh, khác với Agent `directly`: Autogen suy luận từ mã nguồn và API spec, còn `directly` quan sát trạng thái trình duyệt thật. Kết quả `safeParse` chưa phải hard gate vì nhánh lỗi vẫn trả dữ liệu đã chuẩn hóa; `AUTOGEN_CANCEL` cũng chưa dùng `AbortController`. Việc ghi file cần kiểm soát xung đột tên để tránh ghi đè test đã tồn tại.
+**Hỗ trợ ngôn ngữ và framework:**
 
-### 2.4.9. JKAuto Skills
+| Nhóm | Ngôn ngữ / Framework | Parser sử dụng |
+|---|---|---|
+| Frontend | TypeScript, JavaScript | ESTree AST |
+| Routing | Next.js, React Router, Angular | Route-specific parser |
+| Backend | Express, Fastify, NestJS | Endpoint extractor |
+| API spec | OpenAPI 3.x, Swagger 2.x | Swagger Parser + dereference |
+| Khác | Go, Python, Java/Kotlin, Rust | Basic symbol extractor |
 
-Ba skill chính:
+**Phân biệt Autogen và Agent Directly:**
 
-- `jkauto-testcase-author`: tạo hoặc sửa test case đúng schema.
-- `jkauto-keywords`: chọn keyword và field phù hợp platform/runner.
-- `jkauto-run-debugger`: chẩn đoán lỗi keyword, selector, biến, API và timing.
+| Tiêu chí | Autogen Test | Agent Directly |
+|---|---|---|
+| Nguồn thông tin | Phân tích tĩnh mã nguồn / API spec | Quan sát trình duyệt thật (DOM) |
+| Cần app đang chạy | Không | Có |
+| Độ chính xác selector | Suy luận từ code (có thể sai) | Lấy từ DOM thật (chính xác hơn) |
+| Trường hợp dùng | Có repo, chưa có môi trường | App đã chạy, cần kiểm chứng luồng |
 
-Các skill giúp chuẩn hóa đầu ra AI và giảm việc sinh cấu hình không hợp lệ. Tuy nhiên, skill không thay thế schema validation và test thực thi.
+**Điểm cần cải thiện:**
+- `safeParse` chưa phải hard gate: nhánh lỗi vẫn trả dữ liệu đã normalize, test không hợp lệ có thể được lưu.
+- `AUTOGEN_CANCEL` chưa dùng `AbortController` thực sự.
+- Chưa xử lý trùng tên file khi sinh test (có thể ghi đè test cũ).
+- Repository lớn hoặc độc hại có thể khiến parser tiêu thụ tài nguyên vô giới hạn.
+
+---
+
+### 2.4.9. JKAuto Skills — Chuẩn hóa đầu ra AI
+
+JKAuto Skills là các prompt skill dạng Markdown được inject vào context AI, giúp chuẩn hóa đầu ra khi sinh và sửa test case.
+
+| Skill | Mục đích | Khi sử dụng |
+|---|---|---|
+| `jkauto-testcase-author` | Tạo hoặc sửa test case đúng schema JSON/YAML | Agent sinh test case mới hoặc append steps |
+| `jkauto-keywords` | Chọn keyword và field đúng theo platform/runner | Agent chọn từ keyword registry |
+| `jkauto-run-debugger` | Chẩn đoán lỗi keyword, selector, biến, API, timing | Agent debug test fail |
+
+Skill giúp giảm hallucination (keyword không tồn tại, field mapping sai như nhầm `input` với `expected`). Tuy nhiên, skill không thay thế schema validation cuối cùng và không đảm bảo test thực thi đúng.
 
 ## 2.5. Luồng thực thi kiểm thử
 
-Luồng chạy test case:
-
-1. Editor tự động lưu tệp.
-2. Đọc profile đang hoạt động.
-3. Gửi yêu cầu `ENGINE_RUN_CASE` qua IPC.
-4. Main process chọn adapter theo platform/runner.
-5. Engine resolve biến, object reference và keyword.
-6. Runner thực thi từng step.
-7. Event trạng thái được stream về renderer.
-8. Renderer cập nhật bảng, console và progress.
-9. Kết quả chạy được lưu vào lịch sử.
+### 2.5.1. Luồng chạy test case đơn
 
 **Hình 2.4 — Sơ đồ tuần tự luồng chạy test case**
 
@@ -689,63 +1124,111 @@ sequenceDiagram
     IPC-->>Editor: Hiển thị tổng kết
 ```
 
-Luồng chạy suite bổ sung bước duyệt các test case theo order, áp dụng profile cấp suite và xử lý `continueOnFailure`.
+### 2.5.2. Luồng chạy Test Suite
 
-Luồng API Request:
+```text
+Suite Editor → ENGINE_RUN_SUITE → Main process
+  ├── Load suite file (resolve items, path recovery nếu cần)
+  ├── Load profile cấp suite (ghi đè profile global)
+  └── Loop qua items (theo order, skip enabled=false):
+        ├── Load test case file
+        ├── Resolve biến (suite profile > global profile)
+        ├── runTestCase(steps) → stream ENGINE_STEP_EVENT
+        ├── Ghi kết quả case vào runs.db
+        ├── Case fail + continueOnFailure=false → dừng toàn suite
+        └── Case fail + continueOnFailure=true → tiếp tục case tiếp theo
+  └── Tổng kết pass/fail/skip → ENGINE_SUITE_COMPLETE
+```
 
-1. Đọc request từ tệp.
-2. Nạp biến profile.
-3. Resolve URL, header, body và auth trong main process.
-4. Gửi HTTP request.
-5. Trả response cho renderer.
-6. Đánh giá assertion.
-7. Lưu lịch sử.
-8. Cho phép trích dữ liệu response vào profile.
+### 2.5.3. Luồng API Request (Send & Save-to-Env)
+
+```text
+Request Editor → API_SEND_REQUEST → Main process
+  ├── Đọc request file
+  ├── Load profile đang active
+  ├── Resolve {{variables}} trong URL, header, body, auth  ← tại main process
+  ├── Gửi HTTP request (native)
+  ├── Trả full response (status, headers, body, time) về renderer
+  ├── Renderer đánh giá assertions (eq/contains/exists/lt/gt)
+  ├── Lưu vào history (tối đa 30 bản ghi per request file)
+  └── Nếu Save-to-Env:
+        ├── Trích JSON path từ response body
+        └── Ghi giá trị vào profile file ({{token}} = <jwt_value>)
+```
+
+### 2.5.4. Luồng AI Agent chat
+
+```text
+AgentPanel → AGENT_CHAT(sessionId, text) → agent.handler.ts
+  ├── Inject <assistant_identity> nếu first turn của sessionId
+  ├── getOrStartRuntime(projectPath) → spawn harness nếu chưa chạy
+  ├── agent-client.ts: POST /message → harness REST API
+  └── Harness:
+        ├── Agentic tool loop (tối đa N vòng / 40 cho Directly)
+        │     ├── LLM gọi tool (MCP filesystem, web search, file edit…)
+        │     └── Execute tool → kết quả → LLM tiếp tục sinh
+        ├── SSE stream: chunk từng phần text về renderer
+        └── session.idle → kết thúc stream
+  ← AGENT_STREAM_CHUNK (mỗi text token chunk)
+  ← AGENT_STREAM_TOOL_EVENT (tool call/result display)
+  ← AGENT_CHAT result (final assembled message)
+```
 
 ## 2.6. Công nghệ sử dụng
 
-| Thành phần | Công nghệ | Mục đích |
+| Thành phần | Công nghệ | Lý do lựa chọn |
 |---|---|---|
-| Desktop shell | Electron | Truy cập hệ thống và phát hành đa nền tảng |
-| Giao diện | React, Vite, TypeScript | Xây dựng UI |
-| Thành phần UI | shadcn/ui, Radix UI, Tailwind CSS | Giao diện nhất quán |
-| State | Zustand, TanStack Query | Quản lý trạng thái |
-| Web/Desktop runner | Playwright | Tự động hóa trình duyệt và Electron |
-| Native Mobile | Appium/WebDriverIO | Điều khiển ứng dụng di động |
-| Mobile flow | Maestro mapping | Chạy kịch bản mobile theo DSL trung gian |
-| Validation | Zod | Schema và kiểm tra dữ liệu |
-| Data | JSON, YAML, SQLite | Artifact, cấu hình và lịch sử |
-| AI orchestration | Agent Runtime Harness (nội bộ) | Backend agent: session, tool loop, MCP, streaming |
-| AI | Vercel AI SDK, MCP | Chat, tool calling và sinh test (renderer/adapter layer) |
-| Phân tích repository | TypeScript ESTree, parser theo ngôn ngữ, Swagger Parser, simple-git | Lập code map và context sinh test |
-| Workspace | pnpm, Turborepo | Quản lý monorepo |
+| Desktop shell | Electron | FS access, native dialog, spawn process, đa nền tảng |
+| Build renderer | Vite + electron-vite | HMR nhanh, ESM, bundle tối ưu Electron |
+| Giao diện | React 18 + TypeScript 5.x | Ecosystem lớn, type safety đầu cuối |
+| Thành phần UI | shadcn/ui, Radix UI, Tailwind CSS | Accessible, composable, không lock vendor |
+| Cây tệp | react-arborist | Virtualized, drag-drop, rename inline |
+| Resize panes | react-resizable-panels | shadcn ecosystem, persist layout |
+| State UI | Zustand | Lightweight, không boilerplate Redux |
+| Data fetching | TanStack Query v5 | Cache, invalidation, IPC bridge |
+| Schema / validation | Zod v3 | Runtime validation + TypeScript inference từ schema |
+| Data format | JSON, YAML (`yaml` package) | Git-friendly; YAML giữ comment |
+| Web / Desktop runner | `@playwright/test` | Stable selector, trace, screenshot, multi-browser |
+| Native Mobile | Appium / WebDriverIO | Industry standard cho native mobile automation |
+| Mobile DSL | Maestro keyword mapping | Bridge JKAuto keyword sang Maestro flow |
+| Database | `better-sqlite3` | Sync API, không cần ORM, nhanh, cùng runtime Node |
+| AI backend | Agent Runtime Harness (nội bộ) | Session, tool loop agentic, MCP, SSE streaming |
+| AI SDK | Vercel AI SDK + MCP protocol | Tool calling, streaming, model-agnostic |
+| Repo analysis | TypeScript ESTree, simple-git, Swagger Parser | AST parse đa ngôn ngữ, clone nhanh, API spec |
+| Monorepo | pnpm workspace + Turborepo | Fast install, build cache, task graph parallel |
 
 ## 2.7. Các quyết định thiết kế ảnh hưởng đến chất lượng
 
-### Điểm tích cực
+### 2.7.1. Quyết định tích cực
 
-- JSON/YAML là nguồn sự thật, thuận lợi cho Git và review.
-- Schema version được thiết kế từ đầu.
-- ID ổn định, tên có thể thay đổi.
-- Renderer không truy cập filesystem trực tiếp.
-- Keyword registry là nguồn chung cho engine và editor.
-- Adapter giúp mở rộng runner.
-- Undo/redo được dùng chung qua hook.
-- AI có chế độ chỉ đề xuất và chế độ rollback.
-- History và cache được tách khỏi artifact nguồn.
+| Quyết định | Lợi ích về chất lượng |
+|---|---|
+| JSON/YAML là nguồn sự thật | Git diff rõ, review được, không lock-in vendor format |
+| `schemaVersion` trong mỗi file | Migration có thể backward-compatible; detect version sai sớm |
+| ID ổn định, tên mutable | Rename/move không phá vỡ tham chiếu từ suite hoặc report |
+| Renderer sandbox (`contextIsolation: true`) | Bảo mật tốt hơn; buộc mọi FS/process phải đi qua IPC |
+| Keyword registry là single source of truth | Editor và engine không bao giờ lệch nhau |
+| Adapter pattern cho runner | Thêm runner mới (Maestro, Appium…) không sửa engine core |
+| Shared `useUndoRedo` hook | UX nhất quán giữa Test Case Editor và Object Editor |
+| AI có chế độ `ask` (chỉ đề xuất) | Người dùng kiểm soát trước khi ghi file |
+| AI có chế độ `auto-with-rollback` | An toàn: backup trước khi AI ghi |
+| `.autotest/` tách khỏi artifact | Xóa cache không mất dữ liệu nguồn |
 
-### Điểm cần kiểm soát
+### 2.7.2. Điểm cần kiểm soát và cải thiện
 
-- Tài liệu giữa roadmap và feature chưa đồng bộ.
-- Một số dữ liệu lịch sử dùng JSON thay vì SQLite, cần kiểm soát ghi đồng thời.
-- Việc dùng package native như `better-sqlite3` yêu cầu rebuild đúng phiên bản Electron.
-- GUI Electron không thừa hưởng biến môi trường shell: `PLAYWRIGHT_BROWSERS_PATH`, `PATH` cho Appium/ADB phải được seed sớm tại `bootstrap-env.ts` trước khi Playwright import. Dự án xử lý bằng cách đọc `.env` và `settings.json` (userData) đồng bộ ngay khi khởi động. Nếu biến thiếu, Playwright tìm browser sai vị trí và báo "Executable doesn't exist"; engine có cơ chế tự cài lại chromium khi gặp lỗi này.
-- Maestro chỉ hỗ trợ một tập con keyword; một số keyword bị skip hoặc báo không hỗ trợ.
-- `get-text` hiện đọc nhưng chưa lưu giá trị theo tài liệu keyword.
-- Agent gọi nhiều MCP server cho mỗi lượt chat có thể ảnh hưởng hiệu năng và độ ổn định.
-- Directly mode có thể chạy đến 40 vòng tool, cần giới hạn thời gian và khả năng hủy thật.
-- Repository không tin cậy có thể rất lớn, chứa symlink hoặc cấu trúc gây parser tiêu thụ nhiều tài nguyên.
-- Autogen lưu theo tên chuẩn hóa nhưng chưa thể hiện cơ chế xử lý trùng tên file.
+| Điểm rủi ro | Nguyên nhân gốc | Biện pháp đề xuất |
+|---|---|---|
+| Roadmap PLAN.md không đồng bộ với feature | Không cập nhật khi triển khai xong | Đưa vào Definition of Done |
+| Ghi đồng thời JSON history | Không có file lock / queue | Queue + atomic write (ghi tmp → rename) |
+| Native module `better-sqlite3` lỗi đóng gói | Phải rebuild đúng Electron ABI | Build matrix CI, smoke test artifact |
+| GUI không thừa hưởng shell env | Electron không load `.bashrc`/`.zshrc` | `bootstrap-env.ts` đọc `.env` đồng bộ khi start |
+| Playwright tìm browser sai vị trí | `PLAYWRIGHT_BROWSERS_PATH` chưa set trong app context | Seed qua `.env` + auto-install fallback trong `web-adapter.ts` |
+| Maestro keyword coverage không đầy đủ | Chỉ subset keyword được map | Cảnh báo rõ trong editor; không hiển thị như hỗ trợ đầy đủ |
+| `get-text` chưa lưu giá trị vào biến | Implementation lệch với tài liệu keyword | Bug cần fix + unit test |
+| Agent MCP overhead | Nhiều MCP server per lượt chat | Benchmark; timeout per MCP call |
+| Directly mode không hủy được | `AGENT_CANCEL` trả stub `{ ok: true }` | `AbortController` + cleanup Chromium/MCP |
+| Autogen trùng tên file | Không kiểm tra existence trước khi ghi | Kiểm tra tồn tại; dùng suffix/UUID khi trùng |
+| Repository lớn/độc hại treo indexer | Không có giới hạn clone/scan | Depth limit, size limit, process riêng với timeout |
 
 ---
 
@@ -812,85 +1295,111 @@ Thang đánh giá tài liệu:
 
 ## 3.3. Kiểm định yêu cầu chức năng
 
+> **Quy ước cột Trạng thái:** ✅ Pass · ❌ Fail · ⬜ Chưa thực thi · ⚠️ Partial
+
 ### 3.3.1. Test Case Editor
 
-| Mã | Ca kiểm thử | Dữ liệu/Thao tác | Kết quả mong đợi | Mức ưu tiên |
-|---|---|---|---|---|
-| TC-01 | Mở test case hợp lệ | Tệp `.test.yaml` đúng schema | Hiển thị đúng metadata và step | Critical |
-| TC-02 | Mở test case lỗi cú pháp | YAML sai cấu trúc hoặc sai kiểu dữ liệu | Hiển thị lỗi, không làm treo editor | High |
-| TC-03 | Thêm step | Nhấn Add Step | Step mới có ID và giá trị mặc định | High |
-| TC-04 | Undo/redo | Sửa 3 lần rồi undo/redo | Trạng thái phục hồi đúng, không vượt stack | High |
-| TC-05 | Lọc keyword | Chọn platform Appium | Chỉ hiển thị keyword được hỗ trợ | Critical |
-| TC-06 | Chạy test | Nhấn F5 | Tự lưu, gửi IPC, trạng thái step được stream | Critical |
-| TC-07 | Dừng test | Stop khi đang chạy | Runner dừng, trạng thái chuyển `stopped` | Critical |
-| TC-08 | Continue on failure | Step đầu lỗi, cờ bật | Step tiếp theo vẫn chạy | High |
-| TC-09 | Timeout | Step chờ quá timeout | Step fail với thông báo rõ | High |
-| TC-10 | Disabled step | `enabled=false` | Step được đánh dấu skipped | Medium |
+**Điều kiện tiên quyết chung:** JKAuto đã khởi động, project mẫu đã được mở, ứng dụng mục tiêu đang chạy (với ca yêu cầu browser/runner).
+
+| Mã | Ca kiểm thử | Điều kiện tiên quyết | Các bước chính | Kết quả mong đợi | Kết quả thực tế | Trạng thái | Mức |
+|---|---|---|---|---|---|---|---|
+| TC-01 | Mở test case hợp lệ | File `.test.yaml` đúng schema tồn tại | Double-click file trong Explorer | Hiển thị đúng metadata và danh sách step, không báo lỗi | | ⬜ | Critical |
+| TC-02 | Mở test case lỗi cú pháp | File YAML có cú pháp sai | Double-click file | Hiển thị thông báo lỗi parse cụ thể, editor không treo | | ⬜ | High |
+| TC-03 | Thêm step | Test case đang mở | Nhấn nút Add Step hoặc tổ hợp phím | Step mới xuất hiện với ID duy nhất và các trường mặc định | | ⬜ | High |
+| TC-04 | Undo/redo | Test case đang mở, đã sửa | Sửa 3 lần, nhấn Undo 3 lần rồi Redo 2 lần | Trạng thái phục hồi đúng theo thứ tự, không vượt stack | | ⬜ | High |
+| TC-05 | Lọc keyword theo platform | Test case platform = Appium | Mở dropdown keyword | Chỉ hiển thị keyword được hỗ trợ bởi Appium | | ⬜ | Critical |
+| TC-06 | Chạy test (F5) | Browser/runner sẵn sàng, profile đã chọn | Nhấn F5 | Tự lưu file, gửi IPC ENGINE_RUN_CASE, step events stream về realtime | | ⬜ | Critical |
+| TC-07 | Dừng test đang chạy | Test đang trong trạng thái running | Nhấn Stop | Runner nhận tín hiệu dừng, trạng thái chuyển `stopped`, log kết thúc | | ⬜ | Critical |
+| TC-08 | Continue on failure bật | Step đầu có selector sai, `continueOnFailure=true` | Chạy test | Step 1 fail, step tiếp theo vẫn được thực thi | | ⬜ | High |
+| TC-09 | Timeout step | Selector không tồn tại, timeout = 2000 ms | Chạy test | Step fail sau đúng 2 giây, thông báo timeout rõ ràng | | ⬜ | High |
+| TC-10 | Disabled step | Một step có `enabled=false` | Chạy test | Step bị đánh dấu skipped trong log, không được thực thi | | ⬜ | Medium |
+| TC-11 | Lưu file với Ctrl+S | Nội dung đã thay đổi (dirty indicator) | Nhấn Ctrl/Cmd+S | File ghi xuống đĩa, dirty indicator tắt | | ⬜ | High |
+| TC-12 | Import step từ file khác | File step nguồn hợp lệ | Thao tác Import Steps | Step được copy vào test case, ID được sinh mới | | ⬜ | Medium |
+| TC-13 | Copy/paste step qua context menu | Có ít nhất 1 step | Right-click → Copy, chọn vị trí → Paste | Step được duplicate với ID mới | | ⬜ | Medium |
+| TC-14 | Kéo thả step thay đổi thứ tự | Nhiều step | Kéo step từ vị trí 3 lên vị trí 1 | Thứ tự thay đổi đúng, file được đánh dấu dirty | | ⬜ | Medium |
+| TC-15 | Biến profile được resolve trong input | Profile có biến `baseUrl` | Chạy test có step dùng `{{baseUrl}}` | Giá trị thực tế được thay thế khi thực thi | | ⬜ | Critical |
 
 ### 3.3.2. Test Suite
 
-| Mã | Ca kiểm thử | Kết quả mong đợi |
-|---|---|---|
-| TS-01 | Thêm test case chưa có trong suite | Item được thêm với order đúng |
-| TS-02 | Thêm trùng test case | Không tạo bản ghi trùng |
-| TS-03 | Sắp xếp case | Order được cập nhật nhất quán |
-| TS-04 | Profile cấp suite | Runner nhận đúng biến của profile suite |
-| TS-05 | Case fail, `continueOnFailure=false` | Suite dừng theo chính sách |
-| TS-06 | Case fail, `continueOnFailure=true` | Case sau tiếp tục chạy |
-| TS-07 | Mở suite legacy | `testCaseIds` được normalize không mất dữ liệu |
-| TS-08 | Case bị đổi đường dẫn | Hệ thống resolve bằng ID và ghi lại path tương đối mới vào suite |
-| TS-09 | Hai case trùng ID | Không tự liên kết nhầm; báo lỗi dữ liệu rõ ràng |
-| TS-10 | Suite chứa path tuyệt đối từ máy khác | Resolve có kiểm soát hoặc chuyển sang path tương đối trong project |
+**Điều kiện tiên quyết chung:** Project mở, có ít nhất 2 test case đã lưu.
+
+| Mã | Ca kiểm thử | Điều kiện tiên quyết | Các bước chính | Kết quả mong đợi | Kết quả thực tế | Trạng thái |
+|---|---|---|---|---|---|---|
+| TS-01 | Thêm test case vào suite | Suite mở, test case chưa có | Tìm kiếm và thêm từ panel picker | Item được thêm với order đúng, file suite cập nhật | | ⬜ |
+| TS-02 | Thêm trùng test case | Test case đã có trong suite | Thêm lại cùng test case | Không tạo bản ghi trùng, có thông báo | | ⬜ |
+| TS-03 | Sắp xếp case (drag-drop) | Có ≥ 3 case | Kéo thả thay đổi thứ tự | Order được cập nhật nhất quán vào file suite | | ⬜ |
+| TS-04 | Profile cấp suite ghi đè profile global | Suite có profile riêng | Chạy suite | Runner nhận biến từ profile suite, không dùng profile mặc định | | ⬜ |
+| TS-05 | Suite dừng khi case fail (`continueOnFailure=false`) | Case 2 trong suite có lỗi cố ý | Chạy toàn suite | Suite dừng sau case 2, case 3 không được thực thi | | ⬜ |
+| TS-06 | Suite tiếp tục khi case fail (`continueOnFailure=true`) | Suite-level flag bật | Chạy toàn suite | Tất cả case đều được thực thi, tổng kết hiển thị đúng số pass/fail | | ⬜ |
+| TS-07 | Mở suite legacy (testCaseIds dạng cũ) | File suite cũ có `testCaseIds: [...]` | Mở suite | Normalize sang format mới không mất dữ liệu | | ⬜ |
+| TS-08 | Case bị đổi đường dẫn (path recovery) | Test case đã được move sang folder khác | Mở suite | Hệ thống resolve bằng ID, tự cập nhật path mới vào suite | | ⬜ |
+| TS-09 | Hai case trùng ID | Dữ liệu fixture có 2 file với ID giống nhau | Mở suite | Báo lỗi dữ liệu rõ ràng, không liên kết nhầm | | ⬜ |
+| TS-10 | Suite có path tuyệt đối | Copy suite từ máy khác | Mở suite | Resolve có kiểm soát hoặc chuyển sang path tương đối | | ⬜ |
+| TS-11 | Xem tổng kết sau khi chạy suite | Suite hoàn tất | Xem panel kết quả | Hiển thị tổng số pass/fail/skip, thời gian từng case | | ⬜ |
 
 ### 3.3.3. Explorer
 
-| Mã | Ca kiểm thử | Kết quả mong đợi |
-|---|---|---|
-| EX-01 | Tạo file/folder | Cây tệp cập nhật và file tồn tại trên đĩa |
-| EX-02 | Rename file đang mở | Tab đổi path, nội dung không mất |
-| EX-03 | Rename folder | Mọi tab con được cập nhật path |
-| EX-04 | Xóa file đang mở | Tab đóng và cây tệp cập nhật |
-| EX-05 | Thay đổi file từ bên ngoài | File watcher cập nhật cây |
-| EX-06 | Nhân bản project | Project mới có UUID và tên mới |
-| EX-07 | Remove from workspace | Project bị loại khỏi workspace, tệp trên đĩa còn nguyên |
+**Điều kiện tiên quyết chung:** Project mở, workspace có ít nhất 1 project.
+
+| Mã | Ca kiểm thử | Điều kiện tiên quyết | Các bước chính | Kết quả mong đợi | Kết quả thực tế | Trạng thái |
+|---|---|---|---|---|---|---|
+| EX-01 | Tạo file mới | Folder đích tồn tại | Right-click folder → New Test Case | File xuất hiện trong cây, tồn tại trên đĩa | | ⬜ |
+| EX-02 | Tạo folder mới | Project đang mở | Right-click folder → New Folder | Folder tạo trên đĩa, cây cập nhật ngay | | ⬜ |
+| EX-03 | Rename file đang mở | File đang có tab | Rename từ context menu | Tab đổi path, nội dung không mất, file mới tồn tại | | ⬜ |
+| EX-04 | Rename folder có tab con | Folder có ≥ 2 tab đang mở | Rename folder | Mọi tab con cập nhật path, content không mất | | ⬜ |
+| EX-05 | Xóa file đang mở | File đang mở trong tab | Delete từ context menu, xác nhận | Tab đóng, cây cập nhật, file không còn trên đĩa | | ⬜ |
+| EX-06 | File watcher phát hiện thay đổi ngoài | Dùng text editor khác sửa file | Lưu file ngoài JKAuto | Cây tệp và tab hiển thị nội dung mới | | ⬜ |
+| EX-07 | Nhân bản project | Project hợp lệ | Context menu → Clone Project | Project mới có UUID mới và tên mới, cấu trúc giống | | ⬜ |
+| EX-08 | Remove from workspace | Project trong workspace | Remove Project từ context menu | Project biến khỏi workspace, tệp trên đĩa còn nguyên | | ⬜ |
+| EX-09 | Menu context hiển thị đúng per node type | Các loại node: folder, test-case, suite, objects | Right-click từng loại node | Menu items phù hợp với loại node | | ⬜ |
+| EX-10 | Open Containing Folder | File bất kỳ | Right-click → Open Containing Folder | Finder/Explorer mở đúng thư mục chứa | | ⬜ |
 
 ## 3.4. Kiểm định dữ liệu và schema
 
 ### 3.4.1. Test Case schema
 
-Cần kiểm tra:
+**Các invariant cần kiểm tra bằng unit test (Vitest):**
 
-- `schemaVersion` có giá trị được hỗ trợ.
-- `id` và `keyword` không rỗng.
-- `timeout` là `null` hoặc số không âm.
-- `steps` giữ nguyên thứ tự.
-- `createdAt` và `updatedAt` đúng ISO datetime khi schema yêu cầu.
-- Platform và runner là cặp hợp lệ.
-- Mỗi step dùng đúng trường `objectRef`, `input`, `expected`.
+| Mã | Trường / điều kiện | Kiểm tra | Kết quả mong đợi | Trạng thái |
+|---|---|---|---|---|
+| SCH-01 | `schemaVersion` | Giá trị nằm trong tập được hỗ trợ | Parse thành công | ⬜ |
+| SCH-02 | `id` | Chuỗi rỗng | Zod reject, thông báo rõ | ⬜ |
+| SCH-03 | `keyword` | Chuỗi rỗng | Zod reject | ⬜ |
+| SCH-04 | `timeout` | `null`, 0, 30000, -1 | null và số không âm hợp lệ; -1 bị reject | ⬜ |
+| SCH-05 | `steps` | Array 0 phần tử | Cho phép (empty test) | ⬜ |
+| SCH-06 | `platform` / `runner` | Cặp không hợp lệ (vd. platform=api, runner=playwright) | Reject hoặc cảnh báo | ⬜ |
+| SCH-07 | `enabled` | Thiếu trường | Default = true | ⬜ |
+| SCH-08 | `continueOnFailure` | Thiếu trường | Default = false | ⬜ |
+| SCH-09 | Toàn bộ file | YAML sai cú pháp | Parse trả Error, không throw unhandled | ⬜ |
+| SCH-10 | `steps` thứ tự | Mảng gồm 5 step | Thứ tự giữ nguyên sau serialize/deserialize | ⬜ |
 
 ### 3.4.2. Object Repository schema
 
-Các invariant:
+**Các invariant cần kiểm tra:**
 
-- Mỗi object có ID ổn định.
-- Tên object không trùng trong cùng repository.
-- Mỗi object có ít nhất một locator.
-- Priority không trùng hoặc phải có quy tắc sắp xếp xác định.
-- Strategy nằm trong danh sách hỗ trợ.
-- Locator rỗng không được dùng khi thực thi.
+| Mã | Điều kiện | Kết quả mong đợi | Trạng thái |
+|---|---|---|---|
+| OBJ-01 | Object không có locator nào | Bị reject bởi schema hoặc UI báo lỗi | ⬜ |
+| OBJ-02 | Hai object cùng tên trong một repo | UI cảnh báo hoặc schema reject | ⬜ |
+| OBJ-03 | Strategy ngoài danh sách hỗ trợ | Zod reject với enum error | ⬜ |
+| OBJ-04 | Locator có value rỗng | Bị lọc ra trước khi thực thi | ⬜ |
+| OBJ-05 | Priority trùng nhau | Thứ tự thực thi được xác định rõ | ⬜ |
+| OBJ-06 | objectRef không tồn tại trong repo | Engine báo lỗi cụ thể, không null-pointer | ⬜ |
 
 ### 3.4.3. Variable interpolation
 
-Các trường hợp cần kiểm tra:
+**Điều kiện tiên quyết:** Profile `default.env.json` có biến `baseUrl`, `token`; test case có biến `localVar`.
 
-| Trường hợp | Kết quả mong đợi |
-|---|---|
-| Biến tồn tại trong test case | Được thay thế |
-| Biến tồn tại trong profile | Được thay thế |
-| Trùng tên ở hai nguồn | Áp dụng quy tắc ưu tiên được tài liệu hóa |
-| Biến không tồn tại | Giữ nguyên và/hoặc phát cảnh báo |
-| Chuỗi có nhiều biến | Tất cả biến được resolve đúng |
-| Giá trị chứa ký tự đặc biệt | Không làm hỏng JSON, URL hoặc shell quoting |
+| Mã | Trường hợp | Input | Kết quả mong đợi | Kết quả thực tế | Trạng thái |
+|---|---|---|---|---|---|
+| VAR-01 | Biến tồn tại trong test case | `{{localVar}}` | Giá trị được thay thế | | ⬜ |
+| VAR-02 | Biến tồn tại trong profile | `{{baseUrl}}` | Giá trị profile được thay thế | | ⬜ |
+| VAR-03 | Trùng tên ở hai nguồn | Biến `x` ở cả test case và profile | Áp dụng theo quy tắc ưu tiên đã tài liệu hóa | | ⬜ |
+| VAR-04 | Biến không tồn tại | `{{noSuchVar}}` | Giữ nguyên literal và/hoặc phát cảnh báo, không crash | | ⬜ |
+| VAR-05 | Nhiều biến trong cùng chuỗi | `{{baseUrl}}/api/{{version}}` | Tất cả được resolve đúng | | ⬜ |
+| VAR-06 | Giá trị chứa ký tự đặc biệt | `token = "Bearer abc&def=123"` | Không làm hỏng JSON hay URL khi resolve | | ⬜ |
+| VAR-07 | Biến lồng nhau | `{{{{nested}}}}` | Xử lý an toàn, không loop vô hạn | | ⬜ |
+| VAR-08 | Cú pháp cũ `${name}` | `${baseUrl}` | Resolve hoặc cảnh báo dùng cú pháp cũ | | ⬜ |
 
 ## 3.5. Kiểm định engine và khả năng tương thích
 
@@ -906,22 +1415,41 @@ Các trường hợp cần kiểm tra:
 
 ### 3.5.2. Kiểm định keyword
 
-Mỗi keyword cần ít nhất:
+**Ma trận kiểm thử keyword — Web (Playwright):**
 
-- Một ca hợp lệ.
-- Một ca thiếu field bắt buộc.
-- Một ca selector không tồn tại.
-- Một ca timeout.
-- Một ca dùng biến.
-- Một ca chạy sai platform.
+> **[📊 TABLE-ENG-01]** Ma trận kiểm thử keyword × ca kiểm thử — điền Trạng thái sau khi chạy.
 
-Các điểm cần chú ý:
+| Keyword | Ca hợp lệ | Field thiếu | Selector sai | Timeout | Dùng biến | Sai platform | Trạng thái tổng |
+|---|---|---|---|---|---|---|---|
+| `navigate-to` | ✅ URL hợp lệ | ⬜ thiếu `input` | N/A | ⬜ URL không load | ⬜ `{{baseUrl}}/path` | ⬜ Appium | ⬜ |
+| `click` | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
+| `type-text` | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
+| `assert-text` | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
+| `assert-visible` | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
+| `wait-for` | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
+| `screenshot` | ⬜ | ⬜ | N/A | N/A | ⬜ | ⬜ | ⬜ |
+| `http-request` | ⬜ | ⬜ | N/A | ⬜ | ⬜ | ⬜ | ⬜ |
+| `assert-json-path` | ⬜ | ⬜ | N/A | N/A | ⬜ | ⬜ | ⬜ |
+| `call-test-case` | ⬜ | ⬜ | N/A | ⬜ | ⬜ | ⬜ | ⬜ |
+| `get-text` | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
+| `select-option` | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
 
-- `type-text`: selector ở `objectRef`, dữ liệu ở `input`.
-- `assert-text`: giá trị mong đợi ở `expected`.
-- `http-request`: method ở `objectRef`, URL/path ở `input`.
-- `assert-json-path`: JSON path ở `objectRef`, giá trị ở `expected`.
-- `call-test-case`: đường dẫn tuyệt đối phải được giới hạn trong phạm vi project hoặc có kiểm soát.
+**Ghi chú field mapping quan trọng:**
+
+| Keyword | `objectRef` chứa | `input` chứa | `expected` chứa |
+|---|---|---|---|
+| `type-text` | Selector / objectRef | Văn bản nhập | — |
+| `assert-text` | Selector / objectRef | — | Văn bản mong đợi |
+| `http-request` | Method (GET/POST/...) | URL hoặc path | — |
+| `assert-json-path` | JSON path (vd. `$.data.id`) | — | Giá trị mong đợi |
+| `call-test-case` | Đường dẫn test case | — | — |
+
+> **[📸 SCREENSHOT-ENG-01]** Test Case Editor chạy keyword `type-text` và `assert-text` — hiển thị step log pass/fail realtime.
+
+**Lưu ý đặc biệt:**
+- `get-text`: kiểm tra xem giá trị được đọc có thực sự được lưu vào biến để dùng ở bước sau không (theo tài liệu keyword).
+- `call-test-case`: đường dẫn tuyệt đối phải bị giới hạn trong project root; kiểm tra path traversal `../../etc`.
+- Keyword không tồn tại trong registry: engine phải báo lỗi cụ thể "Unknown keyword: X", không crash.
 
 ### 3.5.3. Maestro mapping
 
@@ -1008,20 +1536,209 @@ Các ca cần kiểm tra:
 - Path param và query param.
 - Spec sai hoặc không thể dereference.
 
-### 3.6.5. Dự án mẫu ECM
+### 3.6.5. Kiểm thử với dự án mẫu ECM
 
-Dự án ECM cung cấp chuỗi API phù hợp cho smoke test:
+ECM (Electronic Content Management) là dự án mẫu API tích hợp trong `test-project/ecm/`, phục vụ kiểm thử end-to-end cho tính năng API Request, variable resolution và Save-to-Env của JKAuto. Dự án cung cấp tập API RESTful đủ để thực hiện smoke test chức năng đầy đủ.
 
-1. Health check.
-2. Login.
-3. Lấy thông tin người dùng.
-4. Thống kê hệ thống.
-5. Tạo tài liệu.
-6. Lấy danh sách và chi tiết tài liệu.
-7. Cập nhật, xóa và khôi phục tài liệu.
-8. Truy vấn user với quyền admin.
+#### Thông tin môi trường kiểm thử ECM
 
-Chuỗi login → trích token → gọi API bảo vệ là bài kiểm định phù hợp cho chức năng Save-to-Env và variable resolution.
+| Tham số | Giá trị |
+|---|---|
+| Base URL | Cấu hình trong profile `default.env.json` → biến `{{baseUrl}}` |
+| Auth endpoint | `POST /api/auth/login` |
+| Token field (JSON path) | `data.token` |
+| Content-Type | `application/json` |
+| Authorization header | `Bearer {{token}}` |
+| Tài khoản test thường | Cấu hình trong profile: `{{username}}`, `{{password}}` |
+| Tài khoản admin | Cấu hình trong profile admin: `{{adminUsername}}`, `{{adminPassword}}` |
+
+> **[📸 SCREENSHOT-ECM-01]** Giao diện cấu hình profile ECM trong JKAuto — trường `baseUrl`, `username`, `password` và token sau khi được lưu.
+
+---
+
+#### Danh sách API endpoint kiểm thử
+
+> **[📊 TABLE-ECM-01]** Bảng danh sách đầy đủ API endpoint ECM cần kiểm thử — điền cột "Trạng thái" sau khi thực thi.
+
+| Mã | Phương thức | Endpoint | Mô tả | Yêu cầu Auth | Mức ưu tiên |
+|---|---|---|---|---|---|
+| ECM-01 | GET | `/api/health` | Kiểm tra trạng thái server | Không | Critical |
+| ECM-02 | POST | `/api/auth/login` | Đăng nhập lấy JWT token | Không | Critical |
+| ECM-03 | GET | `/api/users/me` | Lấy thông tin user hiện tại | Bearer | High |
+| ECM-04 | GET | `/api/stats` | Thống kê hệ thống | Bearer | Medium |
+| ECM-05 | POST | `/api/documents` | Tạo tài liệu mới | Bearer | Critical |
+| ECM-06 | GET | `/api/documents` | Lấy danh sách tài liệu | Bearer | High |
+| ECM-07 | GET | `/api/documents/:id` | Lấy chi tiết một tài liệu | Bearer | High |
+| ECM-08 | PUT | `/api/documents/:id` | Cập nhật tài liệu | Bearer | High |
+| ECM-09 | DELETE | `/api/documents/:id` | Xóa tài liệu | Bearer | High |
+| ECM-10 | POST | `/api/documents/:id/restore` | Khôi phục tài liệu đã xóa | Bearer | Medium |
+| ECM-11 | GET | `/api/admin/users` | Quản lý người dùng (chỉ admin) | Bearer + Role=Admin | Medium |
+
+---
+
+#### TC-ECM-01: Health Check
+
+**Mục đích:** Xác nhận server ECM đang chạy trước khi chạy các ca khác.
+
+**Điều kiện tiên quyết:** Server ECM khởi động. JKAuto mở project ECM.
+
+| Bước | Thao tác | Kết quả mong đợi |
+|---|---|---|
+| 1 | Mở file `health.request.json` trong Explorer | Editor hiển thị `GET /api/health`, không có body |
+| 2 | Nhấn **Send** | Request được gửi |
+| 3 | Kiểm tra status code | `200 OK` |
+| 4 | Kiểm tra response body | `{ "status": "ok" }` hoặc tương đương |
+| 5 | Kiểm tra response time | ≤ 200 ms |
+
+> **[📸 SCREENSHOT-ECM-02]** Response của health check trong JKAuto Request Editor — hiển thị status 200, response body và response time.
+
+**Kết quả thực tế:** _Chưa thực thi_  
+**Trạng thái:** ⬜
+
+---
+
+#### TC-ECM-02: Login và trích token vào profile (Save-to-Env)
+
+**Mục đích:** Kiểm định luồng quan trọng nhất — đăng nhập, lấy token và lưu vào profile để dùng cho các API sau.
+
+**Điều kiện tiên quyết:** TC-ECM-01 đạt. File `login.request.json` có body dùng biến `{{username}}`, `{{password}}`. Profile đã có giá trị cho hai biến này.
+
+| Bước | Thao tác | Kết quả mong đợi |
+|---|---|---|
+| 1 | Mở `login.request.json` | Editor hiển thị `POST /api/auth/login`, body `{"username": "{{username}}", "password": "{{password}}"}` |
+| 2 | Kiểm tra preview header và body | Biến đã được resolve thành giá trị thực trước khi gửi |
+| 3 | Nhấn **Send** | Status 200 OK |
+| 4 | Kiểm tra response | Trường `data.token` tồn tại và là chuỗi không rỗng |
+| 5 | Mở tab **Save to Env** | Giao diện cho phép chọn JSON path và biến đích |
+| 6 | Nhập JSON path `data.token`, biến đích `token` | Giá trị preview hiển thị đúng |
+| 7 | Nhấn **Save** | Profile cập nhật, biến `token` có giá trị mới |
+| 8 | Mở Profile Editor kiểm tra | Trường `token` xuất hiện với giá trị JWT |
+
+> **[📸 SCREENSHOT-ECM-03]** Request Editor sau khi gửi login — response JSON có `data.token`, tab "Save to Env" đang chọn JSON path.
+
+> **[📸 SCREENSHOT-ECM-04]** Profile Editor sau khi lưu — trường `token` hiển thị giá trị JWT đã được lưu.
+
+**Kết quả thực tế:** _Chưa thực thi_  
+**Trạng thái:** ⬜
+
+---
+
+#### TC-ECM-03: Lấy thông tin người dùng — kiểm định Bearer token resolve
+
+**Mục đích:** Xác nhận token đã lưu trong profile được resolve đúng vào header Authorization.
+
+**Điều kiện tiên quyết:** TC-ECM-02 đạt, biến `token` đã có trong profile.
+
+| Bước | Thao tác | Kết quả mong đợi |
+|---|---|---|
+| 1 | Mở `get-me.request.json` | Header `Authorization: Bearer {{token}}` hiển thị trong editor |
+| 2 | Kiểm tra preview headers | Giá trị thực `Authorization: Bearer <jwt_value>` được hiển thị |
+| 3 | Nhấn **Send** | Status 200 |
+| 4 | Kiểm tra response body | Chứa `id`, `email`, `role` của user đã đăng nhập |
+| 5 | Kiểm tra assertion status | Assertion `status eq 200` tích xanh |
+
+> **[📸 SCREENSHOT-ECM-05]** Request Editor — header Authorization đã resolve, response body chứa thông tin user.
+
+**Kết quả thực tế:** _Chưa thực thi_  
+**Trạng thái:** ⬜
+
+---
+
+#### TC-ECM-04: Tạo tài liệu và trích documentId
+
+**Mục đích:** Kiểm định POST tạo tài liệu và Save-to-Env trích ID cho các bước sau.
+
+**Điều kiện tiên quyết:** TC-ECM-02 đạt.
+
+| Bước | Thao tác | Kết quả mong đợi |
+|---|---|---|
+| 1 | Mở `create-document.request.json` | Body có `title`, `content`, `type` |
+| 2 | Nhấn **Send** | Status 201 Created |
+| 3 | Kiểm tra response | `data.id` tồn tại và là string không rỗng |
+| 4 | Save JSON path `data.id` → biến `documentId` | Profile cập nhật biến `documentId` |
+| 5 | Xác nhận response body hợp lệ | Các trường `title`, `content` khớp với input gửi đi |
+
+> **[📸 SCREENSHOT-ECM-06]** Tạo tài liệu thành công — response 201, thao tác Save to Env lấy `data.id` thành biến `documentId`.
+
+**Kết quả thực tế:** _Chưa thực thi_  
+**Trạng thái:** ⬜
+
+---
+
+#### TC-ECM-05 đến TC-ECM-09: Vòng lặp CRUD tài liệu
+
+**Điều kiện tiên quyết:** TC-ECM-04 đạt, biến `documentId` đã có trong profile.
+
+| Mã | Thao tác | Endpoint | Assertion chính | Kết quả thực tế | Trạng thái |
+|---|---|---|---|---|---|
+| ECM-05 | GET danh sách | `GET /api/documents` | Status 200, `data` là array, `total >= 1` | | ⬜ |
+| ECM-06 | GET chi tiết | `GET /api/documents/{{documentId}}` | Status 200, `data.id eq {{documentId}}` | | ⬜ |
+| ECM-07 | PUT cập nhật | `PUT /api/documents/{{documentId}}` | Status 200, `data.title eq <title_mới>` | | ⬜ |
+| ECM-08 | DELETE xóa | `DELETE /api/documents/{{documentId}}` | Status 200 hoặc 204 | | ⬜ |
+| ECM-09 | POST restore | `POST /api/documents/{{documentId}}/restore` | Status 200, document xuất hiện lại trong danh sách | | ⬜ |
+
+> **[📸 SCREENSHOT-ECM-07]** Chuỗi CRUD — GET danh sách (array), GET chi tiết (id khớp), PUT response.
+
+> **[📊 TABLE-ECM-02]** Kết quả kiểm thử CRUD điền đầy đủ sau khi thực thi (status, response time, ghi chú lỗi nếu có).
+
+---
+
+#### TC-ECM-10: Kiểm thử phân quyền Admin
+
+**Mục đích:** Xác nhận endpoint admin từ chối user thường và chấp nhận admin.
+
+**Điều kiện tiên quyết:** Có profile admin riêng với token admin.
+
+| Bước | Thao tác | Kết quả mong đợi |
+|---|---|---|
+| 1 | Dùng token user thường gửi `GET /api/admin/users` | Status 403 Forbidden |
+| 2 | Kiểm tra response body | Thông báo lỗi rõ ràng (vd. "Insufficient permissions") |
+| 3 | Chuyển profile sang admin, đăng nhập lại | Token admin được lưu vào profile |
+| 4 | Gửi lại `GET /api/admin/users` | Status 200, danh sách user |
+
+> **[📸 SCREENSHOT-ECM-08]** So sánh 403 (user thường) và 200 (admin) cho cùng endpoint — hai tab response cạnh nhau.
+
+**Kết quả thực tế:** _Chưa thực thi_  
+**Trạng thái:** ⬜
+
+---
+
+#### TC-ECM-11: Kiểm thử negative và edge case
+
+> **[📊 TABLE-ECM-03]** Bảng kiểm thử negative ECM — điền cột "Kết quả thực tế" và "Trạng thái" sau khi chạy.
+
+| Mã | Mô tả | Input | Kết quả mong đợi | Kết quả thực tế | Trạng thái |
+|---|---|---|---|---|---|
+| ECM-N01 | Login sai mật khẩu | `password` sai | Status 401, thông báo "Invalid credentials" | | ⬜ |
+| ECM-N02 | Gọi API không có token | Không có header Authorization | Status 401 Unauthorized | | ⬜ |
+| ECM-N03 | Token giả mạo (malformed JWT) | Authorization: Bearer `abc.def.ghi` | Status 401/403 | | ⬜ |
+| ECM-N04 | GET document không tồn tại | `/api/documents/nonexistent-id-999` | Status 404 Not Found | | ⬜ |
+| ECM-N05 | POST tài liệu thiếu `title` | Body không có trường `title` | Status 400, thông báo field bắt buộc | | ⬜ |
+| ECM-N06 | Request timeout | Server giả lập chậm > 30s | JKAuto hiển thị lỗi timeout, không ghi response giả | | ⬜ |
+| ECM-N07 | URL sai (host không tồn tại) | `baseUrl = http://localhost:9999` | Lỗi kết nối rõ ràng, không crash | | ⬜ |
+| ECM-N08 | Body JSON sai cú pháp | Raw body `{ invalid }` | Server trả 400 hoặc JKAuto báo lỗi trước khi gửi | | ⬜ |
+
+> **[📸 SCREENSHOT-ECM-09]** Negative test — response 401, 403, 404 hiển thị trong JKAuto Request Editor với assertion fail.
+
+---
+
+#### Kết quả kiểm thử tổng hợp ECM
+
+> **[📊 TABLE-ECM-04]** Tổng kết kết quả kiểm thử ECM — điền sau khi thực thi đầy đủ.
+
+| Nhóm | Tổng ca | Pass | Fail | Chưa thực thi | Tỷ lệ pass |
+|---|---:|---:|---:|---:|---|
+| Server health | 1 | — | — | 1 | ⬜ |
+| Authentication & Save-to-Env | 2 | — | — | 2 | ⬜ |
+| User & Stats | 2 | — | — | 2 | ⬜ |
+| Document CRUD | 5 | — | — | 5 | ⬜ |
+| Phân quyền admin | 1 | — | — | 1 | ⬜ |
+| Negative / Edge case | 8 | — | — | 8 | ⬜ |
+| **Tổng** | **19** | **—** | **—** | **19** | **—** |
+
+> **[📸 SCREENSHOT-ECM-10]** Màn hình JKAuto sau khi chạy toàn bộ smoke test ECM — history panel hoặc reports hiển thị tổng kết pass/fail.
+
+> **Ghi chú thực thi:** Điền kết quả thực tế vào các cột sau khi chạy. Chụp screenshot tại các điểm đã đánh dấu `[📸]`. Screenshot phải hiển thị rõ giao diện JKAuto, request/response data, assertion results và thông báo lỗi (nếu có). Dán ảnh vào báo cáo thay thế phần mô tả `[📸 SCREENSHOT-ECM-XX]` tương ứng.
 
 ## 3.7. Kiểm định AI Agent
 
@@ -1145,22 +1862,56 @@ Khuyến nghị ghi tệp theo cơ chế atomic write: ghi tệp tạm, `fsync` 
 
 ### 3.8.3. Bảo mật
 
-Các kiểm soát hiện có:
+**Kiểm soát hiện có — đánh giá qua tài liệu:**
 
-- `contextIsolation` và tắt `nodeIntegration` trong renderer.
-- Filesystem đi qua IPC.
-- Filesystem MCP được giới hạn theo project path.
-- Chế độ `ask` lọc tool ghi.
+| Kiểm soát | Hiện trạng | Cần kiểm định |
+|---|---|---|
+| `contextIsolation = true`, `nodeIntegration = false` | Thiết kế có | Unit/integration test Electron config |
+| Filesystem qua IPC | Thiết kế có | Kiểm tra renderer không thể gọi trực tiếp Node API |
+| Filesystem MCP giới hạn theo project path | Thiết kế có | Test path traversal `../../` và symlink |
+| Chế độ `ask` lọc tool ghi | Thiết kế có | Test AI không nhận tool ghi khi chế độ `ask` |
 
-Các điểm cần tăng cường:
+**Danh sách kiểm thử bảo mật cần thực hiện:**
 
-- Validate payload IPC hai chiều bằng Zod như nguyên tắc kiến trúc đã nêu.
-- Chống path traversal và symlink escape.
-- Không lưu token/API key dạng rõ trong log và report.
-- Mã hóa hoặc tích hợp secret store của hệ điều hành cho thông tin nhạy cảm.
-- Không cho AI tự động xóa/di chuyển dữ liệu quan trọng nếu chưa có xác nhận.
-- Kiểm tra URL để giảm nguy cơ SSRF khi import OpenAPI hoặc gửi request nội bộ.
-- Giới hạn kích thước file/spec/response để tránh tiêu thụ tài nguyên.
+| Mã | Kiểm tra | Phương pháp | Kết quả mong đợi | Trạng thái |
+|---|---|---|---|---|
+| SEC-01 | Path traversal qua IPC | Gửi payload `../../../etc/passwd` | Bị canonical-path reject | ⬜ |
+| SEC-02 | Symlink escape | Tạo symlink trong project trỏ ra ngoài | MCP/filesystem từ chối | ⬜ |
+| SEC-03 | Token trong log | Chạy API request có Bearer token | Log không hiển thị plaintext token | ⬜ |
+| SEC-04 | Token trong report | Xem run history và screenshot | Không lộ token trong artifact | ⬜ |
+| SEC-05 | Renderer gọi Node trực tiếp | Thử `window.require('fs')` trong devtools | Undefined — contextIsolation hoạt động | ⬜ |
+| SEC-06 | IPC payload validation | Gửi IPC payload thiếu field bắt buộc | Zod reject, không crash main process | ⬜ |
+| SEC-07 | AI ghi file ngoài project | Prompt AI viết file vào `/tmp/attack` | Bị chặn bởi path policy | ⬜ |
+| SEC-08 | SSRF qua import OpenAPI | Import spec từ URL nội bộ (vd. `http://169.254.169.254`) | Bị từ chối hoặc cảnh báo | ⬜ |
+| SEC-09 | File size limit | Import OpenAPI > 50 MB | Ứng dụng từ chối hoặc xử lý gracefully | ⬜ |
+| SEC-10 | Secret in prompt | Profile có `{{apiKey}}`, gửi vào AI | AI không nhận giá trị literal của secret | ⬜ |
+
+### 3.8.4. Khả năng sử dụng
+
+**Kịch bản usability test đề xuất (người dùng mới với JKAuto):**
+
+| STT | Nhiệm vụ | Thành công khi | Chỉ số đo |
+|---|---|---|---|
+| 1 | Tạo project Web mới | Project có cấu trúc đúng, mở được trong Explorer | Thời gian, số lần thử |
+| 2 | Tạo test case đăng nhập 3 step | File lưu đúng schema | Số lỗi thao tác |
+| 3 | Chọn object từ Object Repository | ObjectRef đúng tên và hiển thị trong step | Số lần cần hỗ trợ |
+| 4 | Chạy test, tìm nguyên nhân step fail | Đọc được log và xác định nguyên nhân | Thời gian chẩn đoán |
+| 5 | Tạo suite smoke gồm 3 test case | Suite chạy được và hiện kết quả | Thời gian |
+| 6 | Import cURL và trích token vào profile | Token được lưu vào profile và dùng được | Số lần thử |
+| 7 | Kết nối thiết bị Appium | Session inspector mở thành công | Thời gian, số bước |
+| 8 | Dùng Agent thêm assertion vào test | Assertion được append đúng | Số vòng sửa |
+| 9 | Dùng Agent `directly` và lưu test | Test case được lưu có assertion hợp lệ | Thời gian toàn luồng |
+| 10 | Index repo, chọn target, xem test sinh | Test case hợp lệ xuất hiện trong project | Số bước, schema pass |
+
+**Chỉ số tổng hợp:**
+
+| Chỉ số | Công thức / cách đo |
+|---|---|
+| Tỷ lệ hoàn thành nhiệm vụ | Số nhiệm vụ hoàn thành / tổng × 100% |
+| Thời gian hoàn thành trung bình | Đo từng người dùng, lấy median |
+| Số lỗi thao tác trung bình | Tổng lỗi / số người dùng |
+| Tỷ lệ cần hỗ trợ | Số nhiệm vụ cần trợ giúp / tổng |
+| Điểm SUS | Bảng hỏi 10 câu sau phiên |
 
 ### 3.8.4. Khả năng sử dụng
 
@@ -1270,6 +2021,26 @@ quadrantChart
 - Chưa có kết quả benchmark.
 - Chưa có báo cáo kiểm thử bảo mật.
 - Hủy Agent và hủy Autogen vẫn là placeholder.
+
+### Tổng kết thực thi ca kiểm thử (điền sau khi chạy)
+
+> **[📊 TABLE-SUMMARY-01]** Bảng tổng hợp kết quả kiểm thử toàn bộ Part III — điền sau khi thực thi.
+
+| Nhóm kiểm thử | Tổng ca | Pass | Fail | Chưa chạy | Tỷ lệ pass |
+|---|---:|---:|---:|---:|---|
+| Test Case Editor (TC-01 → TC-15) | 15 | — | — | 15 | ⬜ |
+| Test Suite (TS-01 → TS-11) | 11 | — | — | 11 | ⬜ |
+| Explorer (EX-01 → EX-10) | 10 | — | — | 10 | ⬜ |
+| Schema validation (SCH, OBJ, VAR) | 24 | — | — | 24 | ⬜ |
+| Engine keyword (ENG — Web) | 12 keyword × 6 ca | — | — | — | ⬜ |
+| API Request cơ bản (API-01 → API-06) | 6 | — | — | 6 | ⬜ |
+| ECM smoke test (ECM-01 → ECM-11) | 11 | — | — | 11 | ⬜ |
+| ECM negative (ECM-N01 → ECM-N08) | 8 | — | — | 8 | ⬜ |
+| AI Agent functional (3.7.1 → 3.7.5) | ~20 | — | — | ~20 | ⬜ |
+| Bảo mật (SEC-01 → SEC-10) | 10 | — | — | 10 | ⬜ |
+| **Tổng** | **~120** | **—** | **—** | **~120** | **—** |
+
+> **[📸 SCREENSHOT-SUMMARY-01]** Tổng quan giao diện JKAuto sau phiên kiểm thử toàn bộ — explorer, tab mở và console log.
 
 ### Kết luận mức sẵn sàng
 

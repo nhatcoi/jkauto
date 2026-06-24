@@ -1,0 +1,33 @@
+{
+  "name": "@jkauto/cli",
+  "version": "0.1.0",
+  "bin": {
+    "jkauto": "./dist/cli.cjs"
+  },
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsc && node build.mjs",
+    "dev": "node build.mjs"
+  },
+  "dependencies": {
+    "@jkauto/core": "workspace:*",
+    "@jkauto/engine": "workspace:*",
+    "@jkauto/project-fs": "workspace:*",
+    "@jkauto/storage": "workspace:*",
+    "@playwright/test": "^1.60.0",
+    "commander": "^12.1.0",
+    "webdriverio": "^9.28.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.28.1",
+    "typescript": "^5.5.4"
+  }
+}

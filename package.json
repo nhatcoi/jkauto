@@ -6,7 +6,8 @@
     "dev": "turbo dev --filter=@jkauto/desktop",
     "build": "turbo build",
     "lint": "turbo lint",
-    "typecheck": "turbo typecheck"
+    "typecheck": "turbo typecheck",
+    "jkauto": "node packages/cli/dist/cli.cjs"
   },
   "devDependencies": {
     "turbo": "^2.3.3",
