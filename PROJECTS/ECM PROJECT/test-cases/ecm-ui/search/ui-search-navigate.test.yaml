@@ -1,0 +1,76 @@
+schemaVersion: 1
+id: a0b1c2d3-e4f5-6789-abcd-ef0123456714
+name: "UI — Clicking search result navigates to correct page"
+description: Search for a term, click on a document result card, verify the app navigates to /documents.
+tags:
+  - web
+  - ui
+  - search
+  - navigation
+platform: web
+runner: playwright
+steps:
+  - id: nav-login
+    keyword: navigate-to
+    input: ${uiBaseUrl}/login
+
+  - id: wait-form
+    keyword: wait-for-element
+    objectRef: "#username"
+
+  - id: type-username
+    keyword: type-text
+    objectRef: "#username"
+    input: admin
+
+  - id: type-password
+    keyword: type-text
+    objectRef: "#password"
+    input: Admin@123
+
+  - id: click-login
+    keyword: click
+    objectRef: "#login-btn"
+
+  - id: wait-dashboard
+    keyword: wait-for-element
+    objectRef: 'text=Dashboard'
+
+  - id: nav-search
+    keyword: navigate-to
+    input: ${uiBaseUrl}/search
+
+  - id: wait-search-page
+    keyword: wait-for-element
+    objectRef: 'h1:has-text("Search")'
+
+  - id: type-query
+    keyword: type-text
+    description: Type query that returns document results
+    objectRef: 'input[placeholder*="Search"]'
+    input: document
+
+  - id: click-search
+    keyword: click
+    objectRef: 'button[type="submit"]'
+
+  - id: wait-results
+    keyword: wait-for-element
+    objectRef: 'text=results for'
+
+  - id: click-first-result
+    keyword: click
+    description: Click the first result card (navigates to /documents for document type)
+    objectRef: '[style*="cursor: pointer"]:first-child'
+
+  - id: wait-documents-page
+    keyword: wait-for-element
+    description: Documents page heading should appear
+    objectRef: 'h1:has-text("Documents")'
+
+  - id: assert-navigated-documents
+    keyword: assert-url
+    description: URL is /documents after clicking document result
+    expected: ${uiBaseUrl}/documents
+createdAt: "2026-06-23T00:00:00.000Z"
+updatedAt: "2026-06-23T00:00:00.000Z"

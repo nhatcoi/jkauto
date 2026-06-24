@@ -1,0 +1,89 @@
+schemaVersion: 1
+id: a0b1c2d3-e4f5-6789-abcd-ef0123456711
+name: UI — Create nested folder under parent
+description: Create a parent folder, then create a child folder selecting the
+  parent in the dropdown. Verify both names appear in the folder tree.
+tags:
+  - web
+  - ui
+  - folders
+  - crud
+  - nested
+platform: web
+runner: playwright
+steps:
+  - id: nav-login
+    keyword: navigate-to
+    input: ${uiBaseUrl}/login
+  - id: wait-form
+    keyword: wait-for-element
+    objectRef: "#username"
+  - id: type-username
+    keyword: type-text
+    objectRef: "#username"
+    input: admin
+  - id: type-password
+    keyword: type-text
+    objectRef: "#password"
+    input: Admin@123
+  - id: click-login
+    keyword: click
+    objectRef: "#login-btn"
+  - id: wait-dashboard
+    keyword: wait-for-element
+    objectRef: text=Dashboard
+  - id: nav-folders
+    keyword: navigate-to
+    input: ${uiBaseUrl}/folders
+  - id: wait-page
+    keyword: wait-for-element
+    objectRef: "#new-fld-btn"
+  - id: create-parent-open-modal
+    keyword: click
+    description: Open New Folder modal for parent
+    objectRef: "#new-fld-btn"
+  - id: wait-modal-parent
+    keyword: wait-for-element
+    objectRef: "#fld-name"
+  - id: type-parent-name
+    keyword: type-text
+    description: Enter parent folder name
+    objectRef: "#fld-name"
+    input: Parent Test Folder
+  - id: create-parent-submit
+    keyword: click
+    objectRef: "#fld-submit-btn"
+  - id: wait-parent-in-tree
+    keyword: wait-for-element
+    objectRef: text=Parent Test Folder
+  - id: create-child-open-modal
+    keyword: click
+    description: Open New Folder modal for child
+    objectRef: "#new-fld-btn"
+  - id: wait-modal-child
+    keyword: wait-for-element
+    objectRef: "#fld-name"
+  - id: type-child-name
+    keyword: type-text
+    description: Enter child folder name
+    objectRef: "#fld-name"
+    input: Child Test Folder
+  - id: select-parent
+    keyword: select-option
+    description: Select the parent folder in dropdown
+    objectRef: "#fld-parent"
+    input: Parent Test Folder
+  - id: create-child-submit
+    keyword: click
+    objectRef: "#fld-submit-btn"
+  - id: wait-child-in-tree
+    keyword: wait-for-element
+    objectRef: text=Child Test Folder
+  - id: assert-parent-visible
+    keyword: assert-visible
+    description: Parent folder is in the tree
+    objectRef: text=Parent Test Folder
+  - id: assert-child-visible
+    keyword: assert-visible
+    description: Child folder is in the tree
+    objectRef: text=Child Test Folder

@@ -10,9 +10,11 @@ JKAuto tools include test authoring plus code intelligence:
 - list_features, get_feature_bundle — discover testable features and their full test dossier
 - list_test_cases, read_test_case, create_test_case, save_test_case_steps
 - list_keywords, list_api_requests, get_project_info, get_rules
+- search_in_codebase(pattern, fileExtensions?, searchPath?) — grep source code for selectors, API routes, component names, constants. Use searchPath=project.sourcePath to search the app source.
 Filesystem tools and Playwright MCP browser tools (Chromium) are also available.
 
 To generate tests for a feature: call get_feature_bundle(feature) for its data (endpoints, validation, seed accounts, ready bodies, authSetup, baseUrlHint), then get_rules("test-generation") for the step-by-step recipe.
+To find UI selectors: call search_in_codebase with pattern like "data-testid|aria-label|role=" in the app source, OR use Playwright browser to inspect the live DOM.
 
 Rules:
 - Call get_rules("platforms") first when unsure which platform/runner to use.

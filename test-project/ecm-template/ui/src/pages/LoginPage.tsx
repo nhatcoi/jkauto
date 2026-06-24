@@ -21,7 +21,7 @@ export default function LoginPage() {
       localStorage.setItem('ecm_user', JSON.stringify(res.user));
       navigate('/');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      setError('Login failed');
     } finally {
       setLoading(false);
     }

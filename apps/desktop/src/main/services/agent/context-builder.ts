@@ -40,9 +40,24 @@ export async function buildAgentContext(
     return { summary: 'No app context was provided.' }
   }
 
-  parts.push(`Renderer app context:\n${compactJson(snapshot)}`)
+  // Clone and clean up snapshot to prevent token bloat from logs and long lists
+  const cleanSnapshot: AgentContextSnapshot = { ...snapshot }
+  if (cleanSnapshot.run) {
+    cleanSnapshot.run = {
+      ...cleanSnapshot.run,
+      latestLogs: cleanSnapshot.run.latestLogs?.slice(-5) ?? [],
+      latestEvents: cleanSnapshot.run.latestEvents?.slice(-5) ?? [],
+      stepMessages: cleanSnapshot.run.stepMessages ?? {},
+    }
+  }
 
-  const activeFile = await readActiveFileContext(snapshot)
+  if (cleanSnapshot.openTabs && cleanSnapshot.openTabs.length > 10) {
+    cleanSnapshot.openTabs = cleanSnapshot.openTabs.slice(0, 10)
+  }
+
+  parts.push(`Renderer app context:\n${compactJson(cleanSnapshot)}`)
+
+  const activeFile = await readActiveFileContext(cleanSnapshot)
   if (activeFile) parts.push(activeFile)
 
   return { summary: parts.join('\n\n') }

@@ -4,12 +4,10 @@ export interface ProjectFeature {
 }
 
 export const PROJECT_FEATURES: readonly ProjectFeature[] = [
-  { key: 'analysis', name: 'Code Analysis' },
   { key: 'test-cases', name: 'Test Cases' },
   { key: 'test-suites', name: 'Test Suites' },
   { key: 'profiles', name: 'Profiles' },
   { key: 'api-request', name: 'API Requests' },
-  { key: 'checkpoints', name: 'Checkpoints' },
   { key: 'data-files', name: 'Data Files' },
   { key: 'keywords', name: 'Keywords' },
   { key: 'plugins', name: 'Plugins' },

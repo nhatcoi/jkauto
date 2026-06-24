@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { StepEvent, RunCompleteEvent, RunRecord, SuiteEvent } from '@jkauto/core'
+import type { StepEvent, RunCompleteEvent, RunRecord, SuiteEvent, RowEvent } from '@jkauto/core'
 
 export type StepStatus = 'idle' | 'running' | 'passed' | 'failed' | 'skipped'
 
@@ -33,6 +33,8 @@ interface RunStore {
   stepDurations: Record<number, number>
   stepScreenshots: Record<number, string>
   stepMeta: Record<number, unknown>
+  currentRowIndex: number | null
+  totalRows: number | null
   logs: LogEntry[]
   events: EventEntry[]
   appiumLogs: AppiumLogEntry[]
@@ -43,6 +45,7 @@ interface RunStore {
   // actions
   startRun: (runId: string, filePath: string, debugMode?: boolean) => void
   handleStepEvent: (event: StepEvent) => void
+  handleRowEvent: (event: RowEvent) => void
   handleSuiteEvent: (event: SuiteEvent) => void
   handleRunComplete: (event: RunCompleteEvent) => void
   setDebugPaused: (paused: boolean) => void
@@ -73,6 +76,8 @@ export const useRunStore = create<RunStore>((set, get) => ({
   stepDurations: {},
   stepScreenshots: {},
   stepMeta: {},
+  currentRowIndex: null,
+  totalRows: null,
   logs: [],
   events: [],
   appiumLogs: [],
@@ -87,6 +92,8 @@ export const useRunStore = create<RunStore>((set, get) => ({
       status: 'running',
       isDebugMode: debugMode,
       isDebugPaused: false,
+      currentRowIndex: null,
+      totalRows: null,
       stepStatuses: {},
       stepMessages: {},
       stepDurations: {},
@@ -110,36 +117,33 @@ export const useRunStore = create<RunStore>((set, get) => ({
     }),
 
   handleStepEvent: (event: StepEvent) => {
-    const { stepIndex, status, message, durationMs, screenshotPath, meta } = event
+    const { stepIndex, status, message, durationMs, screenshotPath, meta, rowIndex, totalRows } = event
     set((state) => {
-      const newStatuses = { ...state.stepStatuses, [stepIndex]: status as StepStatus }
-      const newMessages = message
-        ? { ...state.stepMessages, [stepIndex]: message }
-        : state.stepMessages
-      const newDurations =
-        durationMs !== undefined
-          ? { ...state.stepDurations, [stepIndex]: durationMs }
-          : state.stepDurations
-      const newScreenshots =
-        screenshotPath
-          ? { ...state.stepScreenshots, [stepIndex]: screenshotPath }
-          : state.stepScreenshots
-      const newMeta = meta !== undefined
-        ? { ...state.stepMeta, [stepIndex]: meta }
-        : state.stepMeta
+      // Reset step statuses when a new row starts (rowIndex changed)
+      const rowChanged = rowIndex !== undefined && rowIndex !== state.currentRowIndex
+      const baseStatuses = rowChanged ? {} : state.stepStatuses
+      const baseMessages = rowChanged ? {} : state.stepMessages
+      const baseDurations = rowChanged ? {} : state.stepDurations
+      const baseScreenshots = rowChanged ? {} : state.stepScreenshots
+      const baseMeta = rowChanged ? {} : state.stepMeta
 
-      const logLevel =
-        status === 'passed' ? 'success' : status === 'failed' ? 'error' : 'info'
-      const durationStr =
-        durationMs !== undefined ? ` (${durationMs}ms)` : ''
+      const newStatuses = { ...baseStatuses, [stepIndex]: status as StepStatus }
+      const newMessages = message ? { ...baseMessages, [stepIndex]: message } : baseMessages
+      const newDurations = durationMs !== undefined ? { ...baseDurations, [stepIndex]: durationMs } : baseDurations
+      const newScreenshots = screenshotPath ? { ...baseScreenshots, [stepIndex]: screenshotPath } : baseScreenshots
+      const newMeta = meta !== undefined ? { ...baseMeta, [stepIndex]: meta } : baseMeta
+
+      const logLevel = status === 'passed' ? 'success' : status === 'failed' ? 'error' : 'info'
+      const durationStr = durationMs !== undefined ? ` (${durationMs}ms)` : ''
+      const rowPrefix = rowIndex !== undefined && totalRows !== undefined ? `[Row ${rowIndex + 1}/${totalRows}] ` : ''
       const logMsg =
         status === 'running'
-          ? `  Step ${stepIndex + 1}: running…`
+          ? `  ${rowPrefix}Step ${stepIndex + 1}: running…`
           : status === 'failed'
-            ? `  Step ${stepIndex + 1}: FAILED — ${message ?? 'error'}${durationStr}`
+            ? `  ${rowPrefix}Step ${stepIndex + 1}: FAILED — ${message ?? 'error'}${durationStr}`
             : status === 'skipped'
-              ? `  Step ${stepIndex + 1}: skipped`
-              : `  Step ${stepIndex + 1}: passed${durationStr}`
+              ? `  ${rowPrefix}Step ${stepIndex + 1}: skipped`
+              : `  ${rowPrefix}Step ${stepIndex + 1}: passed${durationStr}`
 
       const isDebugPaused = state.isDebugMode && (status === 'passed' || status === 'failed')
 
@@ -149,11 +153,34 @@ export const useRunStore = create<RunStore>((set, get) => ({
         stepDurations: newDurations,
         stepScreenshots: newScreenshots,
         stepMeta: newMeta,
+        currentRowIndex: rowIndex ?? state.currentRowIndex,
+        totalRows: totalRows ?? state.totalRows,
         isDebugPaused,
         logs: [
           ...state.logs,
           { id: uid(), time: ts(), level: logLevel as LogEntry['level'], message: logMsg, stepIndex },
         ],
+      }
+    })
+  },
+
+  handleRowEvent: (event: RowEvent) => {
+    set((state) => {
+      const { rowIndex, totalRows, type, status, passedSteps, failedSteps, durationMs } = event
+      let message = ''
+      let level: LogEntry['level'] = 'info'
+      if (type === 'row-start') {
+        message = `▶ Row ${rowIndex + 1}/${totalRows} started`
+      } else {
+        level = status === 'passed' ? 'success' : status === 'failed' ? 'error' : 'warn'
+        const dur = durationMs !== undefined ? ` (${durationMs}ms)` : ''
+        message = `Row ${rowIndex + 1}/${totalRows} ${status ?? 'complete'} — ${passedSteps ?? 0} passed, ${failedSteps ?? 0} failed${dur}`
+      }
+      return {
+        currentRowIndex: rowIndex,
+        totalRows,
+        logs: [...state.logs, { id: uid(), time: ts(), level, message }],
+        events: [...state.events, { id: uid(), time: ts(), message }],
       }
     })
   },

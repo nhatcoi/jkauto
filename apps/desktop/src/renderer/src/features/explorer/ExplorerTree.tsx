@@ -19,12 +19,10 @@ import {
   Box,
   Activity,
   CircleUserRound,
-  Milestone,
   FileSpreadsheet,
   Braces,
   Puzzle,
   BarChart2,
-  Wand2,
 } from 'lucide-react'
 import {
   ContextMenu,
@@ -37,7 +35,7 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
-import { ANALYSIS_TAB_PREFIX, EXPLORER_KEYMAPS, matchesBinding, REPORTS_TAB_PATH, KEYWORDS_TAB_PATH } from '@/shared/keymaps'
+import { EXPLORER_KEYMAPS, matchesBinding, REPORTS_TAB_PATH, KEYWORDS_TAB_PATH, DATA_FILES_TAB_PATH } from '@/shared/keymaps'
 import { IpcChannels } from '@jkauto/core'
 import type { FsTreeNode } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
@@ -49,7 +47,7 @@ import { NewItemDialog } from './NewItemDialog'
 import { ImportOpenApiDialog } from '../api-request/ImportOpenApiDialog'
 import { randomUUID } from './utils'
 
-type NewItemType = 'folder' | 'test-case' | 'suite' | 'keyword' | 'api-request'
+type NewItemType = 'folder' | 'test-case' | 'suite' | 'keyword' | 'api-request' | 'data-file'
 
 interface NewItemState {
   dir: string
@@ -103,6 +101,7 @@ function stripKnownExtension(name: string, type: NewItemType): string {
   if (type === 'suite') return name.replace(/\.suite\.(json|ya?ml)$/i, '')
   if (type === 'api-request') return name.replace(/\.request\.(json|ya?ml)$/i, '')
   if (type === 'keyword') return name.replace(/\.keywords\.json$/i, '')
+  if (type === 'data-file') return name.replace(/\.data\.json$/i, '')
   return name
 }
 
@@ -118,13 +117,11 @@ function getFileIcon(node: FsTreeNode): React.ElementType {
 }
 
 const FEATURE_FOLDER_ICONS: Record<string, React.ElementType> = {
-  'analysis': Wand2,
   'test-cases': TestTube2,
   'test-suites': Layers,
   'api-request': Box,
   'api-requests': Activity,
   'profiles': CircleUserRound,
-  'checkpoints': Milestone,
   'data-files': FileSpreadsheet,
   'keywords': Braces,
   'plugins': Puzzle,
@@ -413,6 +410,55 @@ function KeywordsMenu({
   )
 }
 
+function DataFilesMenu({
+  node,
+  cb,
+}: {
+  node: NodeApi<FsTreeNode>
+  cb: MenuCallbacks
+}) {
+  const isFolder = node.isInternal
+  const isRoot = isTopLevel(node.id)
+  return (
+    <>
+      {isFolder && (
+        <>
+          <ContextMenuSub>
+            <ContextMenuSubTrigger className="text-xs">New</ContextMenuSubTrigger>
+            <ContextMenuSubContent>
+              <ContextMenuItem className="text-xs" onSelect={() => cb.onNewItem({ dir: node.data.path, type: 'data-file' })}>
+                Data File<ContextMenuShortcut>{EXPLORER_KEYMAPS.newItem.hint}</ContextMenuShortcut>
+              </ContextMenuItem>
+              <ContextMenuItem className="text-xs" onSelect={() => cb.onNewItem({ dir: node.data.path, type: 'folder' })}>
+                Folder
+              </ContextMenuItem>
+            </ContextMenuSubContent>
+          </ContextMenuSub>
+          <ContextMenuSeparator />
+        </>
+      )}
+      {!isRoot && (
+        <>
+          <ContextMenuItem className="text-xs" onSelect={cb.onEdit}>
+            Rename<ContextMenuShortcut>{EXPLORER_KEYMAPS.rename.hint}</ContextMenuShortcut>
+          </ContextMenuItem>
+          {!isFolder && (
+            <ContextMenuItem className="text-xs" onSelect={cb.onCopy}>Copy</ContextMenuItem>
+          )}
+          <ContextMenuItem
+            className="text-xs text-destructive focus:text-destructive"
+            onSelect={cb.onDelete}
+          >
+            Delete<ContextMenuShortcut>{EXPLORER_KEYMAPS.delete.hint}</ContextMenuShortcut>
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+        </>
+      )}
+      <ContextMenuItem className="text-xs" onSelect={cb.onOpenFolder}>Open Containing Folder</ContextMenuItem>
+    </>
+  )
+}
+
 function FeatureContextMenu({
   node,
   cb,
@@ -425,6 +471,7 @@ function FeatureContextMenu({
   if (feature === 'test-cases') return <TestCasesMenu node={node} cb={cb} />
   if (feature === 'test-suites') return <TestSuitesMenu node={node} cb={cb} />
   if (feature === 'keywords') return <KeywordsMenu node={node} cb={cb} />
+  if (feature === 'data-files') return <DataFilesMenu node={node} cb={cb} />
   return <GenericMenu node={node} cb={cb} />
 }
 
@@ -453,12 +500,8 @@ function NodeRow({
       if (node.id === 'keywords') {
         openTab(KEYWORDS_TAB_PATH, 'Keywords', projectPath)
       }
-      if (node.id === 'analysis') {
-        openTab(
-          `${ANALYSIS_TAB_PREFIX}${encodeURIComponent(projectPath)}`,
-          'Auto Generate Test',
-          projectPath,
-        )
+      if (node.id === 'data-files') {
+        openTab(DATA_FILES_TAB_PATH, 'Data Files', projectPath)
       }
     } else {
       openTab(node.data.path, node.data.displayName ?? node.data.name, projectPath)
@@ -735,6 +778,14 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
         2,
       )
       await invoke(IpcChannels.FS_CREATE_FILE, pathJoin(dir, fileName), content)
+    } else if (type === 'data-file') {
+      const fileName = `${key}.data.json`
+      const content = JSON.stringify(
+        { schemaVersion: 1, name: displayName, columns: ['column1'], rows: [['value1']] },
+        null,
+        2,
+      )
+      await invoke(IpcChannels.FS_CREATE_FILE, pathJoin(dir, fileName), content)
     }
 
     setNewItemState(null)
@@ -773,6 +824,7 @@ export function ExplorerTree({ projectPath }: ExplorerTreeProps) {
           : feature === 'test-suites' ? 'suite'
           : feature === 'api-requests' ? 'api-request'
           : feature === 'keywords' ? 'keyword'
+          : feature === 'data-files' ? 'data-file'
           : 'folder'
         setNewItemState({ dir, type })
       }

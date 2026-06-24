@@ -1,0 +1,79 @@
+schemaVersion: 1
+id: a0b1c2d3-e4f5-6789-abcd-ef0123456708
+name: UI — Filter documents by status
+description: On the Documents page, click each status filter pill (All, draft,
+  published, archived) and verify the page reloads without errors.
+tags:
+  - web
+  - ui
+  - documents
+  - filter
+platform: web
+runner: playwright
+steps:
+  - id: nav-login
+    keyword: navigate-to
+    description: Open login page
+    input: ${uiBaseUrl}/login
+  - id: wait-form
+    keyword: wait-for-element
+    objectRef: "#username"
+  - id: type-username
+    keyword: type-text
+    objectRef: "#username"
+    input: admin
+  - id: type-password
+    keyword: type-text
+    objectRef: "#password"
+    input: Admin@123
+  - id: click-login
+    keyword: click
+    objectRef: "#login-btn"
+  - id: wait-dashboard
+    keyword: wait-for-element
+    objectRef: text=Dashboard
+  - id: nav-documents
+    keyword: navigate-to
+    description: Navigate to Documents
+    input: ${uiBaseUrl}/documents
+  - id: wait-page
+    keyword: wait-for-element
+    description: Wait for Documents heading
+    objectRef: h1
+  - id: click-filter-draft
+    keyword: click
+    description: Click draft filter pill
+    objectRef: button:has-text("draft")
+  - id: wait-after-draft
+    keyword: wait-for-element
+    description: Page still shows Documents heading (no crash)
+    objectRef: h1
+  - id: assert-draft-filter-active
+    keyword: assert-visible
+    description: Draft filter button is still on screen
+    objectRef: button:has-text("draft")
+  - id: click-filter-published
+    keyword: click
+    description: Click published filter pill
+    objectRef: button:has-text("published")
+  - id: wait-after-published
+    keyword: wait-for-element
+    objectRef: h1
+  - id: click-filter-archived
+    keyword: click
+    description: Click archived filter pill
+    objectRef: button:has-text("archived")
+  - id: wait-after-archived
+    keyword: wait-for-element
+    objectRef: h1
+  - id: click-filter-all
+    keyword: click
+    description: Reset to All filter
+    objectRef: button:has-text("All")
+  - id: wait-after-all
+    keyword: wait-for-element
+    objectRef: h1
+  - id: assert-page-intact
+    keyword: assert-visible
+    description: Documents page is intact after filter cycling
+    objectRef: "#new-doc-btn"

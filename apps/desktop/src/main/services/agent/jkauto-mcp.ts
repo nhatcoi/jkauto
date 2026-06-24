@@ -227,10 +227,12 @@ Test generation workflow (when asked to generate tests for a feature, e.g. "logi
 4. For each: create_test_case then save_test_case_steps. A login feature typically yields 3-4 test cases.`,
 }
 
-async function loadRuntimeProfile(projectPath: string): Promise<Profile> {
+async function loadRuntimeProfile(projectPath: string, profileName?: string): Promise<Profile> {
   const profileDir = path.join(projectPath, 'profiles')
   const entries = await fs.readdir(profileDir).catch(() => [])
+  const target = profileName ? `${profileName}.env.json` : undefined
   const candidate =
+    (target && entries.find((entry) => entry === target)) ??
     entries.find((entry) => entry === 'default.env.json') ??
     entries.find((entry) => entry.endsWith('.env.json'))
   if (candidate) {
@@ -243,6 +245,85 @@ async function loadRuntimeProfile(projectPath: string): Promise<Profile> {
     }
   }
   return { schemaVersion: 1, name: 'default', variables: {} }
+}
+
+async function loadAllObjectRepositories(projectPath: string): Promise<Array<{ name: string; objects: Array<{ name: string; locators: Array<{ strategy: string; value: string }> }> }>> {
+  const repos: Array<{ name: string; objects: Array<{ name: string; locators: Array<{ strategy: string; value: string }> }> }> = []
+  for (const dir of ['object-repository', 'api-request']) {
+    const repoDir = path.join(projectPath, dir)
+    try {
+      const entries = await fs.readdir(repoDir)
+      for (const entry of entries) {
+        if (!entry.endsWith('.objects.json')) continue
+        try {
+          const raw = await fs.readFile(path.join(repoDir, entry), 'utf-8')
+          repos.push(JSON.parse(raw))
+        } catch { /* skip malformed */ }
+      }
+    } catch { /* dir missing */ }
+  }
+  return repos
+}
+
+interface StepEventRecord {
+  stepIndex: number
+  status: string
+  message?: string
+  durationMs: number
+  screenshotPath?: string
+}
+
+async function runTestCaseFull(
+  projectPath: string,
+  filePath: string,
+  profileName?: string,
+  screenshotDir?: string,
+): Promise<{ passed: boolean; steps: StepEventRecord[]; durationMs: number; error?: string }> {
+  const parsed = yamlParse(await fs.readFile(filePath, 'utf-8'))
+  const testCase = TestCaseSchema.parse(parsed) as TestCase
+  const profile = await loadRuntimeProfile(projectPath, profileName)
+  const objectRepositories = await loadAllObjectRepositories(projectPath)
+  const runId = crypto.randomUUID()
+  const steps: StepEventRecord[] = []
+  const start = Date.now()
+
+  return new Promise((resolve, reject) => {
+    runTestCase(
+      testCase,
+      profile,
+      runId,
+      (event) => {
+        if (event.status !== 'running') {
+          steps.push({
+            stepIndex: event.stepIndex,
+            status: event.status,
+            message: event.message,
+            durationMs: event.durationMs ?? 0,
+            screenshotPath: event.screenshotPath,
+          })
+        }
+      },
+      (event) => resolve({
+        passed: event.status === 'passed',
+        steps,
+        durationMs: Date.now() - start,
+      }),
+      undefined,
+      {
+        headless: true,
+        screenshotDir: screenshotDir ?? path.join(projectPath, '.autotest', 'screenshots'),
+        screenshotMode: 'failure',
+        objectRepositories,
+        loadTestCase: async (calledPath) => {
+          const raw = await fs.readFile(
+            path.isAbsolute(calledPath) ? calledPath : path.resolve(projectPath, calledPath),
+            'utf-8',
+          )
+          return TestCaseSchema.parse(yamlParse(raw))
+        },
+      },
+    ).catch(reject)
+  })
 }
 
 async function runGeneratedTest(
@@ -495,6 +576,89 @@ export async function createJkautoMcpClient(
           required: ['filePath'],
         },
       },
+      {
+        name: 'run_test_case',
+        description: 'Run a test case file through the engine. Returns per-step results and screenshot paths on failure. Use this in the agent fix-loop: generate → run → check failure → fix → run again.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            filePath: { type: 'string', description: 'Absolute path to .test.yaml' },
+            profile: { type: 'string', description: 'Profile name (default: "default")' },
+          },
+          required: ['filePath'],
+        },
+      },
+      {
+        name: 'run_test_suite',
+        description: 'Run all test cases in a suite file. Returns aggregated results.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            filePath: { type: 'string', description: 'Absolute path to .suite.yaml' },
+            profile: { type: 'string', description: 'Profile name (default: "default")' },
+          },
+          required: ['filePath'],
+        },
+      },
+      {
+        name: 'list_profiles',
+        description: 'List all environment profiles and their variable keys (secrets masked).',
+        inputSchema: { type: 'object' as const, properties: {} },
+      },
+      {
+        name: 'list_object_repositories',
+        description: 'List all object repositories with their element names and primary locators.',
+        inputSchema: { type: 'object' as const, properties: {} },
+      },
+      {
+        name: 'create_test_suite',
+        description: 'Create a new test suite YAML file that groups multiple test cases.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            filePath: { type: 'string', description: 'Absolute path for the new .suite.yaml' },
+            name: { type: 'string', description: 'Suite display name' },
+            description: { type: 'string' },
+            testCasePaths: { type: 'array', items: { type: 'string' }, description: 'Absolute paths to test cases to include' },
+          },
+          required: ['filePath', 'name'],
+        },
+      },
+      {
+        name: 'get_screenshot',
+        description: 'Read a failure screenshot as base64 to visually diagnose what the browser showed when a step failed.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            screenshotPath: { type: 'string', description: 'Absolute path to the PNG screenshot' },
+          },
+          required: ['screenshotPath'],
+        },
+      },
+      {
+        name: 'search_in_codebase',
+        description: 'Search for text/pattern across source files. Use to find selectors, API routes, component names, existing test patterns. Returns file:line:content matches.',
+        inputSchema: {
+          type: 'object' as const,
+          properties: {
+            pattern: { type: 'string', description: 'Text or regex to search for' },
+            fileExtensions: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'File extensions to search (e.g. ["ts","tsx","vue"]). Defaults to common source extensions.',
+            },
+            searchPath: {
+              type: 'string',
+              description: 'Directory to search. Defaults to project directory.',
+            },
+            maxResults: {
+              type: 'number',
+              description: 'Max lines to return (default 50)',
+            },
+          },
+          required: ['pattern'],
+        },
+      },
     ],
   }))
 
@@ -693,6 +857,169 @@ export async function createJkautoMcpClient(
               : (RULES[topic] ?? `Unknown topic: ${topic}. Valid: ${Object.keys(RULES).join(', ')}`)
 
           return { content: [{ type: 'text' as const, text: text.trim() }] }
+        }
+
+        case 'run_test_case': {
+          const filePath = String(a.filePath)
+          const profileName = a.profile ? String(a.profile) : undefined
+          const screenshotDir = path.join(projectPath, '.autotest', 'screenshots')
+          const result = await runTestCaseFull(projectPath, filePath, profileName, screenshotDir)
+          const failed = result.steps.filter((s) => s.status === 'failed')
+          const summary = {
+            passed: result.passed,
+            totalSteps: result.steps.length,
+            failedSteps: failed.map((s) => ({
+              stepIndex: s.stepIndex + 1,
+              message: s.message,
+              screenshotPath: s.screenshotPath,
+            })),
+            durationMs: result.durationMs,
+          }
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify(summary, null, 2) }],
+            isError: !result.passed,
+          }
+        }
+
+        case 'run_test_suite': {
+          const suiteFilePath = String(a.filePath)
+          const profileName = a.profile ? String(a.profile) : undefined
+          const raw = await fs.readFile(suiteFilePath, 'utf-8')
+          let parsed: { name?: string; items?: Array<{ path: string }> }
+          try {
+            parsed = JSON.parse(raw)
+          } catch {
+            const { parse: yParse } = await import('yaml')
+            parsed = yParse(raw)
+          }
+          const items = parsed.items ?? []
+          const suiteDir = path.dirname(suiteFilePath)
+          const results: Array<{ file: string; passed: boolean; failedSteps: unknown[] }> = []
+          for (const item of items) {
+            const tcPath = path.isAbsolute(item.path)
+              ? item.path
+              : path.resolve(projectPath, item.path)
+            try {
+              const r = await runTestCaseFull(projectPath, tcPath, profileName)
+              results.push({
+                file: path.relative(suiteDir, tcPath),
+                passed: r.passed,
+                failedSteps: r.steps.filter((s) => s.status === 'failed').map((s) => ({
+                  stepIndex: s.stepIndex + 1, message: s.message, screenshotPath: s.screenshotPath,
+                })),
+              })
+            } catch (err) {
+              results.push({ file: path.relative(suiteDir, tcPath), passed: false, failedSteps: [{ message: String(err) }] })
+            }
+          }
+          const totalPassed = results.filter((r) => r.passed).length
+          const summary = { passed: totalPassed === results.length, total: results.length, passing: totalPassed, results }
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify(summary, null, 2) }],
+            isError: totalPassed !== results.length,
+          }
+        }
+
+        case 'list_profiles': {
+          const profileDir = path.join(projectPath, 'profiles')
+          const entries = await fs.readdir(profileDir).catch(() => [] as string[])
+          const profiles = []
+          for (const entry of entries) {
+            if (!entry.endsWith('.env.json')) continue
+            try {
+              const raw = await fs.readFile(path.join(profileDir, entry), 'utf-8')
+              const p = JSON.parse(raw)
+              const vars = p.variables ?? {}
+              profiles.push({
+                name: p.name ?? entry.replace('.env.json', ''),
+                file: entry,
+                variables: Object.fromEntries(
+                  Object.entries(vars).map(([k, v]) => [
+                    k,
+                    /token|secret|password|key|auth/i.test(k) ? '***' : v,
+                  ])
+                ),
+              })
+            } catch { /* skip */ }
+          }
+          return { content: [{ type: 'text' as const, text: JSON.stringify(profiles, null, 2) }] }
+        }
+
+        case 'list_object_repositories': {
+          const repos = await loadAllObjectRepositories(projectPath)
+          const summary = repos.map((r) => ({
+            name: r.name,
+            objects: (r.objects ?? []).map((o) => ({
+              name: o.name,
+              locators: (o.locators ?? []).map((l) => `${l.strategy}=${l.value}`),
+            })),
+          }))
+          return { content: [{ type: 'text' as const, text: JSON.stringify(summary, null, 2) }] }
+        }
+
+        case 'create_test_suite': {
+          const suiteFilePath = String(a.filePath)
+          const items = ((a.testCasePaths as string[] | undefined) ?? []).map((p) => ({
+            path: path.relative(projectPath, p),
+          }))
+          const suite = {
+            schemaVersion: 1,
+            id: crypto.randomUUID(),
+            name: String(a.name),
+            description: a.description ? String(a.description) : '',
+            items,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }
+          await fs.mkdir(path.dirname(suiteFilePath), { recursive: true })
+          await fs.writeFile(suiteFilePath, yamlStringify(suite), 'utf-8')
+          return { content: [{ type: 'text' as const, text: `Suite created: ${suiteFilePath} (${items.length} tests)` }] }
+        }
+
+        case 'get_screenshot': {
+          const screenshotPath = String(a.screenshotPath)
+          const buf = await fs.readFile(screenshotPath)
+          const base64 = buf.toString('base64')
+          return {
+            content: [{
+              type: 'image' as const,
+              data: base64,
+              mimeType: 'image/png',
+            }],
+          }
+        }
+
+        case 'search_in_codebase': {
+          const { execSync } = await import('node:child_process')
+          const pattern = String(a.pattern)
+          const exts = (a.fileExtensions as string[] | undefined) ?? ['ts', 'tsx', 'js', 'jsx', 'vue', 'svelte', 'py', 'yaml', 'yml', 'json']
+          const maxResults = typeof a.maxResults === 'number' ? a.maxResults : 50
+          const searchRoot = a.searchPath ? String(a.searchPath) : projectPath
+
+          const includeFlags = exts.map((e) => `--include="*.${e}"`).join(' ')
+          const excludeDirs = ['node_modules', '.git', '.autotest', 'dist', 'build', '.next', 'reports']
+            .map((d) => `--exclude-dir="${d}"`).join(' ')
+
+          try {
+            const cmd = `grep -rn ${excludeDirs} ${includeFlags} -E "${pattern.replace(/"/g, '\\"')}" "${searchRoot}" 2>/dev/null | head -${maxResults}`
+            const output = execSync(cmd, { encoding: 'utf-8', timeout: 10000 }).trim()
+            const lines = output ? output.split('\n').length : 0
+            return {
+              content: [{
+                type: 'text' as const,
+                text: output || `No matches found for: ${pattern}`,
+              }],
+              // attach summary as first line
+              ...(output && { content: [{ type: 'text' as const, text: `[${lines} matches]\n${output}` }] }),
+            }
+          } catch (execErr) {
+            // grep exits 1 when no matches — not an error
+            const msg = execErr instanceof Error ? execErr.message : String(execErr)
+            if (msg.includes('status 1') || (execErr as NodeJS.ErrnoException).status === 1) {
+              return { content: [{ type: 'text' as const, text: `No matches found for: ${pattern}` }] }
+            }
+            throw execErr
+          }
         }
 
         default:

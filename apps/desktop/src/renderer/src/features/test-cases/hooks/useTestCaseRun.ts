@@ -19,11 +19,14 @@ export function useTestCaseRun({ filePath, tcRef, serialize }: Options) {
   const {
     startRun,
     handleStepEvent,
+    handleRowEvent,
     handleRunComplete,
     stopRun,
     status: runStatus,
     stepStatuses,
     stepMessages,
+    currentRowIndex,
+    totalRows,
     runId,
     setRunHistory,
     appendRunRecord,
@@ -42,12 +45,12 @@ export function useTestCaseRun({ filePath, tcRef, serialize }: Options) {
   useEffect(() => {
     const offStep = window.api.on(
       IpcChannels.ENGINE_STEP_EVENT,
-      (event: any) => {
-        handleStepEvent(event);
-      },
+      (event: any) => { handleStepEvent(event) },
     );
-    // ENGINE_DEBUG_NEXT from main signals engine is paused — store already tracks via handleStepEvent
-    // We just need to unsub on cleanup; the actual pause state is managed in run.store
+    const offRow = window.api.on(
+      IpcChannels.ENGINE_ROW_EVENT,
+      (event: any) => { handleRowEvent(event) },
+    );
     const offDebugNext = window.api.on(IpcChannels.ENGINE_DEBUG_NEXT, () => {});
     const offComplete = window.api.on(
       IpcChannels.ENGINE_RUN_COMPLETE,
@@ -87,10 +90,11 @@ export function useTestCaseRun({ filePath, tcRef, serialize }: Options) {
     );
     return () => {
       offStep();
+      offRow();
       offDebugNext();
       offComplete();
     };
-  }, [filePath, handleStepEvent, handleRunComplete, appendRunRecord]);
+  }, [filePath, handleStepEvent, handleRowEvent, handleRunComplete, appendRunRecord]);
 
   const handleRun = useCallback(
     async (debugMode = false) => {
@@ -144,6 +148,8 @@ export function useTestCaseRun({ filePath, tcRef, serialize }: Options) {
     runStatus,
     stepStatuses,
     stepMessages,
+    currentRowIndex,
+    totalRows,
     isDebugMode,
     isDebugPaused,
     handleRun,

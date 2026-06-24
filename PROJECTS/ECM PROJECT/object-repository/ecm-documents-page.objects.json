@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "id": "obj-ecm-documents-page-0003",
+  "name": "ECM Documents Page",
+  "platform": "web",
+  "objects": [
+    {
+      "name": "pageHeading",
+      "description": "Documents page heading h1",
+      "locators": [
+        { "strategy": "css", "value": "h1" },
+        { "strategy": "text", "value": "Documents" }
+      ]
+    },
+    {
+      "name": "newDocumentBtn",
+      "description": "+ New Document button",
+      "locators": [
+        { "strategy": "css", "value": "#new-doc-btn" }
+      ]
+    },
+    {
+      "name": "filterAllBtn",
+      "description": "Filter: show all documents",
+      "locators": [
+        { "strategy": "text", "value": "All" }
+      ]
+    },
+    {
+      "name": "filterDraftBtn",
+      "description": "Filter: show draft documents only",
+      "locators": [
+        { "strategy": "text", "value": "draft" }
+      ]
+    },
+    {
+      "name": "filterPublishedBtn",
+      "description": "Filter: show published documents only",
+      "locators": [
+        { "strategy": "text", "value": "published" }
+      ]
+    },
+    {
+      "name": "filterArchivedBtn",
+      "description": "Filter: show archived documents only",
+      "locators": [
+        { "strategy": "text", "value": "archived" }
+      ]
+    },
+    {
+      "name": "modalTitleInput",
+      "description": "Document title input in create modal",
+      "locators": [
+        { "strategy": "css", "value": "#doc-title" }
+      ]
+    },
+    {
+      "name": "modalDescInput",
+      "description": "Document description textarea in create modal",
+      "locators": [
+        { "strategy": "css", "value": "#doc-desc" }
+      ]
+    },
+    {
+      "name": "modalStatusSelect",
+      "description": "Document status select in create modal",
+      "locators": [
+        { "strategy": "css", "value": "#doc-status" }
+      ]
+    },
+    {
+      "name": "modalSubmitBtn",
+      "description": "Create button in new document modal",
+      "locators": [
+        { "strategy": "css", "value": "#doc-submit-btn" }
+      ]
+    },
+    {
+      "name": "deleteBtn",
+      "description": "Delete button in table row (first match)",
+      "locators": [
+        { "strategy": "css", "value": "button:has-text('Delete')" }
+      ]
+    }
+  ]
+}

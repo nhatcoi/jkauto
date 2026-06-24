@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "name": "api-auth-scenarios",
+  "columns": [
+    "bearerToken",
+    "endpoint",
+    "expectedStatus",
+    "scenario"
+  ],
+  "rows": [
+    ["{{accessToken}}", "/auth/me", "200", "valid token - get current user"],
+    ["invalid.token.here", "/auth/me", "401", "invalid token - rejected"],
+    ["", "/auth/me", "401", "missing token - rejected"],
+    ["{{accessToken}}", "/auth/refresh", "200", "valid refresh"],
+    ["expiredtoken123", "/auth/refresh", "401", "expired refresh token"]
+  ]
+}

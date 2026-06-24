@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "id": "obj-ecm-search-page-0005",
+  "name": "ECM Search Page",
+  "platform": "web",
+  "objects": [
+    {
+      "name": "pageHeading",
+      "description": "Search page h1",
+      "locators": [
+        { "strategy": "text", "value": "Search" }
+      ]
+    },
+    {
+      "name": "searchInput",
+      "description": "Search text input",
+      "locators": [
+        { "strategy": "css", "value": "input[placeholder*='Search']" },
+        { "strategy": "css", "value": "form input[type='text']" },
+        { "strategy": "css", "value": "form input:not([type])" }
+      ]
+    },
+    {
+      "name": "searchBtn",
+      "description": "Search submit button",
+      "locators": [
+        { "strategy": "css", "value": "form button[type='submit']" },
+        { "strategy": "text", "value": "Search" }
+      ]
+    },
+    {
+      "name": "resultItem",
+      "description": "Individual search result card",
+      "locators": [
+        { "strategy": "css", "value": "div[style*='cursor: pointer']" }
+      ]
+    },
+    {
+      "name": "noResultsMsg",
+      "description": "No results found message",
+      "locators": [
+        { "strategy": "text", "value": "No results found" }
+      ]
+    }
+  ]
+}

@@ -7,6 +7,8 @@ import type { CreateProjectPayload, UpdateProjectPayload, DuplicateProjectPayloa
 import { randomUUID } from 'node:crypto'
 import { writeExplorerMetadata } from '../services/explorer-metadata'
 import { PROJECT_STRUCTURE } from '../services/project-features'
+import { getAnalysisRun } from '../services/autogen/autogen-db'
+import { startCodeAnalysis } from '../services/analysis/analysis.service'
 
 const SYNC_IGNORE = new Set([
   'node_modules', 'dist', 'build', '.git', 'coverage', '.next', '__pycache__',
@@ -31,6 +33,18 @@ async function syncLocalDir(src: string, dest: string): Promise<void> {
 
 const RECENT_KEY = 'recent_projects'
 let recentProjects: RecentProject[] = []
+
+function triggerSilentAnalysis(projectPath: string): void {
+  const existing = getAnalysisRun(projectPath)
+  if (existing && (existing as any).status === 'completed') return
+  setImmediate(async () => {
+    try {
+      await startCodeAnalysis({ projectPath }, () => {})
+    } catch {
+      // silent — no repoUrl configured or network error
+    }
+  })
+}
 
 export function registerProjectHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(IpcChannels.PROJECT_CREATE, async (_, payload: CreateProjectPayload) => {
@@ -82,13 +96,13 @@ export function registerProjectHandlers(ipcMain: IpcMain): void {
     })
     if (result.canceled || !result.filePaths[0]) return null
     const projectPath = result.filePaths[0]
-    await fs.mkdir(path.join(projectPath, 'analysis'), { recursive: true })
     const projectFile = path.join(projectPath, 'project.json')
     try {
       const raw = await fs.readFile(projectFile, 'utf-8')
       const project = JSON.parse(raw)
       const now = new Date().toISOString()
       addRecent({ name: project.name, path: projectPath, type: project.type, openedAt: now })
+      triggerSilentAnalysis(projectPath)
       return { projectPath, project }
     } catch (err) {
       throw new Error(
@@ -98,12 +112,12 @@ export function registerProjectHandlers(ipcMain: IpcMain): void {
   })
 
   ipcMain.handle(IpcChannels.PROJECT_OPEN, async (_, projectPath: string) => {
-    await fs.mkdir(path.join(projectPath, 'analysis'), { recursive: true })
     const projectFile = path.join(projectPath, 'project.json')
     const raw = await fs.readFile(projectFile, 'utf-8')
     const project = JSON.parse(raw)
     const now = new Date().toISOString()
     addRecent({ name: project.name, path: projectPath, type: project.type, openedAt: now })
+    triggerSilentAnalysis(projectPath)
     return { projectPath, project }
   })
 

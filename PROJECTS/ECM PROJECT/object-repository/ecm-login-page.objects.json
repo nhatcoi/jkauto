@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "id": "obj-ecm-login-page-0001",
+  "name": "ECM Login Page",
+  "platform": "web",
+  "objects": [
+    {
+      "name": "usernameInput",
+      "description": "Username text input",
+      "locators": [
+        { "strategy": "css", "value": "#username" },
+        { "strategy": "xpath", "value": "//input[@id='username']" }
+      ]
+    },
+    {
+      "name": "passwordInput",
+      "description": "Password text input",
+      "locators": [
+        { "strategy": "css", "value": "#password" },
+        { "strategy": "xpath", "value": "//input[@id='password']" }
+      ]
+    },
+    {
+      "name": "loginBtn",
+      "description": "Sign in submit button",
+      "locators": [
+        { "strategy": "css", "value": "#login-btn" },
+        { "strategy": "role", "value": "button[name='Sign in']" }
+      ]
+    },
+    {
+      "name": "passwordToggleBtn",
+      "description": "Show/hide password toggle",
+      "locators": [
+        { "strategy": "css", "value": "#password ~ button" }
+      ]
+    },
+    {
+      "name": "errorBanner",
+      "description": "Login error message banner",
+      "locators": [
+        { "strategy": "css", "value": "[style*='fef2f2']" },
+        { "strategy": "xpath", "value": "//div[contains(@style,'fef2f2')]" }
+      ]
+    },
+    {
+      "name": "registerLink",
+      "description": "Navigate to register page link",
+      "locators": [
+        { "strategy": "css", "value": "a[href='/register']" },
+        { "strategy": "text", "value": "Register" }
+      ]
+    }
+  ]
+}

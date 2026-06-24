@@ -1,0 +1,70 @@
+schemaVersion: 1
+id: a0b1c2d3-e4f5-6789-abcd-ef0123456713
+name: "UI — Search returns results for existing term"
+description: Log in, open Search page, type a keyword that exists in seeded documents/folders, submit, verify results count > 0.
+tags:
+  - web
+  - ui
+  - search
+  - smoke
+platform: web
+runner: playwright
+steps:
+  - id: nav-login
+    keyword: navigate-to
+    input: ${uiBaseUrl}/login
+
+  - id: wait-form
+    keyword: wait-for-element
+    objectRef: "#username"
+
+  - id: type-username
+    keyword: type-text
+    objectRef: "#username"
+    input: admin
+
+  - id: type-password
+    keyword: type-text
+    objectRef: "#password"
+    input: Admin@123
+
+  - id: click-login
+    keyword: click
+    objectRef: "#login-btn"
+
+  - id: wait-dashboard
+    keyword: wait-for-element
+    objectRef: 'text=Dashboard'
+
+  - id: nav-search
+    keyword: navigate-to
+    description: Navigate to Search page
+    input: ${uiBaseUrl}/search
+
+  - id: wait-search-page
+    keyword: wait-for-element
+    description: Wait for Search heading
+    objectRef: 'h1:has-text("Search")'
+
+  - id: type-search-query
+    keyword: type-text
+    description: Type search keyword matching seeded data
+    objectRef: 'input[placeholder*="Search"]'
+    input: document
+
+  - id: click-search-btn
+    keyword: click
+    description: Submit search
+    objectRef: 'button[type="submit"]'
+
+  - id: wait-results
+    keyword: wait-for-element
+    description: Wait for result count text to appear
+    objectRef: 'text=results for'
+
+  - id: assert-results-shown
+    keyword: assert-visible
+    description: Result summary line is visible (at least 1 result)
+    objectRef: 'text=results for'
+createdAt: "2026-06-23T00:00:00.000Z"
+updatedAt: "2026-06-23T00:00:00.000Z"

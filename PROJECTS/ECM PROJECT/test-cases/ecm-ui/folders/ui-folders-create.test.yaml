@@ -1,0 +1,67 @@
+schemaVersion: 1
+id: a0b1c2d3-e4f5-6789-abcd-ef0123456710
+name: UI — Create new root folder
+description: Log in, navigate to Folders, click New Folder, enter a name (no
+  parent), submit, verify folder appears in tree.
+tags:
+  - web
+  - ui
+  - folders
+  - crud
+  - smoke
+platform: web
+runner: playwright
+steps:
+  - id: nav-login
+    keyword: navigate-to
+    input: ${uiBaseUrl}/login
+  - id: wait-form
+    keyword: wait-for-element
+    objectRef: "#username"
+  - id: type-username
+    keyword: type-text
+    objectRef: "#username"
+    input: admin
+  - id: type-password
+    keyword: type-text
+    objectRef: "#password"
+    input: Admin@123
+  - id: click-login
+    keyword: click
+    objectRef: "#login-btn"
+  - id: wait-dashboard
+    keyword: wait-for-element
+    objectRef: text=Dashboard
+  - id: nav-folders
+    keyword: navigate-to
+    description: Navigate to Folders page
+    input: ${uiBaseUrl}/folders
+  - id: wait-page
+    keyword: wait-for-element
+    description: Wait for Folders page
+    objectRef: "#new-fld-btn"
+  - id: click-new-folder
+    keyword: click
+    description: Open New Folder modal
+    objectRef: "#new-fld-btn"
+  - id: wait-modal
+    keyword: wait-for-element
+    description: Wait for create folder modal
+    objectRef: "#fld-name"
+  - id: type-folder-name
+    keyword: type-text
+    description: Enter folder name
+    objectRef: "#fld-name"
+    input: UI Test Root Folder
+  - id: click-create
+    keyword: click
+    description: Submit new folder
+    objectRef: "#fld-submit-btn"
+  - id: wait-folder-in-tree
+    keyword: wait-for-element
+    description: Wait for folder to appear in tree
+    objectRef: text=UI Test Root Folder
+  - id: assert-folder-visible
+    keyword: assert-visible
+    description: New folder appears in the folder tree
+    objectRef: text=UI Test Root Folder

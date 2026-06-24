@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { X, FileText, Globe, Database, Layers, BarChart2, Braces, SlidersHorizontal, Wand2 } from 'lucide-react'
+import { X, FileText, Globe, Database, Layers, BarChart2, Braces, SlidersHorizontal } from 'lucide-react'
 import { useProjectStore } from '@/store/project.store'
 import { IpcChannels } from '@jkauto/core'
 import { invoke } from '@/lib/utils'
@@ -12,9 +12,10 @@ import { KeywordEditor } from '@/features/keywords/KeywordEditor'
 import { KeywordsView } from '@/features/keywords/KeywordsView'
 import { ReportsView } from '@/features/reports/ReportsView'
 import { ProfileEditor } from '@/features/env/ProfileEditor'
-import { AnalysisView } from '@/features/analysis/AnalysisView'
+import { DataFilesView } from '@/features/data-files/DataFilesView'
+import { DataFilesOverview } from '@/features/data-files/DataFilesOverview'
 import { useTabDnd } from '@/hooks/useTabDnd'
-import { ANALYSIS_TAB_PREFIX, REPORTS_TAB_PATH, KEYWORDS_TAB_PATH } from '@/shared/keymaps'
+import { REPORTS_TAB_PATH, KEYWORDS_TAB_PATH, DATA_FILES_TAB_PATH } from '@/shared/keymaps'
 
 function isTestCase(path: string) {
   return path.endsWith('.test.json') || path.endsWith('.test.yaml') || path.endsWith('.test.yml')
@@ -40,8 +41,12 @@ function isProfile(path: string) {
   return path.endsWith('.env.json')
 }
 
+function isDataFile(path: string) {
+  return path.endsWith('.data.json')
+}
+
 function getTabIcon(path: string): React.ElementType {
-  if (path.startsWith(ANALYSIS_TAB_PREFIX)) return Wand2
+  if (path === DATA_FILES_TAB_PATH) return Database
   if (path === REPORTS_TAB_PATH) return BarChart2
   if (path === KEYWORDS_TAB_PATH) return Braces
   if (isApiRequest(path)) return Globe
@@ -49,6 +54,7 @@ function getTabIcon(path: string): React.ElementType {
   if (isTestSuite(path)) return Layers
   if (isKeywords(path)) return Braces
   if (isProfile(path)) return SlidersHorizontal
+  if (isDataFile(path)) return Database
   return FileText
 }
 
@@ -86,9 +92,7 @@ function FileContent({ path }: { path: string }) {
 }
 
 function TabContent({ path }: { path: string }) {
-  if (path.startsWith(ANALYSIS_TAB_PREFIX)) {
-    return <AnalysisView projectPath={decodeURIComponent(path.slice(ANALYSIS_TAB_PREFIX.length))} />
-  }
+  if (path === DATA_FILES_TAB_PATH) return <DataFilesOverview />
   if (path === REPORTS_TAB_PATH) return <ReportsView />
   if (path === KEYWORDS_TAB_PATH) return <KeywordsView />
   if (isTestCase(path)) return <TestCaseEditor key={path} filePath={path} />
@@ -97,6 +101,7 @@ function TabContent({ path }: { path: string }) {
   if (isObjectRepo(path)) return <ObjectEditor key={path} filePath={path} />
   if (isKeywords(path)) return <KeywordEditor key={path} filePath={path} />
   if (isProfile(path)) return <ProfileEditor key={path} filePath={path} />
+  if (isDataFile(path)) return <DataFilesView key={path} filePath={path} />
   return <FileContent path={path} />
 }
 

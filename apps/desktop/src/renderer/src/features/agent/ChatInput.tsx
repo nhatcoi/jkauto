@@ -65,13 +65,7 @@ const WRITE_OPTIONS: Array<{
   },
 ]
 
-const SLASH_COMMANDS = [
-  { command: '/analysis', description: 'Run analysis if missing, otherwise show status.' },
-  { command: '/analysis refresh', description: 'Rebuild code analysis artifacts.' },
-  { command: '/analysis status', description: 'Show the latest analysis status.' },
-  { command: '/analysis routes', description: 'Summarize discovered routes and endpoints.' },
-  { command: '/analysis symbols', description: 'Summarize discovered code symbols.' },
-]
+const SLASH_COMMANDS: { command: string; description: string }[] = []
 
 export function ChatInput({
   value,

@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "id": "obj-ecm-folders-page-0004",
+  "name": "ECM Folders Page",
+  "platform": "web",
+  "objects": [
+    {
+      "name": "pageHeading",
+      "description": "Folders page heading h1",
+      "locators": [
+        { "strategy": "css", "value": "h1" },
+        { "strategy": "text", "value": "Folders" }
+      ]
+    },
+    {
+      "name": "newFolderBtn",
+      "description": "+ New Folder button",
+      "locators": [
+        { "strategy": "css", "value": "#new-fld-btn" }
+      ]
+    },
+    {
+      "name": "modalNameInput",
+      "description": "Folder name input in create modal",
+      "locators": [
+        { "strategy": "css", "value": "#fld-name" }
+      ]
+    },
+    {
+      "name": "modalParentSelect",
+      "description": "Parent folder select in create modal",
+      "locators": [
+        { "strategy": "css", "value": "#fld-parent" }
+      ]
+    },
+    {
+      "name": "modalSubmitBtn",
+      "description": "Create button in new folder modal",
+      "locators": [
+        { "strategy": "css", "value": "#fld-submit-btn" }
+      ]
+    },
+    {
+      "name": "deleteBtn",
+      "description": "Delete button on a folder row",
+      "locators": [
+        { "strategy": "css", "value": "button:has-text('Delete')" }
+      ]
+    },
+    {
+      "name": "folderIcon",
+      "description": "Folder emoji icon in tree",
+      "locators": [
+        { "strategy": "text", "value": "📁" }
+      ]
+    }
+  ]
+}

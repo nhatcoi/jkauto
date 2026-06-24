@@ -42,6 +42,20 @@ const selectFn: PageKeywordExecutor = async ({ page, objectRef, input, resolveLo
   const s = await resolveLocator(objectRef)
   await page.selectOption(s, interpolate(input))
 }
+const acceptDialogFn: PageKeywordExecutor = async ({ page }) => {
+  await page.evaluate(() => {
+    window.confirm = () => true
+    window.alert = () => undefined
+    window.prompt = (_msg, def) => def ?? ''
+  })
+}
+const dismissDialogFn: PageKeywordExecutor = async ({ page }) => {
+  await page.evaluate(() => {
+    window.confirm = () => false
+    window.alert = () => undefined
+    window.prompt = () => null
+  })
+}
 const checkFn: PageKeywordExecutor = async ({ page, objectRef, resolveLocator }) => {
   const s = await resolveLocator(objectRef)
   await page.check(s)
@@ -150,6 +164,30 @@ export const interactionKeywords: KeywordDef[] = [
     objectPlaceholder: 'Selector',
     inputPlaceholder: 'Option value',
     executors: { web: selectFn, desktop: selectFn },
+  },
+  {
+    name: 'accept-dialog',
+    label: 'Accept Dialog',
+    color: 'bg-amber-600',
+    description: 'Pre-register a one-time handler to accept the next browser dialog (alert/confirm/prompt). Place before the step that triggers the dialog.',
+    platforms: ['web', 'desktop'],
+    params: [],
+    hasObject: false,
+    hasInput: false,
+    hasExpected: false,
+    executors: { web: acceptDialogFn, desktop: acceptDialogFn },
+  },
+  {
+    name: 'dismiss-dialog',
+    label: 'Dismiss Dialog',
+    color: 'bg-amber-700',
+    description: 'Pre-register a one-time handler to dismiss (cancel) the next browser dialog. Place before the step that triggers the dialog.',
+    platforms: ['web', 'desktop'],
+    params: [],
+    hasObject: false,
+    hasInput: false,
+    hasExpected: false,
+    executors: { web: dismissDialogFn, desktop: dismissDialogFn },
   },
   {
     name: 'check',

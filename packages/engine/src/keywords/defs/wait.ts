@@ -6,11 +6,18 @@ const waitMsFn: PageKeywordExecutor = async ({ page, input, interpolate }) => {
 const waitForElementFn: PageKeywordExecutor = async ({ page, objectRef, input, resolveLocator, interpolate }) => {
   const s = await resolveLocator(objectRef)
   const timeout = input ? parseInt(interpolate(input), 10) : 30000
-  await page.waitForSelector(s, { state: 'visible', timeout })
+  await page.locator(s).first().waitFor({ state: 'visible', timeout })
 }
 const waitForVisibleFn: PageKeywordExecutor = async ({ page, objectRef, resolveLocator }) => {
   const s = await resolveLocator(objectRef)
-  await page.waitForSelector(s, { state: 'visible' })
+  await page.locator(s).first().waitFor({ state: 'visible' })
+}
+
+const waitForElementHiddenFn: PageKeywordExecutor = async ({ page, objectRef, input, resolveLocator, interpolate }) => {
+  const s = await resolveLocator(objectRef)
+  const timeout = input ? parseInt(interpolate(input), 10) : 30000
+  // Use .first() to avoid strict-mode violation when multiple elements match
+  await page.locator(s).first().waitFor({ state: 'hidden', timeout })
 }
 
 const appiumWaitMsFn: AppiumKeywordExecutor = async ({ driver, input, interpolate }) => {
@@ -65,6 +72,23 @@ export const waitKeywords: KeywordDef[] = [
     objectPlaceholder: 'Selector',
     inputPlaceholder: 'Timeout ms',
     executors: { web: waitForElementFn, mobile: waitForElementFn, desktop: waitForElementFn, appium: appiumWaitForElementFn },
+  },
+  {
+    name: 'wait-for-element-hidden',
+    label: 'Wait For Element Hidden',
+    color: 'bg-cyan-900',
+    description: 'Wait for element to become hidden or removed from DOM',
+    platforms: ['web', 'desktop'],
+    params: [
+      { name: 'objectRef', description: 'CSS selector or object reference', required: true },
+      { name: 'input', description: 'Timeout in ms (default 30000)', required: false },
+    ],
+    hasObject: true,
+    hasInput: true,
+    hasExpected: false,
+    objectPlaceholder: 'Selector',
+    inputPlaceholder: 'Timeout ms',
+    executors: { web: waitForElementHiddenFn, desktop: waitForElementHiddenFn },
   },
   {
     name: 'wait-for-visible',

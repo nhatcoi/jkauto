@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "name": "folders-endpoints",
+  "columns": [
+    "endpoint",
+    "method",
+    "payload",
+    "headers",
+    "expectedStatus",
+    "scenario"
+  ],
+  "rows": [
+    [
+      "/folders",
+      "GET",
+      "{}",
+      "{\"Authorization\":\"Bearer valid-token\"}",
+      "200",
+      "happy path list folders"
+    ],
+    [
+      "/folders",
+      "GET",
+      "{}",
+      "{}",
+      "401",
+      "list folders no auth"
+    ],
+    [
+      "/folders",
+      "POST",
+      "{\"name\":\"Projects\",\"parentId\":null}",
+      "{\"Authorization\":\"Bearer valid-token\"}",
+      "201",
+      "happy path create root folder"
+    ],
+    [
+      "/folders",
+      "POST",
+      "{\"name\":\"Subfolder\",\"parentId\":\"folder-123\"}",
+      "{\"Authorization\":\"Bearer valid-token\"}",
+      "201",
+      "happy path create nested folder"
+    ],
+    [
+      "/folders",
+      "POST",
+      "{\"parentId\":\"folder-123\"}",
+      "{\"Authorization\":\"Bearer valid-token\"}",
+      "400",
+      "create folder missing name"
+    ],
+    [
+      "/folders",
+      "POST",
+      "{\"name\":\"\"}",
+      "{\"Authorization\":\"Bearer valid-token\"}",
+      "400",
+      "create folder empty name"
+    ],
+    [
+      "/folders/:id",
+      "GET",
+      "{}",
+      "{\"Authorization\":\"Bearer valid-token\"}",
+      "200",
+      "happy path get folder by id"
+    ],
+    [
+      "/folders/:id",
+      "GET",
+      "{}",
+      "{\"Authorization\":\"Bearer valid-token\"}",
+      "404",
+      "folder not found"
+    ],
+    [
+      "/folders/:id",
+      "PUT",
+      "{\"name\":\"Renamed Folder\"}",
+      "{\"Authorization\":\"Bearer valid-token\"}",
+      "200",
+      "happy path update folder"
+    ],
+    [
+      "/folders/:id",
+      "DELETE",
+      "{}",
+      "{\"Authorization\":\"Bearer valid-token\"}",
+      "204",
+      "happy path delete folder"
+    ],
+    [
+      "/folders/:id",
+      "DELETE",
+      "{}",
+      "{\"Authorization\":\"Bearer valid-token\"}",
+      "409",
+      "delete folder with contents conflict"
+    ],
+    [
+      "/folders/:id/documents",
+      "GET",
+      "{}",
+      "{\"Authorization\":\"Bearer valid-token\"}",
+      "200",
+      "happy path list folder documents"
+    ],
+    [
+      "/folders/:id/documents",
+      "GET",
+      "{}",
+      "{}",
+      "401",
+      "list folder documents no auth"
+    ],
+    [
+      "/folders/:id/children",
+      "GET",
+      "{}",
+      "{\"Authorization\":\"Bearer valid-token\"}",
+      "200",
+      "happy path list child folders"
+    ],
+    [
+      "/folders/:id/children",
+      "GET",
+      "{}",
+      "{\"Authorization\":\"Bearer valid-token\"}",
+      "200",
+      "empty children list"
+    ]
+  ]
+}

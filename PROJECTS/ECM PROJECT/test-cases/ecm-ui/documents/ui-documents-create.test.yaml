@@ -1,0 +1,99 @@
+schemaVersion: 1
+id: a0b1c2d3-e4f5-6789-abcd-ef0123456707
+name: "UI — Create new document via modal"
+description: Log in as admin, open Documents page, click New Document, fill form, submit, and verify the new document row appears in the table.
+tags:
+  - web
+  - ui
+  - documents
+  - crud
+  - smoke
+platform: web
+runner: playwright
+steps:
+  - id: nav-login
+    keyword: navigate-to
+    description: Open login page
+    input: ${uiBaseUrl}/login
+
+  - id: wait-login-form
+    keyword: wait-for-element
+    description: Wait for login form
+    objectRef: "#username"
+
+  - id: type-username
+    keyword: type-text
+    description: Enter admin username
+    objectRef: "#username"
+    input: admin
+
+  - id: type-password
+    keyword: type-text
+    description: Enter admin password
+    objectRef: "#password"
+    input: Admin@123
+
+  - id: click-login
+    keyword: click
+    description: Sign in
+    objectRef: "#login-btn"
+
+  - id: wait-dashboard
+    keyword: wait-for-element
+    description: Wait for dashboard to load
+    objectRef: 'text=Dashboard'
+
+  - id: nav-documents
+    keyword: navigate-to
+    description: Navigate to Documents page
+    input: ${uiBaseUrl}/documents
+
+  - id: wait-documents-page
+    keyword: wait-for-element
+    description: Wait for Documents page to load
+    objectRef: "#new-doc-btn"
+
+  - id: click-new-doc
+    keyword: click
+    description: Click + New Document button to open modal
+    objectRef: "#new-doc-btn"
+
+  - id: wait-modal
+    keyword: wait-for-element
+    description: Wait for create document modal to appear
+    objectRef: "#doc-title"
+
+  - id: type-title
+    keyword: type-text
+    description: Enter document title
+    objectRef: "#doc-title"
+    input: UI Automated Test Document
+
+  - id: type-description
+    keyword: type-text
+    description: Enter document description
+    objectRef: "#doc-desc"
+    input: Document created by automated UI test
+
+  - id: select-status
+    keyword: select-option
+    description: Set status to published
+    objectRef: "#doc-status"
+    input: published
+
+  - id: click-create
+    keyword: click
+    description: Submit the create form
+    objectRef: "#doc-submit-btn"
+
+  - id: wait-result
+    keyword: wait-for-element
+    description: Wait for new document to appear in table
+    objectRef: 'text=UI Automated Test Document'
+
+  - id: assert-doc-visible
+    keyword: assert-visible
+    description: New document row is visible in the table
+    objectRef: 'text=UI Automated Test Document'
+createdAt: "2026-06-23T00:00:00.000Z"
+updatedAt: "2026-06-23T00:00:00.000Z"

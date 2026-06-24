@@ -8,6 +8,7 @@ import type { TestCase, TestSuite, Profile, RunCompleteEvent, SuiteEvent, Object
 import { runTestCase, getKeywordMeta, getAdapter } from '@jkauto/engine'
 import { getSettings } from '../services/settings.service'
 import { ensureAppiumRunning } from './appium.handler'
+import { loadDataFileRows } from './data-file.handler'
 import { parse as yamlParse } from 'yaml'
 
 interface ActiveRun {
@@ -30,18 +31,20 @@ interface RunPayload {
 }
 
 async function loadObjectRepositories(projectPath: string): Promise<ObjectRepository[]> {
-  const repoDir = path.join(projectPath, 'api-request')
   const repos: ObjectRepository[] = []
-  try {
-    const entries = await fs.readdir(repoDir)
-    for (const entry of entries) {
-      if (!entry.endsWith('.objects.json')) continue
-      try {
-        const raw = await fs.readFile(path.join(repoDir, entry), 'utf-8')
-        repos.push(JSON.parse(raw) as ObjectRepository)
-      } catch { /* skip malformed file */ }
-    }
-  } catch { /* api-request dir missing */ }
+  for (const dir of ['object-repository', 'api-request']) {
+    const repoDir = path.join(projectPath, dir)
+    try {
+      const entries = await fs.readdir(repoDir)
+      for (const entry of entries) {
+        if (!entry.endsWith('.objects.json')) continue
+        try {
+          const raw = await fs.readFile(path.join(repoDir, entry), 'utf-8')
+          repos.push(JSON.parse(raw) as ObjectRepository)
+        } catch { /* skip malformed file */ }
+      }
+    } catch { /* dir missing */ }
+  }
   return repos
 }
 
@@ -234,53 +237,110 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
         }
       : undefined
 
-    runTestCase(
-      testCase,
-      profile,
-      runId,
-      (stepEvent) => {
-        if (!webContents.isDestroyed()) {
-          webContents.send(IpcChannels.ENGINE_STEP_EVENT, stepEvent)
+    // Load data file rows if test case has a dataFile binding
+    let dataRows: Record<string, string>[] = []
+    if (testCase.dataFile && projectPath) {
+      const dataFilePath = path.isAbsolute(testCase.dataFile)
+        ? testCase.dataFile
+        : path.join(projectPath, testCase.dataFile)
+      dataRows = await loadDataFileRows(dataFilePath)
+    }
+    const totalRows = dataRows.length > 0 ? dataRows.length : undefined
+
+    const baseOptions = debugMode
+      ? {
+          headless: settings.execution.headless,
+          objectRepositories,
+          appPath: appPath ?? testCase.app?.path,
+          loadTestCase,
+          persistVariable,
+          persistApiConfig,
+          waitForNext: (stepIndex: number) =>
+            new Promise<void>((resolve) => {
+              debugNextResolvers.set(runId, resolve)
+              if (!webContents.isDestroyed()) {
+                webContents.send(IpcChannels.ENGINE_DEBUG_NEXT, { runId, stepIndex, paused: true })
+              }
+            }),
         }
-      },
-      (completeEvent) => {
-        if (!webContents.isDestroyed()) {
-          webContents.send(IpcChannels.ENGINE_RUN_COMPLETE, completeEvent)
+      : {
+          headless: settings.execution.headless,
+          objectRepositories,
+          appPath: appPath ?? testCase.app?.path,
+          loadTestCase,
+          stepDelay,
+          persistVariable,
+          persistApiConfig,
+          screenshotDir: projectPath ? path.join(projectPath, '.autotest', 'screenshots') : undefined,
         }
-        activeRuns.delete(runId)
-      },
-      abort.signal,
-      debugMode
-        ? {
-            headless: settings.execution.headless,
-            objectRepositories,
-            appPath: appPath ?? testCase.app?.path,
-            loadTestCase,
-            persistVariable,
-            persistApiConfig,
-            waitForNext: (stepIndex: number) =>
-              new Promise<void>((resolve) => {
-                debugNextResolvers.set(runId, resolve)
-                if (!webContents.isDestroyed()) {
-                  webContents.send(IpcChannels.ENGINE_DEBUG_NEXT, { runId, stepIndex, paused: true })
-                }
-              }),
+
+    const onStep = (stepEvent: import('@jkauto/core').StepEvent) => {
+      if (!webContents.isDestroyed()) webContents.send(IpcChannels.ENGINE_STEP_EVENT, stepEvent)
+    }
+
+    void (async () => {
+      try {
+        if (dataRows.length === 0) {
+          // No data file — single run
+          await new Promise<void>((resolve, reject) => {
+            runTestCase(testCase, profile, runId, onStep, (completeEvent) => {
+              if (!webContents.isDestroyed()) webContents.send(IpcChannels.ENGINE_RUN_COMPLETE, completeEvent)
+              activeRuns.delete(runId)
+              resolve()
+            }, abort.signal, baseOptions).catch(reject)
+          })
+        } else {
+          // Data-driven: run once per row
+          let totalPassed = 0
+          let totalFailed = 0
+          const startTime = Date.now()
+          for (let rowIndex = 0; rowIndex < dataRows.length; rowIndex++) {
+            if (abort.signal.aborted) break
+            const rowVars = dataRows[rowIndex]!
+            if (!webContents.isDestroyed()) {
+              webContents.send(IpcChannels.ENGINE_ROW_EVENT, {
+                runId, rowIndex, totalRows, type: 'row-start',
+              })
+            }
+            const result = await new Promise<import('@jkauto/core').RunCompleteEvent>((resolve, reject) => {
+              runTestCase(testCase, profile, runId, onStep, resolve, abort.signal, {
+                ...baseOptions, rowVars, rowIndex, totalRows,
+              }).catch(reject)
+            })
+            totalPassed += result.passedSteps
+            totalFailed += result.failedSteps
+            if (!webContents.isDestroyed()) {
+              webContents.send(IpcChannels.ENGINE_ROW_EVENT, {
+                runId, rowIndex, totalRows, type: 'row-complete',
+                status: result.status, passedSteps: result.passedSteps, failedSteps: result.failedSteps,
+                durationMs: result.durationMs,
+              })
+            }
+            if (result.status === 'stopped') break
           }
-        : { headless: settings.execution.headless, objectRepositories, appPath: appPath ?? testCase.app?.path, loadTestCase, stepDelay, persistVariable, persistApiConfig, screenshotDir: projectPath ? path.join(projectPath, '.autotest', 'screenshots') : undefined },
-    ).catch((err) => {
-      activeRuns.delete(runId)
-      if (!webContents.isDestroyed()) {
-        webContents.send(IpcChannels.ENGINE_RUN_COMPLETE, {
-          runId,
-          status: 'failed',
-          totalSteps: testCase.steps.length,
-          passedSteps: 0,
-          failedSteps: 1,
-          durationMs: 0,
-          error: err instanceof Error ? err.message : String(err),
-        })
+          const finalStatus = abort.signal.aborted ? 'stopped' : totalFailed > 0 ? 'failed' : 'passed'
+          if (!webContents.isDestroyed()) {
+            webContents.send(IpcChannels.ENGINE_RUN_COMPLETE, {
+              runId, status: finalStatus,
+              totalSteps: testCase.steps.length * dataRows.length,
+              passedSteps: totalPassed, failedSteps: totalFailed,
+              durationMs: Date.now() - startTime,
+            })
+          }
+          activeRuns.delete(runId)
+        }
+      } catch (err) {
+        activeRuns.delete(runId)
+        if (!webContents.isDestroyed()) {
+          webContents.send(IpcChannels.ENGINE_RUN_COMPLETE, {
+            runId, status: 'failed',
+            totalSteps: testCase.steps.length,
+            passedSteps: 0, failedSteps: 1, durationMs: 0,
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
       }
-    })
+    })()
 
     return { runId }
   })

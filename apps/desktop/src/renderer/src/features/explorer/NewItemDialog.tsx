@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 
-type NewItemType = 'folder' | 'test-case' | 'suite' | 'keyword' | 'api-request'
+type NewItemType = 'folder' | 'test-case' | 'suite' | 'keyword' | 'api-request' | 'data-file'
 type DialogPlatform = 'web' | 'mobile' | 'desktop' | 'api'
 
 const LABELS: Record<NewItemType, { title: string; placeholder: string }> = {
@@ -20,6 +20,7 @@ const LABELS: Record<NewItemType, { title: string; placeholder: string }> = {
   suite: { title: 'New Test Suite', placeholder: 'smoke-suite' },
   keyword: { title: 'New Keyword', placeholder: 'my-keyword' },
   'api-request': { title: 'New Web Service Request', placeholder: 'get-user' },
+  'data-file': { title: 'New Data File', placeholder: 'login-data' },
 }
 
 const PLATFORM_OPTIONS: Array<{ value: DialogPlatform; label: string }> = [

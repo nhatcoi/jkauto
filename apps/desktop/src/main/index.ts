@@ -25,7 +25,9 @@ import { registerMobileToolsHandlers } from './handlers/mobile-tools.handler'
 import { registerAutogenHandlers } from './handlers/autogen-handler'
 import { registerAnalysisHandlers } from './handlers/analysis.handler'
 import { registerTestgenHandlers } from './handlers/testgen.handler'
+import { registerTestRunAutoHandlers } from './handlers/testrun-auto.handler'
 import { registerFileHistoryHandlers } from './handlers/file-history.handler'
+import { registerDataFileHandlers } from './handlers/data-file.handler'
 import { IpcChannels } from '@jkauto/core'
 import { setupMenu } from './menu'
 
@@ -123,8 +125,10 @@ app.whenReady().then(() => {
   registerAutogenHandlers(ipcMain)
   registerAnalysisHandlers(ipcMain)
   registerTestgenHandlers(ipcMain)
+  registerTestRunAutoHandlers(ipcMain)
   registerScrcpyHandlers(ipcMain)
   registerWindowHandlers(ipcMain)
+  registerDataFileHandlers(ipcMain)
   ipcMain.handle(IpcChannels.APPIUM_INSPECTOR_OPEN, () => {
     openInspectorWindow()
     return { ok: true }

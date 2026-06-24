@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Trash2, Check, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Check, Loader2, RotateCcw } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -106,6 +106,20 @@ export function EnvManagerDialog({ open, onClose }: Props) {
   const removeRow = (id: string) => {
     setRows((prev) => prev.filter((r) => r.id !== id))
     setDirty(true)
+  }
+
+  const reload = async () => {
+    if (!selectedPath) return
+    if (dirty && !confirm('Discard unsaved changes?')) return
+    setLoadingVars(true)
+    setDirty(false)
+    readProfile(selectedPath)
+      .then((profile) => {
+        setRows(toRows(profile.variables))
+        setApiConfig(fromApiProfileConfig(profile.api))
+      })
+      .catch(() => { setRows([]); setApiConfig(fromApiProfileConfig(undefined)) })
+      .finally(() => setLoadingVars(false))
   }
 
   const save = async () => {
@@ -286,6 +300,14 @@ export function EnvManagerDialog({ open, onClose }: Props) {
                   </div>
                   <div className="flex items-center gap-2 px-3">
                     {dirty && <span className="text-[10px] text-yellow-400">unsaved</span>}
+                    <button
+                      type="button"
+                      onClick={reload}
+                      title="Reload from disk"
+                      className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                    </button>
                     <Button size="sm" onClick={save} disabled={saving || !dirty} className="h-6 px-3 text-xs">
                       {saving && <Loader2 className="w-3 h-3 animate-spin mr-1" />}
                       Save

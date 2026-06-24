@@ -1,0 +1,56 @@
+schemaVersion: 1
+id: a0b1c2d3-e4f5-6789-abcd-ef0123456709
+name: UI — Create then delete a document
+description: Create a uniquely-named document, then delete it by clicking the
+  Delete button and accepting the browser confirm dialog. Assert the row is
+  gone.
+tags:
+  - web
+  - ui
+  - documents
+  - crud
+  - delete
+platform: web
+runner: playwright
+steps:
+  - id: nav-login
+    keyword: navigate-to
+    input: ${uiBaseUrl}/login
+  - id: wait-form
+    keyword: wait-for-element
+    objectRef: "#username"
+  - id: type-username
+    keyword: type-text
+    objectRef: "#username"
+    input: admin
+  - id: type-password
+    keyword: type-text
+    objectRef: "#password"
+    input: Admin@123
+  - id: click-login
+    keyword: click
+    objectRef: "#login-btn"
+  - id: wait-dashboard
+    keyword: wait-for-element
+    objectRef: text=Dashboard
+  - id: nav-documents
+    keyword: navigate-to
+    input: ${uiBaseUrl}/documents
+  - id: wait-page
+    keyword: wait-for-element
+    objectRef: "#new-doc-btn"
+  - id: click-new-doc
+    keyword: click
+    description: Open create modal
+    objectRef: "#new-doc-btn"
+  - id: wait-modal
+    keyword: wait-for-element
+    objectRef: "#doc-title"
+  - id: type-delete-target-title
+    keyword: type-text
+    description: Use unique title to identify for deletion
+    objectRef: "#doc-title"
+    input: DEL_${__rand}
+  - id: click-create
+    keyword: click
+    objectRef: "#doc-submit-btn"

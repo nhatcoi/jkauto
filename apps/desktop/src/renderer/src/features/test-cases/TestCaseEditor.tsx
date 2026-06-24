@@ -20,6 +20,7 @@ import { EngineInstallBanner } from "@/components/engine-install/EngineInstallBa
 import { TestCaseToolbar, type TestCaseViewMode } from "./components/TestCaseToolbar";
 import { YamlTestcaseEditor } from "./components/YamlTestcaseEditor";
 import { StepTable } from "./components/StepTable";
+import { DataFileBinding } from "./components/DataFileBinding";
 import type { TestCase } from "./types";
 
 export function TestCaseEditor({ filePath }: { filePath: string }) {
@@ -240,6 +241,8 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
           className="mx-3 my-1.5 shrink-0"
         />
       )}
+
+      <DataFileBinding tc={tc} onChange={mutate} />
 
       {viewMode === "yaml" ? (
         <>

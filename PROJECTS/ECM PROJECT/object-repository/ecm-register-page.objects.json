@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "id": "obj-ecm-register-page-0002",
+  "name": "ECM Register Page",
+  "platform": "web",
+  "objects": [
+    {
+      "name": "usernameInput",
+      "description": "Username text input (min 3 chars)",
+      "locators": [
+        { "strategy": "css", "value": "#reg-username" },
+        { "strategy": "xpath", "value": "//input[@id='reg-username']" }
+      ]
+    },
+    {
+      "name": "emailInput",
+      "description": "Email address input",
+      "locators": [
+        { "strategy": "css", "value": "#reg-email" }
+      ]
+    },
+    {
+      "name": "passwordInput",
+      "description": "Password input (min 6 chars)",
+      "locators": [
+        { "strategy": "css", "value": "#reg-password" }
+      ]
+    },
+    {
+      "name": "confirmPasswordInput",
+      "description": "Confirm password input",
+      "locators": [
+        { "strategy": "css", "value": "#reg-confirm" }
+      ]
+    },
+    {
+      "name": "submitBtn",
+      "description": "Create account submit button",
+      "locators": [
+        { "strategy": "css", "value": "#register-btn" }
+      ]
+    },
+    {
+      "name": "errorBanner",
+      "description": "Validation error banner",
+      "locators": [
+        { "strategy": "css", "value": "[style*='fef2f2']" }
+      ]
+    },
+    {
+      "name": "loginLink",
+      "description": "Sign in link to navigate back to login",
+      "locators": [
+        { "strategy": "css", "value": "a[href='/login']" },
+        { "strategy": "text", "value": "Sign in" }
+      ]
+    }
+  ]
+}

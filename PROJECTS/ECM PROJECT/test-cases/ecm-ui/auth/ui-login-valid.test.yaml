@@ -1,0 +1,48 @@
+schemaVersion: 1
+id: a0b1c2d3-e4f5-6789-abcd-ef0123456701
+name: UI — Login with valid credentials
+description: Admin logs in with correct credentials, lands on Dashboard, welcome
+  message shows username.
+tags:
+  - web
+  - ui
+  - auth
+  - smoke
+platform: web
+runner: playwright
+steps:
+  - id: login-navigate
+    keyword: navigate-to
+    description: Open login page
+    input: ${uiBaseUrl}/login
+  - id: login-wait-form
+    keyword: wait-for-element
+    description: Wait for username input to be ready
+    objectRef: "#username"
+  - id: login-type-username
+    keyword: type-text
+    description: Enter admin username
+    objectRef: "#username"
+    input: admin
+  - id: login-type-password
+    keyword: type-text
+    description: Enter admin password
+    objectRef: "#password"
+    input: Admin@123
+  - id: login-click-submit
+    keyword: click
+    description: Click Sign in button
+    objectRef: "#login-btn"
+  - id: login-wait-dashboard
+    keyword: wait-for-element
+    description: Wait for Dashboard heading to appear
+    objectRef: text=Dashboard
+  - id: login-assert-url
+    keyword: assert-url
+    description: URL is dashboard root after login
+    expected: ${uiBaseUrl}/
+  - id: login-assert-welcome
+    keyword: assert-text
+    description: Welcome message shows logged-in username
+    objectRef: text=Welcome back,
+    expected: admin

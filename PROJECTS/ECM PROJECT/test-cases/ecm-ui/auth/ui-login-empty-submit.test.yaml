@@ -1,0 +1,39 @@
+schemaVersion: 1
+id: a0b1c2d3-e4f5-6789-abcd-ef0123456703
+name: "UI — Login with empty fields blocked by form validation"
+description: Clicking Sign in without filling any field triggers browser native required-field validation. Page does not navigate away.
+tags:
+  - web
+  - ui
+  - auth
+  - negative
+  - validation
+platform: web
+runner: playwright
+steps:
+  - id: nav-login
+    keyword: navigate-to
+    description: Open login page
+    input: ${uiBaseUrl}/login
+
+  - id: wait-form
+    keyword: wait-for-element
+    description: Wait for login form to render
+    objectRef: "#login-btn"
+
+  - id: click-submit-empty
+    keyword: click
+    description: Click Sign in without entering any credentials
+    objectRef: "#login-btn"
+
+  - id: assert-still-login-url
+    keyword: assert-url
+    description: Browser validation blocked submit — URL unchanged
+    expected: ${uiBaseUrl}/login
+
+  - id: assert-form-still-visible
+    keyword: assert-visible
+    description: Username input still present (still on login page)
+    objectRef: "#username"
+createdAt: "2026-06-23T00:00:00.000Z"
+updatedAt: "2026-06-23T00:00:00.000Z"

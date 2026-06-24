@@ -31,6 +31,7 @@ export interface TestCase {
     stepDelayMs?: number | null
   }
   variables?: Record<string, string>
+  dataFile?: string
   stepDelayMs?: number | null
   steps: TestStep[]
   createdAt?: string

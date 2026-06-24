@@ -79,6 +79,69 @@ function getProjectPath(payload: AgentChatPayload): string | undefined {
     ?.activeProject?.path
 }
 
+function detectIntent(text: string, mode: AgentSessionMode): 'conversational' | 'info' | 'code-change' | 'execution' {
+  if (mode === 'directly') {
+    return 'execution'
+  }
+  const normalized = text
+    .trim()
+    .toLowerCase()
+    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, '')
+  if (normalized.length === 0) return 'conversational'
+  const greetings = [
+    'hi',
+    'hello',
+    'hey',
+    'chào',
+    'xin chào',
+    'hi agent',
+    'hello agent',
+    'how are you',
+    'bạn khỏe không',
+    'khỏe không',
+    'yo',
+    'halo',
+    'bạn là ai',
+    'who are you',
+    'what is your name',
+    'tên bạn là gì',
+    'chào bạn',
+    'chào ad',
+    'chào bạn nhé',
+    'hello ad',
+    'greetings',
+  ]
+  const greetingRegex = /^(chào|xin chào|hi|hello|hey|yo|halo|greetings|chao)(\s+(cậu|ad|bạn|nha|nhé|ơi|bot|agent|mọi người))?$/
+  if (greetingRegex.test(normalized) || greetings.includes(normalized)) return 'conversational'
+  if (normalized.length <= 4 && !/^\d+$/.test(normalized)) {
+    return 'conversational'
+  }
+  const executionKeywords = [
+    'run test', 'chạy test', 'execute', 'thực thi', 'browser', 'trình duyệt', 
+    'playwright', 'chromium', 'open page', 'mở trang', 'click', 'type', 'nhập'
+  ]
+  if (executionKeywords.some(kw => normalized.includes(kw))) {
+    return 'execution'
+  }
+  const codeChangeKeywords = [
+    'create test', 'tạo test', 'sinh test', 'generate test', 'write test', 'viết test',
+    'save', 'lưu', 'update', 'cập nhật', 'edit', 'sửa', 'modify', 'change', 'thay đổi',
+    'add step', 'thêm bước', 'apply'
+  ]
+  if (codeChangeKeywords.some(kw => normalized.includes(kw))) {
+    return 'code-change'
+  }
+  const infoKeywords = [
+    'project', 'dự án', 'features', 'tính năng', 'keywords', 'từ khóa', 'test case',
+    'profiles', 'env', 'request', 'endpoint', 'api', 'rules', 'quy tắc', 'hướng dẫn',
+    'list', 'danh sách', 'show', 'hiển thị'
+  ]
+  if (infoKeywords.some(kw => normalized.includes(kw))) {
+    return 'info'
+  }
+  return 'conversational'
+}
+
 function extractApplyStepsArtifacts(
   content: string,
   sessionId: string,
@@ -212,8 +275,12 @@ export async function chatWithAgent(
       : []),
   ]
 
+  const latestRequest =
+    userMessage?.role === 'user' ? userMessage.content : 'Complete the requested test'
+  const intent = detectIntent(latestRequest, sessionMode)
+
   // Project context
-  const projectContext = projectPath
+  const projectContext = projectPath && intent !== 'conversational'
     ? await buildProjectContext(projectPath)
     : ''
 
@@ -224,11 +291,10 @@ export async function chatWithAgent(
   let harnessRunId: string | undefined
 
   if (projectPath) {
-    const latestRequest =
-      userMessage?.role === 'user' ? userMessage.content : 'Complete the requested test'
     const analysisReport = getCodeAnalysisReport(projectPath)
-    const relevantCode = analysisReport?.run.status === 'completed'
-      ? getRelevantCodeContext(projectPath, latestRequest, 20)
+    const limit = intent === 'code-change' ? 10 : 20
+    const relevantCode = (intent === 'code-change' || intent === 'execution') && analysisReport?.run.status === 'completed'
+      ? getRelevantCodeContext(projectPath, latestRequest, limit)
       : []
     const projectSummary = analysisReport?.artifacts.find(
       (artifact) => artifact.type === 'project-summary',
@@ -236,7 +302,7 @@ export async function chatWithAgent(
     const classification = analysisReport?.artifacts.find(
       (artifact) => artifact.type === 'project-classification',
     )
-    const analysisContext = analysisReport?.run.status === 'completed'
+    const analysisContext = intent !== 'conversational' && analysisReport?.run.status === 'completed'
       ? [
           '## Persisted Auto Generate Test',
           `Index id: ${analysisReport.run.indexId ?? 'unknown'}`,
@@ -290,7 +356,7 @@ export async function chatWithAgent(
         session?.summary,
         sessionMode,
         manager,
-        skills,
+        (intent === 'code-change' || intent === 'execution') ? skills : [],
         agentConfig,
         onChunk,
         (event) => {
@@ -305,6 +371,7 @@ export async function chatWithAgent(
             )
           }
         },
+        intent,
       )
       content = result.content
       model = result.model
@@ -362,10 +429,11 @@ export async function chatWithAgent(
       session?.summary,
       sessionMode,
       null,
-      skills,
+      (intent === 'code-change' || intent === 'execution') ? skills : [],
       agentConfig,
       onChunk,
       onToolEvent,
+      intent,
     )
     content = result.content
     model = result.model

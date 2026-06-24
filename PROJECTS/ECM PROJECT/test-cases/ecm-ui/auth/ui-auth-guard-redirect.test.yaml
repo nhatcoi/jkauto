@@ -1,0 +1,38 @@
+schemaVersion: 1
+id: a0b1c2d3-e4f5-6789-abcd-ef0123456706
+name: UI — Auth guard redirects unauthenticated user to login
+description: Accessing a protected route (Dashboard) without a token in
+  localStorage redirects to /login immediately.
+tags:
+  - web
+  - ui
+  - auth
+  - security
+  - smoke
+platform: web
+runner: playwright
+steps:
+  - id: access-protected-root
+    keyword: navigate-to
+    description: Attempt to access protected Dashboard route without auth
+    input: ${uiBaseUrl}/
+  - id: wait-redirect
+    keyword: wait-for-element
+    description: Wait for redirect to login — username input should appear
+    objectRef: "#username"
+  - id: assert-redirected-to-login
+    keyword: assert-url
+    description: Auth guard redirected to /login
+    expected: ${uiBaseUrl}/login
+  - id: access-protected-documents
+    keyword: navigate-to
+    description: Attempt to access Documents route without auth
+    input: ${uiBaseUrl}/documents
+  - id: wait-redirect-documents
+    keyword: wait-for-element
+    description: Should also redirect to login
+    objectRef: "#username"
+  - id: assert-redirected-again
+    keyword: assert-url
+    description: Documents route also guarded
+    expected: ${uiBaseUrl}/login

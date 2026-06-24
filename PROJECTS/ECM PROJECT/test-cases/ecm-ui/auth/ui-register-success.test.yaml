@@ -1,0 +1,62 @@
+schemaVersion: 1
+id: a0b1c2d3-e4f5-6789-abcd-ef0123456704
+name: "UI — Register new account and redirect to login"
+description: Fill registration form with valid new user data, submit, expect redirect to /login page.
+tags:
+  - web
+  - ui
+  - auth
+  - register
+platform: web
+runner: playwright
+steps:
+  - id: nav-register
+    keyword: navigate-to
+    description: Open register page directly
+    input: ${uiBaseUrl}/register
+
+  - id: wait-form
+    keyword: wait-for-element
+    description: Wait for registration form to render
+    objectRef: "#reg-username"
+
+  - id: type-username
+    keyword: type-text
+    description: Enter new unique username
+    objectRef: "#reg-username"
+    input: uitest_${__rand}
+
+  - id: type-email
+    keyword: type-text
+    description: Enter email address
+    objectRef: "#reg-email"
+    input: uitest_${__rand}@example.com
+
+  - id: type-password
+    keyword: type-text
+    description: Enter password (min 6 chars)
+    objectRef: "#reg-password"
+    input: Test@123
+
+  - id: type-confirm
+    keyword: type-text
+    description: Confirm password
+    objectRef: "#reg-confirm"
+    input: Test@123
+
+  - id: click-submit
+    keyword: click
+    description: Click Create account button
+    objectRef: "#register-btn"
+
+  - id: wait-login-redirect
+    keyword: wait-for-element
+    description: Wait for redirect to login page (username input should appear)
+    objectRef: "#username"
+
+  - id: assert-url-login
+    keyword: assert-url
+    description: Successfully redirected to /login after registration
+    expected: ${uiBaseUrl}/login
+createdAt: "2026-06-23T00:00:00.000Z"
+updatedAt: "2026-06-23T00:00:00.000Z"

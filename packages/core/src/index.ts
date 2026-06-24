@@ -1,4 +1,5 @@
 export * from './schemas/app-settings'
+export * from './schemas/data-file'
 export * from './schemas/project'
 export * from './schemas/test-case'
 export * from './schemas/api-request'

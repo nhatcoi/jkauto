@@ -25,10 +25,18 @@ export interface RunOptions {
   loadTestCase?: (path: string) => Promise<TestCase>
   /** Directory to save on-failure screenshots. When set, a PNG is captured after each failed step. */
   screenshotDir?: string
+  /** 'failure' (default) = screenshot only on failed steps; 'final' = also screenshot at test end. */
+  screenshotMode?: 'failure' | 'final'
   /** Callback to persist a variable to the active profile file. Provided by engine handler. */
   persistVariable?: (profileKey: string, value: string) => Promise<void>
   /** Callback to persist a value into profile.api (baseUrl, auth, defaultHeaders). */
   persistApiConfig?: (profileKey: string, value: string) => Promise<void>
+  /** Extra variables from a data-file row — merged on top of profile.variables. */
+  rowVars?: Record<string, string>
+  /** Current data-file row index (0-based). Forwarded into StepEvent for UI display. */
+  rowIndex?: number
+  /** Total number of data-file rows in this run. */
+  totalRows?: number
 }
 
 function buildSelector(locator: Locator, platform: Platform): string {
@@ -185,7 +193,8 @@ async function runMaestroTestCase(
   signal: AbortSignal | undefined,
 ): Promise<void> {
   const startTime = Date.now()
-  const variables = { ...testCase.variables, ...profile.variables }
+  const __builtins: Record<string, string> = { __timestamp: String(Date.now()), __rand: Math.random().toString(36).slice(2, 8) }
+  const variables = { ...__builtins, ...testCase.variables, ...profile.variables }
   const appId = testCase.app?.id || variables['APP_ID']
   if (!appId) throw new Error('Maestro runner requires app.id or APP_ID')
 
@@ -277,7 +286,7 @@ export async function runTestCase(
   signal?: AbortSignal,
   options: RunOptions = {},
 ): Promise<void> {
-  const { headless = false, stepDelay = 0, waitForNext, objectRepositories = [], appPath, externalSession, loadTestCase, screenshotDir, persistVariable, persistApiConfig } = options
+  const { headless = false, stepDelay = 0, waitForNext, objectRepositories = [], appPath, externalSession, loadTestCase, screenshotDir, screenshotMode = 'failure', persistVariable, persistApiConfig, rowVars, rowIndex, totalRows } = options
   const platform: Platform = testCase.platform
     ?? (testCase.runner === 'api' ? 'api' : options.platform ?? 'web')
   // When platform is 'mobile', resolve to the concrete engine adapter key.
@@ -292,7 +301,8 @@ export async function runTestCase(
   let passedSteps = 0
   let failedSteps = 0
 
-  const variables = { ...testCase.variables, ...profile.variables }
+  const __builtins: Record<string, string> = { __timestamp: String(Date.now()), __rand: Math.random().toString(36).slice(2, 8) }
+  const variables = { ...__builtins, ...testCase.variables, ...profile.variables, ...(rowVars ?? {}) }
   const locatorIndex = buildLocatorIndex(objectRepositories, platform)
 
   function interpolate(value: string): string {
@@ -303,15 +313,17 @@ export async function runTestCase(
 
   async function resolveLocator(ref: string): Promise<string> {
     if (!ref) return ''
-    const key = ref.toLowerCase()
+    const interpolated = interpolate(ref)
+    const key = interpolated.toLowerCase()
     const resolved = locatorIndex.get(key)
     if (resolved) return resolved
-    return ref
+    return interpolated
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const adapter = getAdapter(adapterKey as any)
   const session = externalSession ?? await adapter.start(profile, { headless, appPath })
+  let finalScreenshotPath: string | undefined
 
   try {
     for (let i = 0; i < testCase.steps.length; i++) {
@@ -319,11 +331,11 @@ export async function runTestCase(
 
       const step = testCase.steps[i]
       if (!step.enabled) {
-        onStep({ runId, testCaseId: testCase.id, stepIndex: i, status: 'skipped' })
+        onStep({ runId, testCaseId: testCase.id, stepIndex: i, status: 'skipped', rowIndex, totalRows })
         continue
       }
 
-      onStep({ runId, testCaseId: testCase.id, stepIndex: i, status: 'running' })
+      onStep({ runId, testCaseId: testCase.id, stepIndex: i, status: 'running', rowIndex, totalRows })
 
       const stepStart = Date.now()
       const timeout = step.timeout ?? 30000
@@ -340,7 +352,7 @@ export async function runTestCase(
         ])
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const stepMeta = (session as any)?.lastResponse ?? undefined
-        onStep({ runId, testCaseId: testCase.id, stepIndex: i, status: 'passed', durationMs: Date.now() - stepStart, meta: stepMeta })
+        onStep({ runId, testCaseId: testCase.id, stepIndex: i, status: 'passed', durationMs: Date.now() - stepStart, meta: stepMeta, rowIndex, totalRows })
         passedSteps++
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
@@ -356,7 +368,7 @@ export async function runTestCase(
             screenshotPath = undefined
           }
         }
-        onStep({ runId, testCaseId: testCase.id, stepIndex: i, status: 'failed', message, durationMs: Date.now() - stepStart, screenshotPath, meta: stepMeta })
+        onStep({ runId, testCaseId: testCase.id, stepIndex: i, status: 'failed', message, durationMs: Date.now() - stepStart, screenshotPath, meta: stepMeta, rowIndex, totalRows })
         failedSteps++
         if (!step.continueOnFailure) break
       }
@@ -368,11 +380,20 @@ export async function runTestCase(
       }
     }
   } finally {
+    if (screenshotDir && screenshotMode === 'final' && adapter.screenshot) {
+      try {
+        await fs.mkdir(screenshotDir, { recursive: true })
+        finalScreenshotPath = path.join(screenshotDir, `${runId}-final.png`)
+        await adapter.screenshot(session, { path: finalScreenshotPath })
+      } catch {
+        finalScreenshotPath = undefined
+      }
+    }
     if (!externalSession) {
-      await adapter.stop(session)
+      try { await adapter.stop(session) } catch { /* ignore */ }
     }
   }
 
   const finalStatus = signal?.aborted ? 'stopped' : failedSteps > 0 ? 'failed' : 'passed'
-  onComplete({ runId, status: finalStatus, totalSteps: testCase.steps.length, passedSteps, failedSteps, durationMs: Date.now() - startTime })
+  onComplete({ runId, status: finalStatus, totalSteps: testCase.steps.length, passedSteps, failedSteps, durationMs: Date.now() - startTime, finalScreenshotPath })
 }

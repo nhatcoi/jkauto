@@ -133,13 +133,22 @@ export class McpManager {
     }
   }
 
-  async listAllTools(): Promise<McpToolDefinition[]> {
+  async listAllTools(intent: 'conversational' | 'info' | 'code-change' | 'execution' = 'execution'): Promise<McpToolDefinition[]> {
+    if (intent === 'conversational') {
+      return []
+    }
     const all: McpToolDefinition[] = []
     for (const managed of this.clients) {
+      if (managed.name === 'playwright' && intent !== 'execution') {
+        continue
+      }
       try {
         const { tools } = await managed.client.listTools()
         for (const t of tools) {
           if (this.editMode === 'ask' && isWriteTool(managed.name, t.name)) {
+            continue
+          }
+          if (isWriteTool(managed.name, t.name) && intent !== 'code-change' && intent !== 'execution') {
             continue
           }
           all.push({

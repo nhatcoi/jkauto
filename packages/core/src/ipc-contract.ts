@@ -46,6 +46,13 @@ export const IpcChannels = {
   ENGINE_SAVE_RUN: 'engine:save-run',
   ENGINE_DEBUG_NEXT: 'engine:debug-next',
   ENGINE_GET_KEYWORDS: 'engine:get-keywords',
+  ENGINE_ROW_EVENT: 'engine:row-event',
+
+  DATA_FILE_LIST: 'data-file:list',
+  DATA_FILE_READ: 'data-file:read',
+  DATA_FILE_WRITE: 'data-file:write',
+  DATA_FILE_CREATE: 'data-file:create',
+  DATA_FILE_AI_GENERATE: 'data-file:ai-generate',
 
   HTTP_SEND_REQUEST: 'http:send-request',
   HTTP_IMPORT_OPENAPI: 'http:import-openapi',
@@ -153,6 +160,9 @@ export const IpcChannels = {
   CODE_ANALYSIS_REPORT: 'code-analysis:report',
   CODE_ANALYSIS_ARTIFACT_UPDATE: 'code-analysis:artifact:update',
 
+  TESTRUN_AUTO_START: 'testrun:auto:start',
+  TESTRUN_AUTO_PROGRESS: 'testrun:auto:progress',
+
   WINDOW_MINIMIZE: 'window:minimize',
   WINDOW_MAXIMIZE: 'window:maximize',
   WINDOW_CLOSE: 'window:close',
@@ -253,6 +263,59 @@ export interface StepEvent {
   screenshotPath?: string
   durationMs?: number
   meta?: unknown
+  rowIndex?: number
+  totalRows?: number
+}
+
+export interface RowEvent {
+  runId: string
+  rowIndex: number
+  totalRows: number
+  type: 'row-start' | 'row-complete'
+  status?: 'passed' | 'failed' | 'stopped'
+  passedSteps?: number
+  failedSteps?: number
+  durationMs?: number
+}
+
+export interface DataFileEntry {
+  name: string
+  path: string
+}
+
+export interface DataFileListPayload {
+  projectPath: string
+}
+
+export interface DataFileReadPayload {
+  filePath: string
+}
+
+export interface DataFileWritePayload {
+  filePath: string
+  data: import('./schemas/data-file').DataFile
+}
+
+export interface DataFileCreatePayload {
+  projectPath: string
+  name: string
+}
+
+export interface DataFileAiGeneratePayload {
+  projectPath: string
+  prompt?: string
+}
+
+export interface GeneratedDataFile {
+  name: string
+  columns: string[]
+  rows: string[][]
+  description: string
+}
+
+export interface DataFileAiGenerateResult {
+  files: GeneratedDataFile[]
+  analysisUsed: boolean
 }
 
 export interface SuiteEvent {
@@ -278,6 +341,7 @@ export interface RunCompleteEvent {
   failedSteps: number
   durationMs: number
   error?: string
+  finalScreenshotPath?: string
 }
 
 export interface StepResult {
@@ -887,4 +951,66 @@ export interface FileVersionEntry {
 export interface FileHistoryRestorePayload {
   filePath: string
   backupPath: string
+}
+
+// ---------------------------------------------------------------------------
+// Auto test run
+// ---------------------------------------------------------------------------
+
+export interface TestRunAutoConfig {
+  apiUrl: string
+  frontendUrl: string
+  authToken?: string
+  headless?: boolean
+}
+
+export type TestRunAutoPhase = 'generating' | 'running' | 'done' | 'error'
+
+export interface TestRunAutoProgress {
+  phase: TestRunAutoPhase
+  groupId?: string
+  groupLabel?: string
+  testName?: string
+  status?: 'running' | 'passed' | 'failed'
+  screenshotPath?: string
+  message?: string
+  percent: number
+  durationMs?: number
+}
+
+export interface TestRunAutoTestResult {
+  name: string
+  status: 'passed' | 'failed'
+  durationMs: number
+  error?: string
+  screenshotPath?: string
+}
+
+export interface TestRunAutoGroupResult {
+  groupId: string
+  label: string
+  platform: 'web' | 'api' | 'mobile' | 'desktop'
+  tests: TestRunAutoTestResult[]
+  generatedFiles: string[]
+}
+
+export interface TestRunAutoReport {
+  runId: string
+  projectPath: string
+  config: TestRunAutoConfig
+  startedAt: string
+  completedAt: string
+  groups: TestRunAutoGroupResult[]
+  summary: {
+    totalGroups: number
+    totalTests: number
+    passed: number
+    failed: number
+    durationMs: number
+  }
+}
+
+export interface TestRunAutoStartPayload {
+  projectPath: string
+  config: TestRunAutoConfig
 }

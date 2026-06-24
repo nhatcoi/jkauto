@@ -1,0 +1,80 @@
+schemaVersion: 1
+id: a0b1c2d3-e4f5-6789-abcd-ef0123456712
+name: "UI — Create new tag"
+description: Log in, navigate to Tags, click New Tag, enter tag name, pick a color, submit, verify the tag chip appears.
+tags:
+  - web
+  - ui
+  - tags
+  - crud
+platform: web
+runner: playwright
+steps:
+  - id: nav-login
+    keyword: navigate-to
+    input: ${uiBaseUrl}/login
+
+  - id: wait-form
+    keyword: wait-for-element
+    objectRef: "#username"
+
+  - id: type-username
+    keyword: type-text
+    objectRef: "#username"
+    input: admin
+
+  - id: type-password
+    keyword: type-text
+    objectRef: "#password"
+    input: Admin@123
+
+  - id: click-login
+    keyword: click
+    objectRef: "#login-btn"
+
+  - id: wait-dashboard
+    keyword: wait-for-element
+    objectRef: 'text=Dashboard'
+
+  - id: nav-tags
+    keyword: navigate-to
+    description: Navigate to Tags page
+    input: ${uiBaseUrl}/tags
+
+  - id: wait-page
+    keyword: wait-for-element
+    description: Wait for Tags page heading
+    objectRef: 'h1:has-text("Tags")'
+
+  - id: click-new-tag
+    keyword: click
+    description: Click + New Tag button (no ID — use text selector)
+    objectRef: 'button:has-text("+ New Tag")'
+
+  - id: wait-modal
+    keyword: wait-for-element
+    description: Wait for tag create modal
+    objectRef: 'h3:has-text("New Tag")'
+
+  - id: type-tag-name
+    keyword: type-text
+    description: Enter tag name in the only input inside the modal
+    objectRef: '[style*="fixed"] input'
+    input: UI Automated Tag
+
+  - id: click-create
+    keyword: click
+    description: Click Create button in modal
+    objectRef: 'button:has-text("Create")'
+
+  - id: wait-tag-chip
+    keyword: wait-for-element
+    description: Wait for new tag chip to appear
+    objectRef: 'text=UI Automated Tag'
+
+  - id: assert-tag-visible
+    keyword: assert-visible
+    description: New tag chip is visible in the tags list
+    objectRef: 'text=UI Automated Tag'
+createdAt: "2026-06-23T00:00:00.000Z"
+updatedAt: "2026-06-23T00:00:00.000Z"

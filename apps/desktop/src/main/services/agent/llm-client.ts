@@ -48,6 +48,32 @@ export function getConfig(override?: Partial<AgentConfig>): AgentConfig {
   }
 }
 
+/** Single-shot text generation using streamText (compatible with local SSE-only models). */
+export async function generateTextLocal(
+  config: AgentConfig,
+  system: string,
+  prompt: string,
+): Promise<string> {
+  const provider = createOpenAI({
+    baseURL: config.baseUrl,
+    apiKey: config.apiKey,
+    fetch: createFilteredFetch(),
+  })
+  const result = streamText({
+    model: provider(config.model),
+    system,
+    prompt,
+  })
+  let text = ''
+  for await (const part of result.fullStream) {
+    if (part.type === 'text-delta') text += part.text
+    else if (part.type === 'error') {
+      throw part.error instanceof Error ? part.error : new Error(String(part.error))
+    }
+  }
+  return text
+}
+
 function buildSystemPrompt(
   mode: AgentSessionMode,
   contextSummary: string,
@@ -107,8 +133,8 @@ function mapUsage(usage: LanguageModelUsage) {
   }
 }
 
-async function buildMcpTools(manager: McpManager): Promise<ToolSet> {
-  const mcpTools = await manager.listAllTools()
+async function buildMcpTools(manager: McpManager, intent: 'conversational' | 'info' | 'code-change' | 'execution'): Promise<ToolSet> {
+  const mcpTools = await manager.listAllTools(intent)
   return Object.fromEntries(
     mcpTools.map((t) => [
       t.name,
@@ -142,13 +168,14 @@ export async function streamAgentChat(
   messages: AgentMessage[],
   contextSummary: string,
   projectContext: string,
-  sessionSummary: string | undefined,
+  onPromptReadyOrSkillsReady: string | undefined, // mapped from sessionSummary
   mode: AgentSessionMode,
   mcpManager: McpManager | null,
   skills: string[],
   configOverride?: Partial<AgentConfig>,
   onChunk?: (text: string) => void,
   onToolEvent?: (event: AgentToolEvent) => void,
+  intent: 'conversational' | 'info' | 'code-change' | 'execution' = 'execution',
 ): Promise<AgentLlmResult> {
   const config = getConfig(configOverride)
   const provider = createOpenAI({
@@ -157,13 +184,13 @@ export async function streamAgentChat(
     fetch: createFilteredFetch(),
   })
 
-  const tools = mcpManager ? await buildMcpTools(mcpManager) : {}
+  const tools = mcpManager ? await buildMcpTools(mcpManager, intent) : {}
   const hasTools = Object.keys(tools).length > 0
   const systemPrompt = buildSystemPrompt(
     mode,
     contextSummary,
     projectContext,
-    sessionSummary,
+    onPromptReadyOrSkillsReady,
     skills,
   )
 
@@ -179,6 +206,9 @@ export async function streamAgentChat(
 
   const maxRounds =
     mode === 'directly' ? DIRECTLY_MAX_TOOL_ROUNDS : MAX_TOOL_ROUNDS
+
+  const toolCount = Object.keys(tools).length
+  console.log(`[agent] start: mode=${mode}, tools=${toolCount}, msgHistory=${currentMessages.length}`)
 
   for (let step = 0; step < maxRounds; step++) {
     const result = streamText({
@@ -239,6 +269,8 @@ export async function streamAgentChat(
 
     lastUsage = await result.usage
     lastModelId = (await result.response).modelId
+    const finishReason = await result.finishReason
+    console.log(`[agent] step ${step}: finish=${finishReason}, text=${stepText.length}chars, toolResults=${stepToolResults.length}`)
 
     const directlyComplete =
       mode === 'directly' && stepText.includes(DIRECTLY_COMPLETE_MARKER)
@@ -274,7 +306,47 @@ export async function streamAgentChat(
   }
 
   if (!fullText) {
-    throw new Error('Agent returned no text after all tool steps')
+    if (mode === 'directly') {
+      throw new Error('Agent returned no text after all tool steps')
+    }
+    if (toolCallsLog.length > 0) {
+      // Model used tools but produced no final text — one synthesis round without tools
+      console.warn('[agent] no text after tool steps, running synthesis round')
+      const synthStream = streamText({
+        model: provider(config.model),
+        system: systemPrompt,
+        messages: [
+          ...currentMessages,
+          { role: 'user' as const, content: 'Summarize what you did and the outcome for the user.' },
+        ],
+      })
+      for await (const part of synthStream.fullStream) {
+        if (part.type === 'text-delta') {
+          fullText += part.text
+          onChunk?.(part.text)
+        }
+      }
+    } else if (hasTools) {
+      // Model returned nothing despite receiving tools — likely overwhelmed by tool count.
+      // Retry once without tools so the model can at least produce a plain text response.
+      console.warn(`[agent] empty response with ${toolCount} tools, retrying without tools`)
+      const retryStream = streamText({
+        model: provider(config.model),
+        system: systemPrompt,
+        messages: currentMessages,
+      })
+      for await (const part of retryStream.fullStream) {
+        if (part.type === 'text-delta') {
+          fullText += part.text
+          onChunk?.(part.text)
+        }
+      }
+    }
+    if (!fullText) {
+      console.error('[agent] all recovery strategies failed, returning fallback')
+      fullText = '(No response from agent.)'
+      onChunk?.(fullText)
+    }
   }
 
   if (mode === 'directly' && !fullText.includes(DIRECTLY_COMPLETE_MARKER)) {

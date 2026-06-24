@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "name": "register-data",
+  "columns": [
+    "email",
+    "password",
+    "fullName",
+    "role",
+    "expectedStatus",
+    "expectedMessage"
+  ],
+  "rows": [
+    ["newuser1@ecm.com", "Pass@123", "New User One", "user", "201", ""],
+    ["newuser2@ecm.com", "Admin@456", "New User Two", "admin", "201", ""],
+    ["admin@ecm.com", "Pass@123", "Duplicate Email", "user", "422", "already"],
+    ["bademail", "Pass@123", "Bad Email", "user", "422", "email"],
+    ["newuser3@ecm.com", "short", "Weak Password", "user", "422", "password"],
+    ["newuser4@ecm.com", "Pass@123", "Missing Role", "", "422", "role"]
+  ]
+}

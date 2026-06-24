@@ -38,6 +38,7 @@ export const TestCaseSchema = z.object({
     stepDelayMs: z.number().int().min(0).nullable().default(null),
   }).default({}),
   variables: z.record(z.string()).default({}),
+  dataFile: z.string().optional(),
   stepDelayMs: z.number().int().min(0).nullable().default(null),
   steps: z.array(StepSchema).default([]),
   createdAt: z.string().datetime(),
