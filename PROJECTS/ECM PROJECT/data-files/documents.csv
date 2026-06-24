@@ -1,0 +1,11 @@
+title,description,status,expected_create_status,expected_get_status,scenario,description
+Auto Test Doc Draft,Created by automated test — draft status,draft,201,200,happy-path,Standard draft document creation
+Auto Test Doc Published,Created by automated test — published immediately,published,201,200,happy-path,Published document creation
+Auto Test Doc Archived,Created by automated test — archived,archived,201,200,happy-path,Archived document creation
+Tài liệu tiếng Việt,Mô tả bằng tiếng Việt — kiểm tra Unicode,draft,201,200,happy-path,Unicode title and description (Vietnamese)
+Document with Special Chars !@#,Description with <>&"' special HTML chars,draft,201,200,edge-case,Special characters in title and description
+Very Long Title Document - This title is intentionally very long to test the character limit handling in the ECM system backend validation layer,Short description,draft,400,N/A,boundary,Title exceeding typical max length — expect 400
+,No title provided,draft,400,N/A,boundary,Missing title — expect 400
+Auto Test No Description,,draft,201,200,boundary,Missing description (optional field) — expect 201
+Auto Test Invalid Status,Testing invalid status value,invalid_status,400,N/A,negative,Invalid status value — expect 400
+Auto Test No Status,Testing missing status,N/A,400,N/A,boundary,Missing status — expect 400

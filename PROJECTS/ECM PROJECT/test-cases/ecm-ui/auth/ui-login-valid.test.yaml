@@ -1,8 +1,10 @@
 schemaVersion: 1
 id: a0b1c2d3-e4f5-6789-abcd-ef0123456701
 name: UI — Login with valid credentials
-description: Admin logs in with correct credentials, lands on Dashboard, welcome
-  message shows username.
+description: >
+  Data-driven login test. Runs once per row in ui-login-valid-users.csv (admin,
+  editor1, viewer1). Each row logs in and verifies redirect to Dashboard +
+  welcome message shows the correct username.
 tags:
   - web
   - ui
@@ -10,6 +12,7 @@ tags:
   - smoke
 platform: web
 runner: playwright
+dataFile: data-files/auth-login.csv
 steps:
   - id: login-navigate
     keyword: navigate-to
@@ -21,14 +24,14 @@ steps:
     objectRef: "#username"
   - id: login-type-username
     keyword: type-text
-    description: Enter admin username
+    description: Enter username from data row
     objectRef: "#username"
-    input: admin
+    input: "{{username}}"
   - id: login-type-password
     keyword: type-text
-    description: Enter admin password
+    description: Enter password from data row
     objectRef: "#password"
-    input: Admin@123
+    input: "{{password}}"
   - id: login-click-submit
     keyword: click
     description: Click Sign in button
@@ -45,4 +48,4 @@ steps:
     keyword: assert-text
     description: Welcome message shows logged-in username
     objectRef: text=Welcome back,
-    expected: admin
+    expected: "{{expected_welcome}}"

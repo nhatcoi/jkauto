@@ -1,0 +1,4 @@
+username,password,expected_welcome,role,scenario
+admin,Admin@123,admin,admin,Admin login — expect dashboard + welcome "admin"
+editor1,Editor@123,editor1,editor,Editor login — expect dashboard + welcome "editor1"
+viewer1,Viewer@123,viewer1,viewer,Viewer login — expect dashboard + welcome "viewer1"

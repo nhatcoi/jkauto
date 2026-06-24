@@ -1,0 +1,16 @@
+query,expected_status,expected_contains_field,max_response_ms,scenario,description
+test,200,results,2000,happy-path,Common search term — should return results array
+auto,200,results,2000,happy-path,Partial match term for automated test documents
+document,200,results,2000,happy-path,Generic term likely to match created documents
+folder,200,results,2000,happy-path,Search term matching folder type
+admin,200,results,2000,happy-path,Search by username/author reference
+a,200,results,2000,boundary,Single character query — should still return 200
+draft,200,results,2000,happy-path,Search by document status keyword
+published,200,results,2000,happy-path,Search by published status keyword
+xyznotexistingterm123,200,results,2000,negative,Term with no matches — expect 200 with empty results
+ ,400,error,1000,boundary,Whitespace-only query — expect 400 or empty
+,400,error,1000,boundary,Empty query — expect 400 validation error
+<script>alert(1)</script>,200,results,2000,security,XSS attempt in query — should sanitize and return 200
+' OR '1'='1,200,results,2000,security,SQL injection attempt — should sanitize and return 200
+../../../etc/passwd,200,results,2000,security,Path traversal in query — should treat as literal string
+test document folder,200,results,2000,happy-path,Multi-word query with spaces

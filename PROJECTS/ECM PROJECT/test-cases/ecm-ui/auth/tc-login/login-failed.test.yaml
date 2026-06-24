@@ -1,0 +1,35 @@
+schemaVersion: 1
+id: 4c89d12c-2f9b-4e0f-95cb-1afbcf7d74ed
+name: Login Failed
+description: >
+  Data-driven invalid login — runs all rows in ui-login-failed-scenarios.csv.
+  Each row submits invalid credentials and asserts the error banner appears.
+tags:
+  - web
+  - ui
+  - auth
+platform: web
+runner: playwright
+dataFile: data-files/ui-login-failed-scenarios.csv
+steps:
+  - id: navigate
+    keyword: navigate-to
+    input: ${uiBaseUrl}/login
+  - id: wait-form
+    keyword: wait-for-element
+    objectRef: "#username"
+  - id: type-username
+    keyword: type-text
+    objectRef: "#username"
+    input: "{{username}}"
+  - id: type-password
+    keyword: type-text
+    objectRef: "#password"
+    input: "{{password}}"
+  - id: submit
+    keyword: click
+    objectRef: "#login-btn"
+  - id: assert-error
+    keyword: wait-for-element
+    description: Assert error banner appears for invalid credentials.
+    objectRef: text=Login failed

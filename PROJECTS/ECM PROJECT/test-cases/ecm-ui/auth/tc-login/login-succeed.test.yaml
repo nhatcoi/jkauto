@@ -1,0 +1,34 @@
+schemaVersion: 1
+id: b1c2d3e4-f5a6-7890-bcde-f01234567890
+name: Login Succeed
+description: Data-driven login — runs all rows in ui-login-scenarios.csv. Valid
+  credentials land on Dashboard, invalid credentials show error banner.
+tags:
+  - web
+  - ui
+  - auth
+platform: web
+runner: playwright
+dataFile: data-files/ui-login-scenarios.csv
+steps:
+  - id: navigate
+    keyword: navigate-to
+    input: ${uiBaseUrl}/login
+  - id: wait-form
+    keyword: wait-for-element
+    objectRef: "#username"
+  - id: type-username
+    keyword: type-text
+    objectRef: "#username"
+    input: "{{username}}"
+  - id: type-password
+    keyword: type-text
+    objectRef: "#password"
+    input: "{{password}}"
+  - id: submit
+    keyword: click
+    objectRef: "#login-btn"
+  - id: assert-outcome
+    keyword: wait-for-element
+    description: Valid rows — text=Welcome back. Invalid rows — text=Login failed.
+    objectRef: "{{expected_element}}"

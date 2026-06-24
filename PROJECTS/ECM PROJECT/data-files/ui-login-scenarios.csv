@@ -1,0 +1,7 @@
+username,password,expected_element,scenario,description
+admin,Admin@123,text=Welcome back,valid-admin,Admin valid login — expect dashboard welcome
+editor,Editor@123,text=Welcome back,valid-editor,Editor valid login — expect dashboard welcome
+viewer,Viewer@123,text=Welcome back,valid-viewer,Viewer valid login — expect dashboard welcome
+admin,wrongpassword,text=Login failed,wrong-password,Correct username wrong password — expect error banner
+notexist,Admin@123,text=Login failed,wrong-username,Non-existent user — expect error banner
+admin,Admin@456,text=Login failed,wrong-password-2,Wrong password case variant — expect error banner

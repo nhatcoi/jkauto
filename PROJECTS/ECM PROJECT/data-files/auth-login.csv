@@ -1,0 +1,14 @@
+username,password,expected_status,scenario,description
+admin,Admin@123,200,happy-path,Seeded admin login — should return 200 + tokens
+editor1,Editor@123,200,happy-path,Seeded editor login — should return 200 + tokens
+viewer1,Viewer@123,200,happy-path,Seeded viewer login — should return 200 + tokens
+admin,wrongpassword,401,negative,Correct username but wrong password — expect 401
+admin,ADMIN@123,401,negative,Wrong case in password — expect 401
+ADMIN,Admin@123,401,negative,Wrong case in username — expect 401
+notexist,Admin@123,401,negative,Non-existent username — expect 401
+admin,,400,boundary,Missing password — expect 400 validation error
+,Admin@123,400,boundary,Missing username — expect 400 validation error
+,,400,boundary,Both fields empty — expect 400 validation error
+admin,   ,400,boundary,Whitespace-only password — expect 400 validation error
+a,Admin@123,401,boundary,Single character username — expect 401
+admin,a,401,boundary,Single character password — expect 401

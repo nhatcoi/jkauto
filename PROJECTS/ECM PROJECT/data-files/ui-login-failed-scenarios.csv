@@ -1,0 +1,4 @@
+username,password,scenario,description
+admin,wrongpassword,wrong-password,Correct username wrong password — expect error banner
+notexist,Admin@123,wrong-username,Non-existent user — expect error banner
+admin,Admin@456,wrong-password-2,Wrong password case variant — expect error banner

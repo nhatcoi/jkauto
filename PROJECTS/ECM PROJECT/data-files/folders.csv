@@ -1,0 +1,11 @@
+folder_name,parent_folder_name,expected_create_status,scenario,description
+Auto Test Folder Root,,201,happy-path,Root-level folder creation
+Auto Test Folder Alpha,,201,happy-path,Second root folder — list should contain both
+Auto Test Nested Level 1,Auto Test Folder Root,201,happy-path,Nested folder under root
+Auto Test Nested Level 2,Auto Test Nested Level 1,201,happy-path,Second-level nested folder
+Folder with Spaces in Name,,201,happy-path,Folder name containing spaces
+Thư mục tiếng Việt,,201,happy-path,Unicode folder name (Vietnamese)
+Folder-With-Dashes_And_Underscores,,201,happy-path,Special characters in folder name (safe chars)
+,Auto Test Folder Root,400,boundary,Missing folder name — expect 400
+Very Long Folder Name That Exceeds Normal Naming Conventions And Tests The Maximum Length Boundary For The Folder Name Field In The ECM System,,400,boundary,Folder name too long — expect 400
+Folder/With/Slashes,,400,negative,Slash in folder name — should fail or sanitize

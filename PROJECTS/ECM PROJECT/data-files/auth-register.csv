@@ -1,0 +1,16 @@
+username,email,password,role,expected_status,scenario,description
+tester_auto1,tester_auto1@example.com,Password@123,editor,201,happy-path,Valid editor registration
+tester_auto2,tester_auto2@example.com,Password@456,viewer,201,happy-path,Valid viewer registration
+tester_auto3,tester.auto3@mail.co,SecureP@ss1,editor,201,happy-path,Valid email with dot in local part
+admin,admin_dup@example.com,Password@123,editor,409,negative,Reserved username 'admin' — expect conflict or 400
+tester_inv1,not-an-email,Password@123,editor,400,negative,Invalid email format — expect 400
+tester_inv2,,Password@123,editor,400,boundary,Missing email — expect 400
+tester_inv3,missing@example.com,,editor,400,boundary,Missing password — expect 400
+tester_inv4,missing@example.com,Password@123,,400,boundary,Missing role — expect 400
+tester_inv5,invalid,Password@123,editor,400,negative,Email without @ — expect 400
+tester_inv6,@nodomain.com,Password@123,editor,400,negative,Email no local part — expect 400
+tester_inv7,tester@,Password@123,editor,400,negative,Email no domain — expect 400
+tester_inv8,tester_inv8@example.com,weak,editor,400,negative,Weak password (too short, no uppercase/special) — expect 400
+tester_inv9,tester_inv9@example.com,Password@123,superadmin,400,negative,Invalid role value — expect 400
+,tester_inv10@example.com,Password@123,editor,400,boundary,Missing username — expect 400
+ab,ab@example.com,Password@123,editor,400,boundary,Username too short (2 chars) — expect 400

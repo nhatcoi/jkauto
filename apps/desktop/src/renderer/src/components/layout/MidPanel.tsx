@@ -14,6 +14,7 @@ import { ReportsView } from '@/features/reports/ReportsView'
 import { ProfileEditor } from '@/features/env/ProfileEditor'
 import { DataFilesView } from '@/features/data-files/DataFilesView'
 import { DataFilesOverview } from '@/features/data-files/DataFilesOverview'
+import { RawDataFileViewer } from '@/features/data-files/components/RawDataFileViewer'
 import { useTabDnd } from '@/hooks/useTabDnd'
 import { REPORTS_TAB_PATH, KEYWORDS_TAB_PATH, DATA_FILES_TAB_PATH } from '@/shared/keymaps'
 
@@ -42,7 +43,15 @@ function isProfile(path: string) {
 }
 
 function isDataFile(path: string) {
-  return path.endsWith('.data.json')
+  const normalized = path.replace(/\\/g, '/')
+  return path.endsWith('.data.json') ||
+    (normalized.includes('/data-files/') && path.endsWith('.csv'))
+}
+
+function isRawDataFile(path: string) {
+  const normalized = path.replace(/\\/g, '/')
+  if (!normalized.includes('/data-files/')) return false
+  return path.endsWith('.json') && !path.endsWith('.data.json')
 }
 
 function getTabIcon(path: string): React.ElementType {
@@ -55,6 +64,7 @@ function getTabIcon(path: string): React.ElementType {
   if (isKeywords(path)) return Braces
   if (isProfile(path)) return SlidersHorizontal
   if (isDataFile(path)) return Database
+  if (isRawDataFile(path)) return Database
   return FileText
 }
 
@@ -102,6 +112,7 @@ function TabContent({ path }: { path: string }) {
   if (isKeywords(path)) return <KeywordEditor key={path} filePath={path} />
   if (isProfile(path)) return <ProfileEditor key={path} filePath={path} />
   if (isDataFile(path)) return <DataFilesView key={path} filePath={path} />
+  if (isRawDataFile(path)) return <RawDataFileViewer key={path} filePath={path} />
   return <FileContent path={path} />
 }
 

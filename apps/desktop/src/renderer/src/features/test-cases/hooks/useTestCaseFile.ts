@@ -37,6 +37,7 @@ export function normalizeTestCase(input: Partial<TestCase> | null | undefined): 
       stepDelayMs: source.config?.stepDelayMs ?? source.stepDelayMs ?? null,
     },
     variables: source.variables ?? {},
+    dataFile: source.dataFile,
     stepDelayMs: source.stepDelayMs ?? source.config?.stepDelayMs ?? null,
     steps: (source.steps ?? []).map((step) => normalizeStep(step)),
     createdAt: source.createdAt ?? now,
@@ -88,6 +89,7 @@ export function compactTestCase(tc: TestCase): Record<string, unknown> {
   const cfg = tc.config
   if (cfg?.timeoutMs != null || cfg?.retry || cfg?.stepDelayMs != null) out.config = cfg
   if (tc.variables && Object.keys(tc.variables).length) out.variables = tc.variables
+  if (tc.dataFile) out.dataFile = tc.dataFile
   out.steps = tc.steps.map(compactStep)
   return out
 }

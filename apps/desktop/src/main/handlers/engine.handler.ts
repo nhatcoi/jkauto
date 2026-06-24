@@ -76,6 +76,7 @@ function normalizeTestCase(tcData: Partial<TestCase>): TestCase {
       stepDelayMs: tcData.config?.stepDelayMs ?? tcData.stepDelayMs ?? null,
     },
     variables: tcData.variables ?? {},
+    dataFile: tcData.dataFile,
     stepDelayMs: tcData.stepDelayMs ?? null,
     steps: (tcData.steps ?? []).map(normalizeStep),
     createdAt: tcData.createdAt ?? new Date().toISOString(),

@@ -20,7 +20,7 @@ import { EngineInstallBanner } from "@/components/engine-install/EngineInstallBa
 import { TestCaseToolbar, type TestCaseViewMode } from "./components/TestCaseToolbar";
 import { YamlTestcaseEditor } from "./components/YamlTestcaseEditor";
 import { StepTable } from "./components/StepTable";
-import { DataFileBinding } from "./components/DataFileBinding";
+import { TestCaseConfigDialog } from "./components/TestCaseConfigDialog";
 import type { TestCase } from "./types";
 
 export function TestCaseEditor({ filePath }: { filePath: string }) {
@@ -29,6 +29,7 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
   const [yamlDraft, setYamlDraft] = useState("");
   const [yamlError, setYamlError] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
 
   const { tc, tcRef, tcHistory, error, saving, mutate, save, saveRaw, serialize } =
     useTestCaseFile(filePath);
@@ -89,6 +90,7 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
     setSelectedIdx(null);
     setViewMode("table");
     setYamlError("");
+    setShowConfig(false);
   }, [filePath, setSelectedIdx]);
 
   useEffect(() => {
@@ -232,6 +234,12 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
         saving={saving}
         saveHint={km.save.hint}
         onShowHistory={() => setShowHistory(true)}
+        onOpenConfig={() => setShowConfig(true)}
+        configBadge={(() => {
+          const varCount = Object.keys(tc.variables ?? {}).length
+          const total = varCount + (tc.dataFile ? 1 : 0)
+          return total > 0 ? String(total) : undefined
+        })()}
       />
 
       {/* engine install banner — mobile only, auto-hides when installed */}
@@ -241,8 +249,6 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
           className="mx-3 my-1.5 shrink-0"
         />
       )}
-
-      <DataFileBinding tc={tc} onChange={mutate} />
 
       {viewMode === "yaml" ? (
         <>
@@ -292,6 +298,13 @@ export function TestCaseEditor({ filePath }: { filePath: string }) {
         filePath={filePath}
         onClose={() => setShowHistory(false)}
         onRestored={() => triggerTabReload(filePath)}
+      />
+
+      <TestCaseConfigDialog
+        open={showConfig}
+        onOpenChange={setShowConfig}
+        tc={tc}
+        onChange={mutate}
       />
 
       {contextMenu && contextMenu.visible && (

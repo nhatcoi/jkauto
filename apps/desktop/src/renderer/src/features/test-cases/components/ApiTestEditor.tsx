@@ -18,7 +18,7 @@ import { StepContextMenu } from './StepContextMenu'
 import { CallTestCaseDialog } from './CallTestCaseDialog'
 import { ApiStepList } from './ApiStepList'
 import { ApiStepDetail } from './ApiStepDetail'
-import { TestCaseVariables } from './TestCaseVariables'
+import { TestCaseConfigDialog } from './TestCaseConfigDialog'
 import { ApiUrlConfigDialog } from '@/features/env/ApiUrlConfigDialog'
 import { FileHistoryDialog } from './FileHistoryDialog'
 import type { TestCase } from '../types'
@@ -30,6 +30,7 @@ export function ApiTestEditor({ filePath }: { filePath: string }) {
   const [yamlError, setYamlError] = useState('')
   const [showApiConfig, setShowApiConfig] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  const [showConfig, setShowConfig] = useState(false)
 
   const { tc, tcRef, tcHistory, error, saving, mutate, save, saveRaw, serialize } = useTestCaseFile(filePath)
   const keywords = useKeywords('api')
@@ -66,6 +67,7 @@ export function ApiTestEditor({ filePath }: { filePath: string }) {
     setSelectedIdx(null)
     setViewMode('table')
     setYamlError('')
+    setShowConfig(false)
   }, [filePath, setSelectedIdx])
 
   useEffect(() => {
@@ -174,14 +176,13 @@ export function ApiTestEditor({ filePath }: { filePath: string }) {
         saveHint={km.save.hint}
         onOpenApiConfig={() => setShowApiConfig(true)}
         onShowHistory={() => setShowHistory(true)}
+        onOpenConfig={() => setShowConfig(true)}
+        configBadge={(() => {
+          const varCount = Object.keys(tc.variables ?? {}).length
+          const total = varCount + (tc.dataFile ? 1 : 0)
+          return total > 0 ? String(total) : undefined
+        })()}
       />
-
-      {viewMode !== 'yaml' && (
-        <TestCaseVariables
-          variables={tc.variables ?? {}}
-          onChange={(vars) => mutate((prev) => ({ ...prev, variables: Object.keys(vars).length ? vars : undefined }))}
-        />
-      )}
 
       {viewMode === 'yaml' ? (
         <>
@@ -273,6 +274,13 @@ export function ApiTestEditor({ filePath }: { filePath: string }) {
         filePath={filePath}
         onClose={() => setShowHistory(false)}
         onRestored={() => triggerTabReload(filePath)}
+      />
+
+      <TestCaseConfigDialog
+        open={showConfig}
+        onOpenChange={setShowConfig}
+        tc={tc}
+        onChange={mutate}
       />
     </div>
   )

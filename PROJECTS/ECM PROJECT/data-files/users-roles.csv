@@ -1,0 +1,4 @@
+username,password,role,expected_list_users_status,expected_get_own_status,can_list_all_users,scenario,description
+admin,Admin@123,admin,200,200,true,happy-path,Admin can list all users and get own profile
+editor1,Editor@123,editor,403,200,false,negative,Editor cannot list all users — expect 403
+viewer1,Viewer@123,viewer,403,200,false,negative,Viewer cannot list all users — expect 403

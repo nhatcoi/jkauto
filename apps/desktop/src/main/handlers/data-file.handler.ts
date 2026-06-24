@@ -19,8 +19,11 @@ export function registerDataFileHandlers(ipcMain: IpcMain): void {
     try {
       const entries = await fs.readdir(dir)
       return entries
-        .filter((f) => f.endsWith('.data.json') && !f.startsWith('.'))
-        .map((f) => ({ name: f.replace(/\.data\.json$/, ''), path: path.join(dir, f) }))
+        .filter((f) => !f.startsWith('.') && f.endsWith('.csv'))
+        .map((f) => {
+          const name = f.replace(/\.csv$/, '')
+          return { name, path: path.join(dir, f) }
+        })
     } catch {
       return []
     }
@@ -28,25 +31,44 @@ export function registerDataFileHandlers(ipcMain: IpcMain): void {
 
   ipcMain.handle(IpcChannels.DATA_FILE_READ, async (_, payload: DataFileReadPayload): Promise<DataFile> => {
     const raw = await fs.readFile(payload.filePath, 'utf-8')
-    return JSON.parse(raw) as DataFile
+    const filePath = payload.filePath
+    const name = path.basename(filePath).replace(/\.data\.json$/, '').replace(/\.(csv|json)$/, '')
+    if (filePath.endsWith('.csv')) {
+      return parseCsvToDataFile(raw, name)
+    }
+    const parsed = JSON.parse(raw) as Record<string, unknown>
+    // internal .data.json format has "columns" array
+    if (Array.isArray(parsed.columns)) {
+      return parsed as unknown as DataFile
+    }
+    // raw JSON array-of-objects → derive columns from keys
+    if (Array.isArray(parsed)) {
+      return parseJsonArrayToDataFile(parsed as Record<string, unknown>[], name)
+    }
+    // fallback: treat as .data.json
+    return parsed as unknown as DataFile
   })
 
   ipcMain.handle(IpcChannels.DATA_FILE_WRITE, async (_, payload: DataFileWritePayload): Promise<void> => {
-    await fs.writeFile(payload.filePath, JSON.stringify(payload.data, null, 2), 'utf-8')
+    if (payload.filePath.endsWith('.csv')) {
+      await fs.writeFile(payload.filePath, dataFileToCsv(payload.data), 'utf-8')
+    } else {
+      await fs.writeFile(payload.filePath, JSON.stringify(payload.data, null, 2), 'utf-8')
+    }
   })
 
   ipcMain.handle(IpcChannels.DATA_FILE_CREATE, async (_, payload: DataFileCreatePayload): Promise<string> => {
     const dir = path.join(payload.projectPath, 'data-files')
     await fs.mkdir(dir, { recursive: true })
     const slug = payload.name.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-')
-    const filePath = path.join(dir, `${slug}.data.json`)
+    const filePath = path.join(dir, `${slug}.csv`)
     const data: DataFile = {
       schemaVersion: 1,
       name: payload.name,
       columns: ['column1'],
       rows: [['value1']],
     }
-    await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8')
+    await fs.writeFile(filePath, dataFileToCsv(data), 'utf-8')
     return filePath
   })
 
@@ -134,11 +156,52 @@ Rules:
   )
 }
 
-/** Parse a .data.json file into an array of variable maps (one per row). */
+function dataFileToCsv(data: DataFile): string {
+  const quoteCell = (c: string) =>
+    c.includes(',') || c.includes('\n') || c.includes('"')
+      ? `"${c.replace(/"/g, '""')}"`
+      : c
+  const header = data.columns.map(quoteCell).join(',')
+  const body = data.rows.map((r) => r.map(quoteCell).join(',')).join('\n')
+  return body ? `${header}\n${body}\n` : `${header}\n`
+}
+
+function parseCsvToDataFile(text: string, name: string): DataFile {
+  const lines = text.split('\n').filter((l) => l.trim())
+  if (lines.length === 0) return { schemaVersion: 1, name, columns: [], rows: [] }
+  const columns = lines[0]!.split(',').map((c) => c.trim().replace(/^"|"$/g, ''))
+  const rows = lines.slice(1).map((line) =>
+    line.split(',').map((c) => c.trim().replace(/^"|"$/g, '').replace(/""/g, '"')),
+  )
+  return { schemaVersion: 1, name, columns, rows }
+}
+
+function parseJsonArrayToDataFile(arr: Record<string, unknown>[], name: string): DataFile {
+  const allKeys = new Set<string>()
+  for (const obj of arr) Object.keys(obj).forEach((k) => allKeys.add(k))
+  const columns = [...allKeys]
+  const rows = arr.map((obj) => columns.map((c) => String(obj[c] ?? '')))
+  return { schemaVersion: 1, name, columns, rows }
+}
+
+/** Parse any supported data file format into an array of variable maps (one per row). */
 export async function loadDataFileRows(filePath: string): Promise<Record<string, string>[]> {
   try {
     const raw = await fs.readFile(filePath, 'utf-8')
-    const data = JSON.parse(raw) as DataFile
+    const name = path.basename(filePath)
+    let data: DataFile
+    if (filePath.endsWith('.csv')) {
+      data = parseCsvToDataFile(raw, name)
+    } else {
+      const parsed = JSON.parse(raw) as Record<string, unknown>
+      if (Array.isArray(parsed.columns)) {
+        data = parsed as unknown as DataFile
+      } else if (Array.isArray(parsed)) {
+        data = parseJsonArrayToDataFile(parsed as Record<string, unknown>[], name)
+      } else {
+        data = parsed as unknown as DataFile
+      }
+    }
     return data.rows.map((row) => {
       const vars: Record<string, string> = {}
       data.columns.forEach((col, i) => { vars[col] = row[i] ?? '' })
