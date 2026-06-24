@@ -1,0 +1,50 @@
+schemaVersion: 1
+id: d4e5f6a7-b8c9-0123-def0-123456789012
+name: Register Failed
+description: >
+  Data-driven invalid registration — runs negative/boundary rows in
+  auth-register.csv. Each row submits invalid data and asserts an error message
+  appears on the registration form.
+tags:
+  - web
+  - ui
+  - auth
+  - register
+  - negative
+platform: web
+runner: playwright
+dataFile: data-files/auth-register.csv
+steps:
+  - id: navigate
+    keyword: navigate-to
+    input: ${uiBaseUrl}/register
+  - id: wait-form
+    keyword: wait-for-element
+    objectRef: "#reg-username"
+  - id: type-username
+    keyword: type-text
+    objectRef: "#reg-username"
+    input: "{{username}}"
+  - id: type-email
+    keyword: type-text
+    objectRef: "#reg-email"
+    input: "{{email}}"
+  - id: type-password
+    keyword: type-text
+    objectRef: "#reg-password"
+    input: "{{password}}"
+  - id: type-confirm
+    keyword: type-text
+    objectRef: "#reg-confirm"
+    input: "{{password}}"
+  - id: submit
+    keyword: click
+    objectRef: "#register-btn"
+  - id: assert-error
+    keyword: wait-for-element
+    description: Assert error banner appears for invalid registration data.
+    objectRef: text=Registration failed
+  - id: assert-stays-register
+    keyword: assert-url
+    description: User stays on /register page — not redirected.
+    expected: ${uiBaseUrl}/register

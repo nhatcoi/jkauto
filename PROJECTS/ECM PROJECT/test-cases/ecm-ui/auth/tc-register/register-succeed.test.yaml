@@ -1,0 +1,56 @@
+schemaVersion: 1
+id: c3d4e5f6-a7b8-9012-cdef-012345678901
+name: Register Succeed
+description: >
+  Data-driven valid registration — runs happy-path rows in auth-register.csv.
+  Each row fills the registration form and asserts redirect to /login page.
+tags:
+  - web
+  - ui
+  - auth
+  - register
+platform: web
+runner: playwright
+dataFile: data-files/auth-register.csv
+steps:
+  - id: navigate
+    keyword: navigate-to
+    input: ${uiBaseUrl}/register
+
+  - id: wait-form
+    keyword: wait-for-element
+    objectRef: "#reg-username"
+
+  - id: type-username
+    keyword: type-text
+    objectRef: "#reg-username"
+    input: "{{username}}"
+
+  - id: type-email
+    keyword: type-text
+    objectRef: "#reg-email"
+    input: "{{email}}"
+
+  - id: type-password
+    keyword: type-text
+    objectRef: "#reg-password"
+    input: "{{password}}"
+
+  - id: type-confirm
+    keyword: type-text
+    objectRef: "#reg-confirm"
+    input: "{{password}}"
+
+  - id: submit
+    keyword: click
+    objectRef: "#register-btn"
+
+  - id: assert-redirect
+    keyword: wait-for-element
+    description: Assert redirect to login page after successful registration.
+    objectRef: "#username"
+
+  - id: assert-url
+    keyword: assert-url
+    description: URL must be /login after registration.
+    expected: ${uiBaseUrl}/login

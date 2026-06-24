@@ -1,8 +1,25 @@
+import { execFileSync } from 'node:child_process'
 import { chromium } from '@playwright/test'
 import type { Browser, BrowserContext, Page } from '@playwright/test'
 import type { Profile, Step } from '@jkauto/core'
 import { getKeyword } from '../keywords/registry'
 import type { EngineAdapter, ExecutionHelpers, AdapterStartOptions } from './types'
+
+async function launchChromium(headless: boolean): Promise<Browser> {
+  try {
+    return await chromium.launch({ headless })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (!msg.includes("Executable doesn't exist")) throw err
+    // Browser not installed — auto-install then retry once
+    execFileSync('pnpm', ['exec', 'playwright', 'install', 'chromium'], {
+      stdio: 'inherit',
+      cwd: process.cwd(),
+      env: { ...process.env },
+    })
+    return chromium.launch({ headless })
+  }
+}
 
 export interface WebSession {
   browser: Browser
@@ -14,7 +31,7 @@ export class WebAdapter implements EngineAdapter<WebSession> {
   readonly platform = 'web' as const
 
   async start(_profile: Profile, options: AdapterStartOptions): Promise<WebSession> {
-    const browser = await chromium.launch({ headless: options.headless ?? false })
+    const browser = await launchChromium(options.headless ?? false)
     const context = await browser.newContext()
     const page = await context.newPage()
     return { browser, context, page }
