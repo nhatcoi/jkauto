@@ -422,16 +422,16 @@ Android mirror sử dụng scrcpy và WebCodecs; iOS dùng luồng MJPEG. Touch 
 
 AI Agent của JKAuto được xây dựng theo mô hình hai tầng:
 
-**Tầng orchestration — opencode runtime:** JKAuto sử dụng [opencode](https://opencode.ai) làm backend AI. opencode chạy ở chế độ headless (`opencode serve --port 0`) như một tiến trình con do Electron main process quản lý, cung cấp REST API và SSE event stream. Mỗi project path có một process opencode riêng biệt; process được tái sử dụng nếu đã khởi động và được dừng khi ứng dụng thoát.
+**Tầng orchestration — Agent Runtime Harness:** Nhóm phát triển Agent Runtime Harness riêng đóng vai trò backend AI. Harness chạy như một tiến trình con độc lập do Electron main process quản lý, cung cấp REST API và SSE event stream. Mỗi project path có một process harness riêng biệt; process được tái sử dụng nếu đã khởi động và được dừng khi ứng dụng thoát.
 
 **Tầng adapter — IPC bridge:** Module `services/agent-runtime/` trong Electron main process đảm nhận:
-- `agent-runtime.ts`: spawn/quản lý vòng đời tiến trình opencode, phân giải cổng động.
-- `agent-client.ts`: HTTP client cho REST API opencode + SSE bridge, ánh xạ kiểu opencode sang kiểu IPC nội bộ của JKAuto.
-- `agent.handler.ts`: đăng ký IPC handler, che giấu toàn bộ chi tiết opencode khỏi renderer.
+- `agent-runtime.ts`: spawn/quản lý vòng đời tiến trình harness, phân giải cổng động.
+- `agent-client.ts`: HTTP client cho REST API + SSE bridge, ánh xạ kiểu dữ liệu harness sang kiểu IPC nội bộ của JKAuto.
+- `agent.handler.ts`: đăng ký IPC handler, che giấu toàn bộ chi tiết harness khỏi renderer.
 
-opencode đảm nhận: quản lý session, lịch sử hội thoại, vòng lặp agentic với tool, MCP server tích hợp và streaming. JKAuto renderer không biết về opencode; toàn bộ giao tiếp đi qua các kênh IPC đã thiết kế sẵn (`AGENT_CHAT`, `AGENT_STREAM_CHUNK`, `AGENT_STREAM_TOOL_EVENT`, v.v.).
+Harness đảm nhận: quản lý session, lịch sử hội thoại, vòng lặp agentic với tool, MCP server tích hợp và streaming. JKAuto renderer không biết về harness; toàn bộ giao tiếp đi qua các kênh IPC đã thiết kế sẵn (`AGENT_CHAT`, `AGENT_STREAM_CHUNK`, `AGENT_STREAM_TOOL_EVENT`, v.v.).
 
-**Persona và nhận diện:** Do opencode có system prompt riêng khai báo danh tính công cụ, JKAuto inject một khối `<assistant_identity>` vào tin nhắn đầu tiên của mỗi session để định hướng model trả lời với vai trò "JKAuto Assistant" và không đề cập đến opencode hay tên model. Cơ chế này chỉ áp dụng trong luồng IPC của JKAuto, không ảnh hưởng đến các phiên opencode độc lập.
+**Persona và nhận diện:** JKAuto inject một khối `<assistant_identity>` vào tin nhắn đầu tiên của mỗi session để định hướng model trả lời với vai trò "JKAuto Assistant". Cơ chế này được thực hiện tại lớp adapter, minh bạch với renderer.
 
 Agent có hai chế độ hội thoại:
 
@@ -518,7 +518,7 @@ Luồng API Request:
 | Mobile flow | Maestro mapping | Chạy kịch bản mobile theo DSL trung gian |
 | Validation | Zod | Schema và kiểm tra dữ liệu |
 | Data | JSON, YAML, SQLite | Artifact, cấu hình và lịch sử |
-| AI orchestration | opencode (headless serve mode) | Agent runtime: session, tool loop, MCP, streaming |
+| AI orchestration | Agent Runtime Harness (nội bộ) | Backend agent: session, tool loop, MCP, streaming |
 | AI | Vercel AI SDK, MCP | Chat, tool calling và sinh test (renderer/adapter layer) |
 | Phân tích repository | TypeScript ESTree, parser theo ngôn ngữ, Swagger Parser, simple-git | Lập code map và context sinh test |
 | Workspace | pnpm, Turborepo | Quản lý monorepo |
@@ -830,15 +830,15 @@ Chuỗi login → trích token → gọi API bảo vệ là bài kiểm định 
 
 ### 3.7.1. Kiểm định session và context
 
-Session trong JKAuto được ánh xạ sang session của opencode; metadata bổ sung (mode, status, title) được lưu in-memory trong adapter layer, mất khi restart (chấp nhận được vì opencode vẫn lưu lịch sử hội thoại trong DB riêng).
+Session trong JKAuto được ánh xạ sang session của agent runtime harness; metadata bổ sung (mode, status, title) được lưu in-memory trong adapter layer, mất khi restart (chấp nhận được vì harness vẫn lưu lịch sử hội thoại trong DB riêng).
 
 - Session chỉ được tạo khi gửi tin nhắn đầu tiên; mở panel không tạo session rỗng.
 - Session được tạo bởi renderer trước (`AGENT_SESSION_CREATE`), sau đó truyền `sessionId` vào `AGENT_CHAT`; adapter inject persona vào tin nhắn đầu tiên theo `sessionId`, đảm bảo chỉ inject một lần.
 - Double-submit không tạo hai session hoặc lưu trùng message.
-- Chuyển session tải đúng message từ opencode qua `AGENT_SESSION_MESSAGES`.
-- Soft delete đánh dấu `status = deleted` trong in-memory map; session vẫn tồn tại trong opencode DB nhưng bị lọc khỏi danh sách JKAuto.
-- opencode quản lý lịch sử message; JKAuto không kiểm soát giới hạn context window — phụ thuộc vào cấu hình model và opencode.
-- Profile secret không bị gửi sang opencode trừ khi người dùng đưa vào nội dung tin nhắn.
+- Chuyển session tải đúng message từ harness qua `AGENT_SESSION_MESSAGES`.
+- Soft delete đánh dấu `status = deleted` trong in-memory map; session vẫn tồn tại trong harness DB nhưng bị lọc khỏi danh sách JKAuto.
+- Harness quản lý lịch sử message; JKAuto không kiểm soát giới hạn context window — phụ thuộc vào cấu hình model của harness.
+- Profile secret không bị gửi sang harness trừ khi người dùng đưa vào nội dung tin nhắn.
 
 ### 3.7.2. Kiểm định quyền công cụ
 
@@ -851,8 +851,8 @@ Session trong JKAuto được ánh xạ sang session của opencode; metadata b�
 | Yêu cầu xóa file | Cần policy rõ và log đầy đủ |
 
 Cần kiểm tra thêm:
-- MCP được opencode quản lý; đóng project trong JKAuto phải gọi `stopRuntime(projectPath)` để dừng tiến trình opencode và giải phóng MCP/port.
-- opencode process bị crash ngoài ý muốn → adapter phải tự khởi động lại ở lần chat tiếp theo (hiện đã xử lý qua `getOrStartRuntime`).
+- MCP được agent runtime harness quản lý; đóng project trong JKAuto phải gọi `stopRuntime(projectPath)` để dừng tiến trình harness và giải phóng MCP/port.
+- Harness process bị crash ngoài ý muốn → adapter phải tự khởi động lại ở lần chat tiếp theo (hiện đã xử lý qua `getOrStartRuntime`).
 
 ### 3.7.3. Kiểm định vòng lặp tool và Thinking UI
 
