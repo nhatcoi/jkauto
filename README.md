@@ -31,6 +31,12 @@
 
 ---
 
+## Project Report
+
+Evaluation report (Group 7): [Group7\_ĐGKĐ(Final).pdf](./Group7_ĐGKĐ\(Final\).pdf)
+
+---
+
 ## Why JKAuto?
 
 Most test tools make you choose between **power** and **simplicity**. Katalon is bloated and paywalled. Postman only covers APIs. Cypress and Playwright demand you write code for everything. Selenium IDE is discontinued.
