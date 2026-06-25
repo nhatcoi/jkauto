@@ -1,0 +1,36 @@
+schemaVersion: 1
+id: a9f1b2c3-d4e5-6f78-9012-ab3456789006
+name: ECM UI — Auth Security & Validation
+description: >
+  Bộ kiểm thử bảo mật và negative cho UI Auth:
+  - Auth guard chặn truy cập không có token → redirect về /login
+  - Submit form rỗng bị chặn bởi browser validation
+  - Login sai credentials hiện error banner
+  - Register invalid data hiện error banner
+  Không bao gồm happy path. Mục tiêu: bảo mật + validation UX.
+profile: default
+continueOnFailure: true
+sharedBrowser: false
+items:
+  - testCaseId: a0b1c2d3-e4f5-6789-abcd-ef0123456706
+    testCasePath: test-cases/ecm-ui/auth/ui-auth-guard-redirect.test.yaml
+    enabled: true
+    order: 0
+  - testCaseId: a0b1c2d3-e4f5-6789-abcd-ef0123456703
+    testCasePath: test-cases/ecm-ui/auth/ui-login-empty-submit.test.yaml
+    enabled: true
+    order: 1
+  - testCaseId: 4c89d12c-2f9b-4e0f-95cb-1afbcf7d74ed
+    testCasePath: test-cases/ecm-ui/auth/tc-login/login-failed.test.yaml
+    enabled: true
+    order: 2
+  - testCaseId: d4e5f6a7-b8c9-0123-def0-123456789012
+    testCasePath: test-cases/ecm-ui/auth/tc-register/register-failed.test.yaml
+    enabled: true
+    order: 3
+  - testCaseId: a0b1c2d3-e4f5-6789-abcd-ef0123456705
+    testCasePath: test-cases/ecm-ui/auth/ui-register-password-mismatch.test.yaml
+    enabled: true
+    order: 4
+createdAt: 2026-06-25T00:00:00.000Z
+updatedAt: 2026-06-25T00:00:00.000Z

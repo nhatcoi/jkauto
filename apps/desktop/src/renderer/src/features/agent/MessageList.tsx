@@ -4,12 +4,12 @@ import {
   CheckCircle2,
   Copy,
   Loader2,
-  Sparkles,
   Wand2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { AgentMessage } from './types'
 import { ThinkingSection } from './ThinkingSection'
+import { MarkdownContent } from './MarkdownContent'
 import logoUrl from '@/assets/logo.svg'
 
 interface MessageListProps {
@@ -232,22 +232,21 @@ export function MessageList({
               )}
 
               {!parts ? (
-                <div className="text-xs leading-5 text-foreground/90 whitespace-pre-wrap">
-                  {message.content}
-                </div>
+                <MarkdownContent
+                  content={message.content}
+                  className="text-foreground/90"
+                />
               ) : (
                 <div
                   className={cn(
-                    'max-w-full text-xs leading-5 text-foreground/90',
+                    'max-w-full text-foreground/90',
                     hasApplyBlock && 'pb-1',
                   )}
                 >
                   {parts.map((part, i) => {
                     if (part.type === 'text') {
                       return (
-                        <span key={i} className="whitespace-pre-wrap">
-                          {part.value}
-                        </span>
+                        <MarkdownContent key={i} content={part.value} />
                       )
                     }
                     return (

@@ -1,0 +1,21 @@
+schemaVersion: 1
+id: a9f1b2c3-d4e5-6f78-9012-ab3456789005
+name: ECM API — System Health & Stats
+description: >
+  Kiểm thử hệ thống: /health (không cần auth, < 500ms) và /stats (admin auth, < 2000ms).
+  Chạy đầu tiên để xác nhận server đang chạy trước khi chạy bộ test khác.
+  Ideal cho pre-flight check trong CI/CD pipeline.
+profile: default
+continueOnFailure: false
+sharedBrowser: false
+items:
+  - testCaseId: 41902b54-8532-4ab7-9a52-44a7ccb86da2
+    testCasePath: test-cases/ecm-api/auth-setup.test.yaml
+    enabled: true
+    order: 0
+  - testCaseId: a1b2c3d4-e5f6-7890-abcd-ef1234567808
+    testCasePath: test-cases/ecm-api/system/system-health.test.yaml
+    enabled: true
+    order: 1
+createdAt: 2026-06-25T00:00:00.000Z
+updatedAt: 2026-06-25T00:00:00.000Z

@@ -118,6 +118,7 @@ export function registerTestRunAutoHandlers(ipcMain: IpcMain): void {
           schemaVersion: 1,
           name: 'autorun',
           variables: { baseUrl: vars['baseUrl'] ?? '', ...vars },
+          secrets: [],
         }
 
         for (const yamlPath of yamlPaths) {

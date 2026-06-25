@@ -1,0 +1,20 @@
+schemaVersion: 1
+id: a9f1b2c3-d4e5-6f78-9012-ab3456789009
+name: ECM UI — Folders Full Regression
+description: >
+  Toàn bộ Folders UI regression: tạo root folder, tạo nested folder (có parent).
+  Xác minh cả hai tên folder xuất hiện đúng trong folder tree.
+profile: default
+continueOnFailure: false
+sharedBrowser: false
+items:
+  - testCaseId: a0b1c2d3-e4f5-6789-abcd-ef0123456710
+    testCasePath: test-cases/ecm-ui/folders/ui-folders-create.test.yaml
+    enabled: true
+    order: 0
+  - testCaseId: a0b1c2d3-e4f5-6789-abcd-ef0123456711
+    testCasePath: test-cases/ecm-ui/folders/ui-folders-nested.test.yaml
+    enabled: true
+    order: 1
+createdAt: 2026-06-25T00:00:00.000Z
+updatedAt: 2026-06-25T00:00:00.000Z

@@ -244,7 +244,7 @@ async function loadRuntimeProfile(projectPath: string, profileName?: string): Pr
       // Fall through to an empty runtime profile.
     }
   }
-  return { schemaVersion: 1, name: 'default', variables: {} }
+  return { schemaVersion: 1, name: 'default', variables: {}, secrets: [] }
 }
 
 async function loadAllObjectRepositories(projectPath: string): Promise<Array<{ name: string; objects: Array<{ name: string; locators: Array<{ strategy: string; value: string }> }> }>> {

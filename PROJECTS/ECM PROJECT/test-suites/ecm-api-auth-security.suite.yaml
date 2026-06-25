@@ -1,0 +1,33 @@
+schemaVersion: 1
+id: a9f1b2c3-d4e5-6f78-9012-ab3456789001
+name: ECM API — Auth Security & Negative
+description: >
+  Bộ kiểm thử bảo mật và negative cho Auth API.
+  Bao gồm: sai credentials, thiếu field, sai field value, truy cập không có token.
+  Chạy sau auth-setup để verify hệ thống xử lý đúng các trường hợp lỗi.
+profile: default
+continueOnFailure: true
+sharedBrowser: false
+items:
+  - testCaseId: 41902b54-8532-4ab7-9a52-44a7ccb86da2
+    testCasePath: test-cases/ecm-api/auth-setup.test.yaml
+    enabled: true
+    order: 0
+  - testCaseId: cfa8024c-94ad-4675-b9c1-47f062e961d3
+    testCasePath: test-cases/ecm-api/auth/login-wrong-credentials.test.yaml
+    enabled: true
+    order: 1
+  - testCaseId: 5a9bbf30-c714-4b61-8350-bc26a614d871
+    testCasePath: test-cases/ecm-api/auth/auth-missing-required-field.test.yaml
+    enabled: true
+    order: 2
+  - testCaseId: 9e64ba93-67f3-4321-bd43-8d491393b569
+    testCasePath: test-cases/ecm-api/auth/auth-invalid-field-value.test.yaml
+    enabled: true
+    order: 3
+  - testCaseId: 60deb85e-163c-4a62-82a6-526376e7d4d2
+    testCasePath: test-cases/ecm-api/auth/auth-unauthorized-access.test.yaml
+    enabled: true
+    order: 4
+createdAt: 2026-06-25T00:00:00.000Z
+updatedAt: 2026-06-25T00:00:00.000Z

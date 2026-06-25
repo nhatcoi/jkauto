@@ -1,0 +1,135 @@
+schemaVersion: 1
+id: a9f1b2c3-d4e5-6f78-9012-ab3456789012
+name: MASTER — Nightly Regression (API + UI + Security)
+description: >
+  Bộ Nightly Regression toàn diện — chạy hàng đêm trên CI/CD.
+  Bao gồm TẤT CẢ test cases: happy path, CRUD, negative, security, validation, search, navigation.
+  continueOnFailure=true để chạy hết và báo cáo tất cả failures.
+  Thứ tự: System → Auth (all) → CRUD API → Search API → Users → UI Auth (all) → UI CRUD → UI Search.
+  Thời gian ước tính: 25–35 phút.
+profile: default
+continueOnFailure: true
+sharedBrowser: false
+items:
+  - testCaseId: a1b2c3d4-e5f6-7890-abcd-ef1234567808
+    testCasePath: test-cases/ecm-api/system/system-health.test.yaml
+    enabled: true
+    order: 0
+  - testCaseId: 41902b54-8532-4ab7-9a52-44a7ccb86da2
+    testCasePath: test-cases/ecm-api/auth-setup.test.yaml
+    enabled: true
+    order: 1
+  - testCaseId: 41bdd33d-6870-4c6f-8b1e-56f3c2d0a6be
+    testCasePath: test-cases/ecm-api/auth/auth-happy-path.test.yaml
+    enabled: true
+    order: 2
+  - testCaseId: a1b2c3d4-e5f6-7890-abcd-ef1234567801
+    testCasePath: test-cases/ecm-api/auth/get-auth-me.test.yaml
+    enabled: true
+    order: 3
+  - testCaseId: a1b2c3d4-e5f6-7890-abcd-ef1234567802
+    testCasePath: test-cases/ecm-api/auth/refresh-token.test.yaml
+    enabled: true
+    order: 4
+  - testCaseId: cfa8024c-94ad-4675-b9c1-47f062e961d3
+    testCasePath: test-cases/ecm-api/auth/login-wrong-credentials.test.yaml
+    enabled: true
+    order: 5
+  - testCaseId: 5a9bbf30-c714-4b61-8350-bc26a614d871
+    testCasePath: test-cases/ecm-api/auth/auth-missing-required-field.test.yaml
+    enabled: true
+    order: 6
+  - testCaseId: 9e64ba93-67f3-4321-bd43-8d491393b569
+    testCasePath: test-cases/ecm-api/auth/auth-invalid-field-value.test.yaml
+    enabled: true
+    order: 7
+  - testCaseId: 60deb85e-163c-4a62-82a6-526376e7d4d2
+    testCasePath: test-cases/ecm-api/auth/auth-unauthorized-access.test.yaml
+    enabled: true
+    order: 8
+  - testCaseId: a1b2c3d4-e5f6-7890-abcd-ef1234567804
+    testCasePath: test-cases/ecm-api/documents/documents-crud.test.yaml
+    enabled: true
+    order: 9
+  - testCaseId: a1b2c3d4-e5f6-7890-abcd-ef1234567803
+    testCasePath: test-cases/ecm-api/folders/folders-crud.test.yaml
+    enabled: true
+    order: 10
+  - testCaseId: a1b2c3d4-e5f6-7890-abcd-ef1234567807
+    testCasePath: test-cases/ecm-api/search/search-documents.test.yaml
+    enabled: true
+    order: 11
+  - testCaseId: a1b2c3d4-e5f6-7890-abcd-ef1234567806
+    testCasePath: test-cases/ecm-api/users/users-management.test.yaml
+    enabled: true
+    order: 12
+  - testCaseId: a0b1c2d3-e4f5-6789-abcd-ef0123456706
+    testCasePath: test-cases/ecm-ui/auth/ui-auth-guard-redirect.test.yaml
+    enabled: true
+    order: 13
+  - testCaseId: a0b1c2d3-e4f5-6789-abcd-ef0123456701
+    testCasePath: test-cases/ecm-ui/auth/ui-login-valid.test.yaml
+    enabled: true
+    order: 14
+  - testCaseId: b1c2d3e4-f5a6-7890-bcde-f01234567890
+    testCasePath: test-cases/ecm-ui/auth/tc-login/login-succeed.test.yaml
+    enabled: true
+    order: 15
+  - testCaseId: 4c89d12c-2f9b-4e0f-95cb-1afbcf7d74ed
+    testCasePath: test-cases/ecm-ui/auth/tc-login/login-failed.test.yaml
+    enabled: true
+    order: 16
+  - testCaseId: a0b1c2d3-e4f5-6789-abcd-ef0123456703
+    testCasePath: test-cases/ecm-ui/auth/ui-login-empty-submit.test.yaml
+    enabled: true
+    order: 17
+  - testCaseId: c3d4e5f6-a7b8-9012-cdef-012345678901
+    testCasePath: test-cases/ecm-ui/auth/tc-register/register-succeed.test.yaml
+    enabled: true
+    order: 18
+  - testCaseId: a0b1c2d3-e4f5-6789-abcd-ef0123456704
+    testCasePath: test-cases/ecm-ui/auth/ui-register-success.test.yaml
+    enabled: true
+    order: 19
+  - testCaseId: a0b1c2d3-e4f5-6789-abcd-ef0123456705
+    testCasePath: test-cases/ecm-ui/auth/ui-register-password-mismatch.test.yaml
+    enabled: true
+    order: 20
+  - testCaseId: d4e5f6a7-b8c9-0123-def0-123456789012
+    testCasePath: test-cases/ecm-ui/auth/tc-register/register-failed.test.yaml
+    enabled: true
+    order: 21
+  - testCaseId: a0b1c2d3-e4f5-6789-abcd-ef0123456707
+    testCasePath: test-cases/ecm-ui/documents/ui-documents-create.test.yaml
+    enabled: true
+    order: 22
+  - testCaseId: a0b1c2d3-e4f5-6789-abcd-ef0123456708
+    testCasePath: test-cases/ecm-ui/documents/ui-documents-filter.test.yaml
+    enabled: true
+    order: 23
+  - testCaseId: a0b1c2d3-e4f5-6789-abcd-ef0123456709
+    testCasePath: test-cases/ecm-ui/documents/ui-documents-delete.test.yaml
+    enabled: true
+    order: 24
+  - testCaseId: a0b1c2d3-e4f5-6789-abcd-ef0123456710
+    testCasePath: test-cases/ecm-ui/folders/ui-folders-create.test.yaml
+    enabled: true
+    order: 25
+  - testCaseId: a0b1c2d3-e4f5-6789-abcd-ef0123456711
+    testCasePath: test-cases/ecm-ui/folders/ui-folders-nested.test.yaml
+    enabled: true
+    order: 26
+  - testCaseId: a0b1c2d3-e4f5-6789-abcd-ef0123456713
+    testCasePath: test-cases/ecm-ui/search/ui-search-find.test.yaml
+    enabled: true
+    order: 27
+  - testCaseId: a0b1c2d3-e4f5-6789-abcd-ef0123456714
+    testCasePath: test-cases/ecm-ui/search/ui-search-navigate.test.yaml
+    enabled: true
+    order: 28
+  - testCaseId: a0b1c2d3-e4f5-6789-abcd-ef0123456712
+    testCasePath: test-cases/ecm-ui/tags/ui-tags-create.test.yaml
+    enabled: true
+    order: 29
+createdAt: 2026-06-25T00:00:00.000Z
+updatedAt: 2026-06-25T00:00:00.000Z

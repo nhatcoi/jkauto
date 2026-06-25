@@ -1,0 +1,25 @@
+schemaVersion: 1
+id: a9f1b2c3-d4e5-6f78-9012-ab3456789010
+name: ECM UI — Search & Navigation
+description: >
+  Kiểm thử chức năng Search UI: tìm kiếm có kết quả, click vào result card
+  và xác minh navigation đến đúng trang (/documents).
+  Cũng bao gồm Tags (tạo tag mới) vì Tags liên quan đến search/filter.
+profile: default
+continueOnFailure: false
+sharedBrowser: false
+items:
+  - testCaseId: a0b1c2d3-e4f5-6789-abcd-ef0123456713
+    testCasePath: test-cases/ecm-ui/search/ui-search-find.test.yaml
+    enabled: true
+    order: 0
+  - testCaseId: a0b1c2d3-e4f5-6789-abcd-ef0123456714
+    testCasePath: test-cases/ecm-ui/search/ui-search-navigate.test.yaml
+    enabled: true
+    order: 1
+  - testCaseId: a0b1c2d3-e4f5-6789-abcd-ef0123456712
+    testCasePath: test-cases/ecm-ui/tags/ui-tags-create.test.yaml
+    enabled: true
+    order: 2
+createdAt: 2026-06-25T00:00:00.000Z
+updatedAt: 2026-06-25T00:00:00.000Z

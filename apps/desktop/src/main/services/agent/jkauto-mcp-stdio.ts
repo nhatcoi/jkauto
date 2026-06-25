@@ -64,7 +64,7 @@ async function loadProfile(profileName?: string): Promise<Profile> {
       return ProfileSchema.parse(JSON.parse(await fs.readFile(path.join(profileDir, candidate), 'utf-8')))
     } catch { /* fall through */ }
   }
-  return { schemaVersion: 1, name: 'default', variables: {} }
+  return { schemaVersion: 1, name: 'default', variables: {}, secrets: [] }
 }
 
 async function loadObjectRepos() {

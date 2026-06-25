@@ -65,6 +65,8 @@ export const IpcChannels = {
   ENV_WRITE: 'env:write',
   ENV_CREATE: 'env:create',
   ENV_DELETE: 'env:delete',
+  ENV_RENAME: 'env:rename',
+  ENV_DUPLICATE: 'env:duplicate',
 
   AGENT_CHAT: 'agent:chat',
   AGENT_STREAM_CHUNK: 'agent:stream-chunk',
@@ -410,12 +412,23 @@ export interface EnvEntry {
 export interface EnvWritePayload {
   filePath: string
   variables: Record<string, string>
+  secrets?: string[]
   api?: import('./schemas/profile').ApiProfileConfig
 }
 
 export interface EnvCreatePayload {
   projectPath: string
   name: string
+}
+
+export interface EnvRenamePayload {
+  filePath: string
+  newName: string
+}
+
+export interface EnvDuplicatePayload {
+  filePath: string
+  newName: string
 }
 
 export interface RequestHistoryRecord {

@@ -16,7 +16,9 @@ export const ApiProfileConfigSchema = z.object({
 export const ProfileSchema = z.object({
   schemaVersion: z.number().default(1),
   name: z.string().min(1),
+  description: z.string().optional(),
   variables: z.record(z.string(), z.string()).default({}),
+  secrets: z.array(z.string()).default([]),
   api: ApiProfileConfigSchema.optional(),
 })
 

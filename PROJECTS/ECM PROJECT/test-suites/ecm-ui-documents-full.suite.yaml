@@ -1,0 +1,24 @@
+schemaVersion: 1
+id: a9f1b2c3-d4e5-6f78-9012-ab3456789008
+name: ECM UI — Documents Full Regression
+description: >
+  Toàn bộ Documents UI regression: tạo document, filter theo status (All/draft/published/archived),
+  xóa document. Mỗi test case tự login trước khi thực hiện.
+profile: default
+continueOnFailure: false
+sharedBrowser: false
+items:
+  - testCaseId: a0b1c2d3-e4f5-6789-abcd-ef0123456707
+    testCasePath: test-cases/ecm-ui/documents/ui-documents-create.test.yaml
+    enabled: true
+    order: 0
+  - testCaseId: a0b1c2d3-e4f5-6789-abcd-ef0123456708
+    testCasePath: test-cases/ecm-ui/documents/ui-documents-filter.test.yaml
+    enabled: true
+    order: 1
+  - testCaseId: a0b1c2d3-e4f5-6789-abcd-ef0123456709
+    testCasePath: test-cases/ecm-ui/documents/ui-documents-delete.test.yaml
+    enabled: true
+    order: 2
+createdAt: 2026-06-25T00:00:00.000Z
+updatedAt: 2026-06-25T00:00:00.000Z

@@ -1,14 +1,38 @@
-import { GitBranch, CloudOff, Activity, ChevronDown, PanelLeft, PanelRight } from 'lucide-react'
+import { useEffect, useState, useCallback } from 'react'
+import { GitBranch, CloudOff, Activity, ChevronDown, PanelLeft, PanelRight, Check, Settings2 } from 'lucide-react'
 import { useProjectStore } from '@/store/project.store'
 import { useUiDialogsStore } from '@/store/ui-dialogs.store'
 import { useLayoutStore } from '@/store/layout.store'
 import { useZoom } from '@/hooks/useZoom'
+import { listEnvs } from '@/features/env/api'
+import type { EnvEntry } from '@jkauto/core'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 export function StatusBar() {
-  const { activeProject } = useProjectStore()
+  const { activeProject, setActiveProfile } = useProjectStore()
   const { open } = useUiDialogsStore()
   const { leftCollapsed, rightCollapsed, toggleLeft, toggleRight } = useLayoutStore()
   const { zoomPercent, zoomIn, zoomOut, canZoomIn, canZoomOut } = useZoom()
+
+  const [envs, setEnvs] = useState<EnvEntry[]>([])
+  const envManager = useUiDialogsStore((s) => s.envManager)
+
+  const reloadEnvs = useCallback(() => {
+    if (!activeProject) { setEnvs([]); return }
+    listEnvs(activeProject.path).then(setEnvs).catch(() => setEnvs([]))
+  }, [activeProject?.path])
+
+  useEffect(() => { reloadEnvs() }, [reloadEnvs])
+
+  // reload after env manager dialog closes
+  useEffect(() => { if (!envManager) reloadEnvs() }, [envManager])
 
   return (
     <div className="flex items-center h-6 bg-statusbar px-3 gap-4 text-[11px] text-white/80 shrink-0 select-none">
@@ -30,17 +54,44 @@ export function StatusBar() {
 
         {activeProject && (
           <>
-            <button
-              type="button"
-              onClick={() => open('envManager')}
-              className="flex items-center gap-1 hover:bg-white/10 px-2 py-0.5 rounded transition-colors"
-              title="Manage environments"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
-              <span className="uppercase tracking-wide text-[10px] font-medium opacity-80">Env:</span>
-              <span className="font-semibold text-white">{activeProject.activeProfile}</span>
-              <ChevronDown className="w-3 h-3 opacity-60" />
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="flex items-center gap-1 hover:bg-white/10 px-2 py-0.5 rounded transition-colors"
+                  title="Switch environment"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+                  <span className="uppercase tracking-wide text-[10px] font-medium opacity-80">Env:</span>
+                  <span className="font-semibold text-white">{activeProject.activeProfile}</span>
+                  <ChevronDown className="w-3 h-3 opacity-60" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="top" align="end" className="min-w-[180px]">
+                <DropdownMenuLabel>Switch Environment</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {envs.map((env) => {
+                  const isActive = env.name === activeProject.activeProfile
+                  return (
+                    <DropdownMenuItem
+                      key={env.path}
+                      onClick={() => setActiveProfile(activeProject.path, env.name)}
+                      className="flex items-center gap-2"
+                    >
+                      <Check className={`w-3 h-3 shrink-0 ${isActive ? 'text-green-400' : 'opacity-0'}`} />
+                      <span className={isActive ? 'text-foreground font-medium' : 'text-muted-foreground'}>
+                        {env.name}
+                      </span>
+                    </DropdownMenuItem>
+                  )
+                })}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => open('envManager')} className="flex items-center gap-2">
+                  <Settings2 className="w-3 h-3 shrink-0" />
+                  <span>Manage Environments…</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <div className="w-px h-3 bg-white/20" />
           </>
         )}

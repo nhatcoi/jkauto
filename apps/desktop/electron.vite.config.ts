@@ -34,5 +34,8 @@ export default defineConfig({
     css: {
       postcss: resolve('postcss.config.js'),
     },
+    optimizeDeps: {
+      include: ['react-markdown', 'remark-gfm'],
+    },
   },
 })

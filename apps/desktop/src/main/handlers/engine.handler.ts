@@ -193,6 +193,7 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
       schemaVersion: 1,
       name: 'default',
       variables: resolvedVars,
+      secrets: [],
       api: profileApi,
     }
 
@@ -362,6 +363,7 @@ export function registerEngineHandlers(ipcMain: IpcMain): void {
       schemaVersion: 1,
       name: suite.profile || 'default',
       variables: profileVariables,
+      secrets: [],
       api: profileApi,
     }
 
