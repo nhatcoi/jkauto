@@ -1,6 +1,6 @@
 # Contributing to JKAuto
 
-Thank you for considering contributing to JKAuto.
+Thank you for considering contributing to JKAuto. Contributions are welcome from everyone.
 
 ## Before You Start
 
