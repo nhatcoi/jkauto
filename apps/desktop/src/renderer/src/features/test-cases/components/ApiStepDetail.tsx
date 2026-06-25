@@ -340,6 +340,125 @@ function ResponseViewer({ meta }: { meta: ApiResponseMeta }) {
   )
 }
 
+// ── failure diff ──────────────────────────────────────────────────────────────
+
+type DiffResult =
+  | { type: 'status'; expected: string; actual: string }
+  | { type: 'value'; path: string; expected: string; actual: string }
+  | { type: 'missing'; path: string }
+  | { type: 'contains'; needle: string; body: string }
+  | { type: 'header'; header: string; expected: string; actual: string }
+  | { type: 'generic'; message: string }
+
+function parseFailureMessage(msg: string, responseMeta: ApiResponseMeta | null): DiffResult {
+  let m: RegExpMatchArray | null
+
+  m = msg.match(/^Expected status (\d+) but got (\d+)/)
+  if (m) return { type: 'status', expected: m[1], actual: m[2] }
+
+  m = msg.match(/^Expected "(.+)" at path "(.+)" but got "(.+)"$/)
+  if (m) return { type: 'value', expected: m[1], path: m[2], actual: m[3] }
+
+  m = msg.match(/^Expected a value at path "(.+)" but it was missing or empty$/)
+  if (m) return { type: 'missing', path: m[1] }
+
+  m = msg.match(/^Expected body to contain "(.+)"$/)
+  if (m) return { type: 'contains', needle: m[1], body: responseMeta ? tryPrettyJson(responseMeta.body) : '' }
+
+  m = msg.match(/^Expected header "(.+)" to contain "(.+)" but got "(.+)"$/)
+  if (m) return { type: 'header', header: m[1], expected: m[2], actual: m[3] }
+
+  return { type: 'generic', message: msg }
+}
+
+function DiffBox({ label, value, variant }: { label: string; value: string; variant: 'expected' | 'actual' | 'neutral' }) {
+  const colors = {
+    expected: 'border-green-500/30 bg-green-500/8 text-green-300',
+    actual: 'border-red-500/30 bg-red-500/8 text-red-300',
+    neutral: 'border-border bg-muted/20 text-foreground/70',
+  }
+  return (
+    <div className="flex flex-col gap-1 flex-1 min-w-0">
+      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{label}</span>
+      <pre className={cn('text-[11px] font-mono px-2 py-1.5 rounded border leading-relaxed whitespace-pre-wrap break-all', colors[variant])}>
+        {value || <span className="italic opacity-50">empty</span>}
+      </pre>
+    </div>
+  )
+}
+
+function HighlightedBody({ body, needle }: { body: string; needle: string }) {
+  if (!body || !needle) return <pre className="text-[11px] font-mono text-foreground/70 bg-muted/20 border border-border rounded px-2 py-1.5 whitespace-pre-wrap break-all max-h-36 overflow-auto">{body || '(empty)'}</pre>
+  const idx = body.indexOf(needle)
+  if (idx === -1) return <pre className="text-[11px] font-mono text-foreground/70 bg-muted/20 border border-border rounded px-2 py-1.5 whitespace-pre-wrap break-all max-h-36 overflow-auto">{body}</pre>
+  return (
+    <pre className="text-[11px] font-mono text-foreground/70 bg-muted/20 border border-border rounded px-2 py-1.5 whitespace-pre-wrap break-all max-h-36 overflow-auto">
+      {body.slice(0, idx)}
+      <mark className="bg-red-500/30 text-red-300 rounded-sm not-italic">{needle}</mark>
+      {body.slice(idx + needle.length)}
+    </pre>
+  )
+}
+
+function FailureDiff({ message, responseMeta }: { message: string; responseMeta: ApiResponseMeta | null }) {
+  const diff = parseFailureMessage(message, responseMeta)
+
+  return (
+    <div className="flex flex-col gap-2 rounded border border-red-500/30 bg-red-500/5 px-3 py-2.5">
+      <span className="text-[10px] font-semibold text-red-400 uppercase tracking-wide">Assertion Failed</span>
+
+      {diff.type === 'status' && (
+        <div className="flex gap-2">
+          <DiffBox label="Expected Status" value={diff.expected} variant="expected" />
+          <DiffBox label="Actual Status" value={`${diff.actual}${responseMeta ? ` ${responseMeta.statusText}` : ''}`} variant="actual" />
+        </div>
+      )}
+
+      {diff.type === 'value' && (
+        <>
+          <span className="text-[10px] text-muted-foreground font-mono">path: <span className="text-amber-400">{diff.path}</span></span>
+          <div className="flex gap-2">
+            <DiffBox label="Expected" value={diff.expected} variant="expected" />
+            <DiffBox label="Actual" value={diff.actual} variant="actual" />
+          </div>
+        </>
+      )}
+
+      {diff.type === 'missing' && (
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] text-muted-foreground">Path <span className="font-mono text-amber-400">{diff.path}</span> was missing or empty in response</span>
+          {responseMeta && (
+            <pre className="text-[11px] font-mono text-red-300/80 bg-red-500/8 border border-red-500/20 rounded px-2 py-1.5 whitespace-pre-wrap break-all max-h-36 overflow-auto">
+              {tryPrettyJson(responseMeta.body)}
+            </pre>
+          )}
+        </div>
+      )}
+
+      {diff.type === 'contains' && (
+        <>
+          <span className="text-[10px] text-muted-foreground">Body does not contain: <span className="font-mono text-green-400">"{diff.needle}"</span></span>
+          <HighlightedBody body={diff.body} needle={diff.needle} />
+        </>
+      )}
+
+      {diff.type === 'header' && (
+        <>
+          <span className="text-[10px] text-muted-foreground font-mono">header: <span className="text-amber-400">{diff.header}</span></span>
+          <div className="flex gap-2">
+            <DiffBox label="Expected" value={diff.expected} variant="expected" />
+            <DiffBox label="Actual" value={diff.actual} variant="actual" />
+          </div>
+        </>
+      )}
+
+      {diff.type === 'generic' && (
+        <p className="text-[11px] font-mono text-red-400 whitespace-pre-wrap">{diff.message}</p>
+      )}
+    </div>
+  )
+}
+
 // ── main ───────────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -418,11 +537,9 @@ export function ApiStepDetail({ step, stepIndex, keywords, stepMessage, stepMeta
           </label>
         </div>
 
-        {/* error message */}
+        {/* failure diff / error message */}
         {stepMessage && (
-          <div className="px-3 py-2 rounded bg-red-500/10 border border-red-500/30">
-            <p className="text-[11px] font-mono text-red-400">{stepMessage}</p>
-          </div>
+          <FailureDiff message={stepMessage} responseMeta={responseMeta} />
         )}
 
         {/* response viewer */}
