@@ -31,17 +31,21 @@ items:
     testCasePath: test-cases/ecm-api/folders/folders-crud.test.yaml
     enabled: true
     order: 5
+  - testCaseId: a1b2c3d4-e5f6-7890-abcd-ef1234567810
+    testCasePath: test-cases/ecm-api/roles/roles-crud.test.yaml
+    enabled: true
+    order: 6
   - testCaseId: a1b2c3d4-e5f6-7890-abcd-ef1234567804
     testCasePath: test-cases/ecm-api/documents/documents-crud.test.yaml
     enabled: true
-    order: 6
+    order: 7
   - testCaseId: a1b2c3d4-e5f6-7890-abcd-ef1234567807
     testCasePath: test-cases/ecm-api/search/search-documents.test.yaml
     enabled: true
-    order: 7
+    order: 8
   - testCaseId: a1b2c3d4-e5f6-7890-abcd-ef1234567802
     testCasePath: test-cases/ecm-api/auth/refresh-token.test.yaml
     enabled: true
-    order: 8
+    order: 9
 createdAt: 2026-06-19T00:00:00.000Z
-updatedAt: 2026-06-23T18:36:30.354Z
+updatedAt: 2026-06-25T11:48:00.000Z

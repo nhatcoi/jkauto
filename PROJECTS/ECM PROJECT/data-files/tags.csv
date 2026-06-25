@@ -1,0 +1,5 @@
+name,color,expected_status,scenario,description
+Automated Tag CSV,#1a2b3c,201,happy-path,Create valid tag via CSV
+Automated Tag CSV Duplicate,#4a5b6c,201,happy-path,Create another valid tag
+Automated Tag CSV Duplicate,#123456,409,negative,Create tag with duplicate name
+,#789012,400,boundary,Create tag with empty name

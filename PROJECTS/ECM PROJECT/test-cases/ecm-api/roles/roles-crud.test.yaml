@@ -1,0 +1,77 @@
+schemaVersion: 1
+id: a1b2c3d4-e5f6-7890-abcd-ef1234567810
+name: Roles CRUD Lifecycle
+description: Create custom role -> get by ID -> update permissions -> delete
+tags:
+  - api
+  - roles
+  - crud
+platform: api
+runner: api
+variables:
+  ROLE_NAME: custom_tester
+  ROLE_NAME_UPDATED: custom_tester_updated
+steps:
+  - id: s1
+    keyword: http-request-body
+    description: POST /roles — create custom role
+    objectRef: POST
+    input: /roles
+    expected: '{"name":"{{ROLE_NAME}}","permissions":["docs:read","docs:write"]}'
+  - id: s2
+    keyword: assert-status-code
+    description: Expect 201 Created
+    expected: "201"
+  - id: s3
+    keyword: assert-response-contains
+    description: Response contains role ID
+    expected: id
+  - id: s4
+    keyword: extract-body
+    description: Extract role ID
+    objectRef: $.id
+    input: roleId
+  - id: s5
+    keyword: http-request
+    description: GET /roles/:id — get role details
+    objectRef: GET
+    input: /roles/{{roleId}}
+  - id: s6
+    keyword: assert-status-code
+    description: Expect 200 OK
+    expected: "200"
+  - id: s7
+    keyword: assert-json-path
+    description: Verify role name
+    objectRef: name
+    expected: "{{ROLE_NAME}}"
+  - id: s8
+    keyword: http-request-body
+    description: PUT /roles/:id — update role permissions & name
+    objectRef: PUT
+    input: /roles/{{roleId}}
+    expected: '{"name":"{{ROLE_NAME_UPDATED}}","permissions":["docs:read","docs:write","docs:delete"]}'
+  - id: s9
+    keyword: assert-status-code
+    description: Expect 200 OK after update
+    expected: "200"
+  - id: s10
+    keyword: assert-json-path
+    description: Verify updated name
+    objectRef: name
+    expected: "{{ROLE_NAME_UPDATED}}"
+  - id: s11
+    keyword: http-request
+    description: DELETE /roles/:id — delete custom role
+    objectRef: DELETE
+    input: /roles/{{roleId}}
+  - id: s12
+    keyword: assert-status-code
+    description: Expect 200 OK after deletion
+    expected: "200"
+  - id: s13
+    keyword: log-response
+    description: Log delete response
+    continueOnFailure: true
+createdAt: "2026-06-25T11:45:00.000Z"
+updatedAt: "2026-06-25T11:45:00.000Z"

@@ -1,0 +1,24 @@
+schemaVersion: 1
+id: a1b2c3d4-e5f6-7890-abcd-ef1234567809
+name: Tags Data-Driven Creation
+description: Data-driven tags creation using CSV.
+tags:
+  - api
+  - tags
+  - data-driven
+platform: api
+runner: api
+dataFile: data-files/tags.csv
+steps:
+  - id: s1
+    keyword: http-request-body
+    description: POST /tags — create tag from data row
+    objectRef: POST
+    input: /tags
+    expected: '{"name":"{{name}}","color":"{{color}}"}'
+  - id: s2
+    keyword: assert-status-code
+    description: Expect status code to match CSV
+    expected: "{{expected_status}}"
+createdAt: "2026-06-25T11:45:00.000Z"
+updatedAt: "2026-06-25T11:45:00.000Z"

@@ -7,16 +7,20 @@ import {
   Play,
   Save,
   Square,
+  Tag,
   Undo2,
   Redo2,
 } from 'lucide-react'
 import type { TestSuite } from '@jkauto/core'
 import type { TestCaseOption } from '../hooks/useSuite'
 import { listEnvs } from '@/features/env/api'
+import { cn } from '@/lib/utils'
 
 interface SuiteToolbarProps {
   suite: TestSuite
   testCases: TestCaseOption[]
+  allTags: string[]
+  tagFilter: string[]
   saving: boolean
   runStatus: 'idle' | 'running' | 'passed' | 'failed' | 'stopped'
   selectedIdx: number | null
@@ -33,15 +37,16 @@ interface SuiteToolbarProps {
   onSave: () => void
   onUndo: () => void
   onRedo: () => void
+  onTagFilter: (tags: string[]) => void
 }
 
 export function SuiteToolbar({
-  suite, testCases, saving, runStatus,
+  suite, testCases, allTags, tagFilter, saving, runStatus,
   selectedIdx, totalItems, projectPath,
   canUndo, canRedo,
   onMutate, onAddCase, onMoveUp, onMoveDown,
   onRunSuite, onStopSuite, onSave,
-  onUndo, onRedo,
+  onUndo, onRedo, onTagFilter,
 }: SuiteToolbarProps) {
   const [profiles, setProfiles] = useState<string[]>([])
   const [selectedPath, setSelectedPath] = useState('')
@@ -138,6 +143,43 @@ export function SuiteToolbar({
       </button>
 
       <div className="flex-1" />
+
+      {allTags.length > 0 && (
+        <div className="flex items-center gap-1 flex-wrap">
+          <Tag className="w-3 h-3 text-muted-foreground shrink-0" />
+          {allTags.map((tag) => {
+            const active = tagFilter.includes(tag)
+            return (
+              <button
+                key={tag}
+                type="button"
+                onClick={() =>
+                  onTagFilter(
+                    active ? tagFilter.filter((t) => t !== tag) : [...tagFilter, tag],
+                  )
+                }
+                className={cn(
+                  'text-[10px] px-1.5 py-0.5 rounded border transition-colors leading-4',
+                  active
+                    ? 'bg-primary/20 text-primary border-primary/50'
+                    : 'bg-muted/30 text-muted-foreground border-border hover:border-primary/40 hover:text-foreground',
+                )}
+              >
+                {tag}
+              </button>
+            )
+          })}
+          {tagFilter.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onTagFilter([])}
+              className="text-[10px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-destructive transition-colors"
+            >
+              ✕ clear
+            </button>
+          )}
+        </div>
+      )}
 
       <input
         type="text"

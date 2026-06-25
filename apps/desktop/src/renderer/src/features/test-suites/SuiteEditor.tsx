@@ -11,9 +11,10 @@ import { SuiteFooter } from './components/SuiteFooter'
 export function SuiteEditor({ filePath }: { filePath: string }) {
   const { openTab } = useProjectStore()
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
+  const [tagFilter, setTagFilter] = useState<string[]>([])
 
   const {
-    suite, testCases, sortedItems, itemNames, saving, error,
+    suite, testCases, sortedItems, itemNames, itemTags, allTags, saving, error,
     suiteRef, activeProject,
     mutate, save, saveSuiteToFile,
     addTestCase, removeItem, updateItem, moveItem,
@@ -89,6 +90,8 @@ export function SuiteEditor({ filePath }: { filePath: string }) {
       <SuiteToolbar
         suite={suite}
         testCases={testCases}
+        allTags={allTags}
+        tagFilter={tagFilter}
         saving={saving}
         runStatus={runStatus}
         selectedIdx={selectedIdx}
@@ -105,6 +108,7 @@ export function SuiteEditor({ filePath }: { filePath: string }) {
         onSave={save}
         onUndo={undo}
         onRedo={redo}
+        onTagFilter={setTagFilter}
       />
 
       <div className="px-3 py-2 border-b border-border bg-muted/10 shrink-0">
@@ -119,11 +123,13 @@ export function SuiteEditor({ filePath }: { filePath: string }) {
       <SuiteTable
         sortedItems={sortedItems}
         itemNames={itemNames}
+        itemTags={itemTags}
         caseStatuses={caseStatuses}
         caseMessages={caseMessages}
         selectedIdx={selectedIdx}
         runStatus={runStatus}
         projectRoot={activeProject?.path}
+        tagFilter={tagFilter}
         onSelectIdx={setSelectedIdx}
         onUpdateItem={updateItem}
         onRemoveItem={(idx) => { removeItem(idx); setSelectedIdx(null) }}

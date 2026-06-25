@@ -12,6 +12,7 @@ export interface TestCaseOption {
   id: string
   name: string
   path: string
+  tags: string[]
 }
 
 function isTestCasePath(path: string) {
@@ -68,9 +69,14 @@ async function readTestCaseOption(path: string): Promise<TestCaseOption> {
   try {
     const raw = await invoke<string>(IpcChannels.FS_READ_FILE, path)
     const parsed = yamlParse(raw) as Partial<TestCase>
-    return { id: parsed.id ?? path, name: parsed.name ?? stripTestCaseExtension(path), path }
+    return {
+      id: parsed.id ?? path,
+      name: parsed.name ?? stripTestCaseExtension(path),
+      path,
+      tags: Array.isArray(parsed.tags) ? parsed.tags.map(String) : [],
+    }
   } catch {
-    return { id: path, name: stripTestCaseExtension(path), path }
+    return { id: path, name: stripTestCaseExtension(path), path, tags: [] }
   }
 }
 
@@ -99,6 +105,23 @@ export function useSuite(filePath: string) {
       }),
     )
   }, [sortedItems, testCases])
+
+  const itemTags = useMemo(() => {
+    const byId = new Map(testCases.map((tc) => [tc.id, tc]))
+    const byPath = new Map(testCases.map((tc) => [tc.path, tc]))
+    return new Map(
+      sortedItems.map((item) => {
+        const match = byId.get(item.testCaseId) ?? byPath.get(item.testCasePath)
+        return [item.testCasePath, match?.tags ?? []]
+      }),
+    )
+  }, [sortedItems, testCases])
+
+  const allTags = useMemo(() => {
+    const set = new Set<string>()
+    for (const tc of testCases) tc.tags.forEach((t) => set.add(t))
+    return [...set].sort()
+  }, [testCases])
 
   const loadSuite = useCallback(async () => {
     try {
@@ -218,7 +241,7 @@ export function useSuite(filePath: string) {
   }, [mutate])
 
   return {
-    suite, testCases, sortedItems, itemNames, saving, error,
+    suite, testCases, sortedItems, itemNames, itemTags, allTags, saving, error,
     suiteRef, activeProject,
     mutate, save, saveSuiteToFile,
     addTestCase, removeItem, updateItem, moveItem,
